@@ -51,10 +51,11 @@ async function callAIWithFallback(
 
   if (groq) {
     try {
+      const guardedSystemPrompt = `${systemPrompt}\n\nCRITICAL INSTRUCTION: Do NOT generate or attempt to invoke any tool calls or function calls. Return RAW JSON ONLY.`;
       const response = await groq.chat.completions.create({
-        model: 'llama-3.3-70b-versatile',
+        model: 'openai/gpt-oss-120b',
         messages: [
-          { role: 'system', content: systemPrompt },
+          { role: 'system', content: guardedSystemPrompt },
           { role: 'user', content: userPrompt },
         ],
         max_tokens: 1000,
@@ -67,51 +68,99 @@ async function callAIWithFallback(
     }
   }
 
+  // 2. Tier 2 Fallback: Google AI Studio Direct (Gemini)
+  const geminiKey = process.env.GEMINI_API_KEY;
+  if (geminiKey) {
+    try {
+      const gemini = new OpenAI({
+        apiKey: geminiKey,
+        baseURL: 'https://generativelanguage.googleapis.com/v1beta/openai/',
+      });
+      const response = await gemini.chat.completions.create({
+        model: 'gemini-3.7-flash',
+        messages: [
+          { role: 'system', content: `${systemPrompt}\n\nCRITICAL INSTRUCTION: Do NOT generate or attempt to invoke any tool calls or function calls. Return RAW JSON ONLY.` },
+          { role: 'user', content: userPrompt },
+        ],
+        max_tokens: 1000,
+        temperature,
+      });
+      const content = response.choices[0]?.message?.content;
+      if (content) return cleanAndRepairJson(content);
+    } catch (err: any) {
+      console.warn('[Gemini Error] Trying backup:', err.message || err);
+    }
+  }
+
+  // 3. Tier 3 Fallback: Mistral AI (La Plateforme)
+  const mistralKey = process.env.MISTRAL_API_KEY;
+  if (mistralKey) {
+    try {
+      const mistral = new OpenAI({
+        apiKey: mistralKey,
+        baseURL: 'https://api.mistral.ai/v1',
+      });
+      const response = await mistral.chat.completions.create({
+        model: 'mistral-small-latest',
+        messages: [
+          { role: 'system', content: `${systemPrompt}\n\nCRITICAL INSTRUCTION: Do NOT generate or attempt to invoke any tool calls or function calls. Return RAW JSON ONLY.` },
+          { role: 'user', content: userPrompt },
+        ],
+        max_tokens: 1000,
+        temperature,
+      });
+      const content = response.choices[0]?.message?.content;
+      if (content) return cleanAndRepairJson(content);
+    } catch (err: any) {
+      console.warn('[Mistral Error] Trying backup:', err.message || err);
+    }
+  }
+
+  // 4. Tier 4 Fallback: DeepSeek
+  const deepseekKey = process.env.DEEPSEEK_API_KEY;
+  if (deepseekKey) {
+    try {
+      const deepseek = new OpenAI({
+        apiKey: deepseekKey,
+        baseURL: 'https://api.deepseek.com',
+      });
+      const response = await deepseek.chat.completions.create({
+        model: 'deepseek-v4-flash',
+        messages: [
+          { role: 'system', content: `${systemPrompt}\n\nCRITICAL INSTRUCTION: Do NOT generate or attempt to invoke any tool calls or function calls. Return RAW JSON ONLY.` },
+          { role: 'user', content: userPrompt },
+        ],
+        max_tokens: 1000,
+        temperature,
+      });
+      const content = response.choices[0]?.message?.content;
+      if (content) return cleanAndRepairJson(content);
+    } catch (err: any) {
+      console.warn('[DeepSeek Error] Trying backup:', err.message || err);
+    }
+  }
+
+  // 5. Tier 5 Fallback: OpenRouter (Last Resort)
   const openrouter = getOpenRouterClient();
-
-  if (!openrouter) {
-    throw new Error('OPEN_ROUTER_API_KEY is not configured.');
+  if (openrouter) {
+    try {
+      const response = await openrouter.chat.completions.create({
+        model: 'auto:free',
+        messages: [
+          { role: 'system', content: `${systemPrompt}\n\nCRITICAL INSTRUCTION: Do NOT generate or attempt to invoke any tool calls or function calls. Return RAW JSON ONLY.` },
+          { role: 'user', content: userPrompt },
+        ],
+        max_tokens: 1000,
+        temperature,
+      });
+      const content = response.choices[0]?.message?.content;
+      if (content) return cleanAndRepairJson(content);
+    } catch (err: any) {
+      console.error('[OpenRouter Error]:', err.message || err);
+    }
   }
 
-  // OpenRouter Primary: Llama 3.3 70B Free
-  const PRIMARY_OPENROUTER_MODEL = 'meta-llama/llama-3.3-70b-instruct:free';
-  // OpenRouter Secondary: Stick to free model
-  const SECONDARY_OPENROUTER_MODEL = 'meta-llama/llama-3.3-70b-instruct:free';
-
-  try {
-    const response = await openrouter.chat.completions.create({
-      model: PRIMARY_OPENROUTER_MODEL,
-      messages: [
-        { role: 'system', content: systemPrompt },
-        { role: 'user', content: userPrompt },
-      ],
-      max_tokens: 1000,
-      temperature,
-    });
-    const content = response.choices[0]?.message?.content;
-    if (content) return cleanAndRepairJson(content);
-  } catch (err: any) {
-    console.warn(`[OpenRouter ${PRIMARY_OPENROUTER_MODEL} Error] Trying backup:`, err.message || err);
-  }
-
-  // Fallback
-  try {
-    const response = await openrouter.chat.completions.create({
-      model: SECONDARY_OPENROUTER_MODEL,
-      messages: [
-        { role: 'system', content: systemPrompt },
-        { role: 'user', content: userPrompt },
-      ],
-      max_tokens: 1000,
-      temperature,
-    });
-    const content = response.choices[0]?.message?.content;
-    if (content) return cleanAndRepairJson(content);
-  } catch (err: any) {
-    console.error(`[OpenRouter ${SECONDARY_OPENROUTER_MODEL} Error]:`, err.message || err);
-  }
-
-  throw new Error('All AI completion calls failed across OpenRouter endpoints.');
+  throw new Error('All AI completion calls failed across Groq, Gemini, Mistral, DeepSeek, and OpenRouter endpoints.');
 }
 
 export async function generateLeadAuditAndPitch(

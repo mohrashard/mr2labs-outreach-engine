@@ -150,13 +150,16 @@ async function disambiguateFounderWithGroq(
   cleanName: string,
   rootDomain: string
 ): Promise<DisambiguatedFounder> {
-  const systemPrompt = `You are an executive research assistant. Your job is to extract the exact First and Last name of the real Founder, CEO, or Owner of the target company.
+  const systemPrompt = `You are an executive research assistant. Your job is to extract the exact First and Last name of the real Founder, CEO, Owner, or Principal Broker of the target company — the actual decision-maker, not a senior employee, broker, or division head who works there.
 Target Company: "${cleanName}" (Domain: "${rootDomain}")
 
 Rules:
-1. Distinguish between the actual founder/owner of the target company vs. an independent realtor, employee, or external author who merely mentioned the company.
-2. If confident, return valid JSON: { "first_name": "...", "last_name": "...", "confidence": "HIGH" }
-3. If no true founder/CEO is found in the snippets, return JSON: { "first_name": null, "last_name": null, "confidence": "NONE" }`;
+1. Only accept titles that indicate ownership or top-level authority: Founder, Co-Founder, CEO, President, Owner, Principal Broker.
+2. REJECT titles like "Managing Director," "Vice President," "Broker Associate," "Sales Director," or "Team Lead" unless the snippet explicitly also states they founded or own the company.
+3. If confident, return valid JSON: { "first_name": "...", "last_name": "...", "confidence": "HIGH" }
+4. If no true founder/CEO/owner is found in the snippets, return JSON: { "first_name": null, "last_name": null, "confidence": "NONE" }
+
+CRITICAL INSTRUCTION: Do NOT generate or attempt to invoke any tool calls or function calls. You are returning raw text formatted as JSON only.`;
 
   const resultsText = organicResults
     .slice(0, 5)
@@ -175,7 +178,7 @@ Rules:
       });
 
       const response = await groq.chat.completions.create({
-        model: 'llama-3.3-70b-versatile',
+        model: 'openai/gpt-oss-120b',
         messages: [
           { role: 'system', content: systemPrompt },
           { role: 'user', content: userPrompt },
@@ -200,7 +203,112 @@ Rules:
     }
   }
 
-  // 2. Secondary Fallback: OpenRouter
+  // 2. Tier 2 Fallback: Google AI Studio Direct (Gemini)
+  const geminiKey = process.env.GEMINI_API_KEY;
+  if (geminiKey) {
+    try {
+      const gemini = new OpenAI({
+        apiKey: geminiKey,
+        baseURL: 'https://generativelanguage.googleapis.com/v1beta/openai/',
+      });
+
+      const response = await gemini.chat.completions.create({
+        model: 'gemini-3.7-flash',
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: userPrompt },
+        ],
+        response_format: { type: 'json_object' },
+        temperature: 0.1,
+      });
+
+      const content = response.choices[0]?.message?.content;
+      if (content) {
+        const parsed = JSON.parse(content.replace(/^```json\s*/i, '').replace(/\s*```$/, '').trim());
+        if (parsed.confidence === 'HIGH' && parsed.first_name) {
+          return {
+            first_name: String(parsed.first_name).trim(),
+            last_name: parsed.last_name ? String(parsed.last_name).trim() : null,
+            confidence: 'HIGH'
+          };
+        }
+      }
+    } catch (err: any) {
+      console.warn('[Gemini Disambiguator Warning]:', err?.message || err);
+    }
+  }
+
+  // 3. Tier 3 Fallback: Mistral AI (La Plateforme)
+  const mistralKey = process.env.MISTRAL_API_KEY;
+  if (mistralKey) {
+    try {
+      const mistral = new OpenAI({
+        apiKey: mistralKey,
+        baseURL: 'https://api.mistral.ai/v1',
+      });
+
+      const response = await mistral.chat.completions.create({
+        model: 'mistral-small-latest',
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: userPrompt },
+        ],
+        response_format: { type: 'json_object' },
+        temperature: 0.1,
+      });
+
+      const content = response.choices[0]?.message?.content;
+      if (content) {
+        const parsed = JSON.parse(content.replace(/^```json\s*/i, '').replace(/\s*```$/, '').trim());
+        if (parsed.confidence === 'HIGH' && parsed.first_name) {
+          return {
+            first_name: String(parsed.first_name).trim(),
+            last_name: parsed.last_name ? String(parsed.last_name).trim() : null,
+            confidence: 'HIGH'
+          };
+        }
+      }
+    } catch (err: any) {
+      console.warn('[Mistral Disambiguator Warning]:', err?.message || err);
+    }
+  }
+
+  // 4. Tier 4 Fallback: DeepSeek
+  const deepseekKey = process.env.DEEPSEEK_API_KEY;
+  if (deepseekKey) {
+    try {
+      const deepseek = new OpenAI({
+        apiKey: deepseekKey,
+        baseURL: 'https://api.deepseek.com',
+      });
+
+      const response = await deepseek.chat.completions.create({
+        model: 'deepseek-v4-flash',
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: userPrompt },
+        ],
+        response_format: { type: 'json_object' },
+        temperature: 0.1,
+      });
+
+      const content = response.choices[0]?.message?.content;
+      if (content) {
+        const parsed = JSON.parse(content.replace(/^```json\s*/i, '').replace(/\s*```$/, '').trim());
+        if (parsed.confidence === 'HIGH' && parsed.first_name) {
+          return {
+            first_name: String(parsed.first_name).trim(),
+            last_name: parsed.last_name ? String(parsed.last_name).trim() : null,
+            confidence: 'HIGH'
+          };
+        }
+      }
+    } catch (err: any) {
+      console.warn('[DeepSeek Disambiguator Warning]:', err?.message || err);
+    }
+  }
+
+  // 5. Tier 5 Fallback: OpenRouter (Last Resort)
   const openrouterKey = process.env.OPEN_ROUTER_API_KEY || process.env.OPENROUTER_API_KEY;
   if (openrouterKey) {
     try {
@@ -214,7 +322,7 @@ Rules:
       });
 
       const response = await openrouter.chat.completions.create({
-        model: 'meta-llama/llama-3.3-70b-instruct:free',
+        model: 'auto:free',
         messages: [
           { role: 'system', content: systemPrompt },
           { role: 'user', content: userPrompt },
@@ -247,13 +355,19 @@ Rules:
  */
 async function fetchEmailViaDorking(
   companyName: string, 
-  domainUrl: string
+  domainUrl: string,
+  targetPersonas?: string[]
 ): Promise<{ email: string; source: 'SERPER_DORK' | 'SERPAPI_DORK' } | null> {
   const rootDomain = extractCleanHostname(domainUrl);
   const cleanName = sanitizeCompanyName(companyName, domainUrl);
   
+  const personas = (targetPersonas && targetPersonas.length > 0)
+    ? targetPersonas
+    : ["Founder", "Co-Founder", "CEO", "Owner", "Principal Broker"];
+  const personaQuery = personas.map(p => `"${p}"`).join(' OR ');
+
   // High-Precision Dork Syntax
-  const query = `site:linkedin.com/in/ ("Founder" OR "CEO" OR "Owner" OR "Principal Broker" OR "Managing Director") "${cleanName}"`;
+  const query = `site:linkedin.com/in/ (${personaQuery}) "${cleanName}" "${rootDomain}"`;
 
   let organicResults: any[] = [];
   let dorkSource: 'SERPER_DORK' | 'SERPAPI_DORK' = 'SERPER_DORK';
@@ -507,7 +621,9 @@ Read the provided website text and determine if this business fits the target ni
 - ACCEPT: Actual, operational companies that fit the "${activeNiche}" profile.
 - REJECT: Global franchises, massive conglomerates, news/media publishers, job boards, aggregators/directories (e.g., Zillow, Clutch, Yelp), or empty parked domains.
 
-Return JSON ONLY: { "is_qualified": boolean, "reason": "Brief explanation of why it fits or fails" }`;
+Return JSON ONLY: { "is_qualified": boolean, "reason": "Brief explanation of why it fits or fails" }
+
+CRITICAL INSTRUCTION: Do NOT generate or attempt to invoke any tool calls or function calls. You are returning raw text formatted as JSON only.`;
 
   const userPrompt = `Target URL: ${url}\nTarget Niche: ${activeNiche}\nWebsite Text Snippet:\n${domSnippet.slice(0, 3000)}`;
 
@@ -521,7 +637,7 @@ Return JSON ONLY: { "is_qualified": boolean, "reason": "Brief explanation of why
       });
 
       const response = await groq.chat.completions.create({
-        model: 'llama-3.3-70b-versatile',
+        model: 'openai/gpt-oss-120b',
         messages: [
           { role: 'system', content: systemPrompt },
           { role: 'user', content: userPrompt },
@@ -546,7 +662,112 @@ Return JSON ONLY: { "is_qualified": boolean, "reason": "Brief explanation of why
     }
   }
 
-  // 2. OpenRouter Fallback
+  // 2. Tier 2 Fallback: Google AI Studio Direct (Gemini)
+  const geminiKey = process.env.GEMINI_API_KEY;
+  if (geminiKey) {
+    try {
+      const gemini = new OpenAI({
+        apiKey: geminiKey,
+        baseURL: 'https://generativelanguage.googleapis.com/v1beta/openai/',
+      });
+
+      const response = await gemini.chat.completions.create({
+        model: 'gemini-3.7-flash',
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: userPrompt },
+        ],
+        response_format: { type: 'json_object' },
+        temperature: 0.1,
+      });
+
+      const content = response.choices[0]?.message?.content;
+      if (content) {
+        const parsed = JSON.parse(content.replace(/^```json\s*/i, '').replace(/\s*```$/, '').trim());
+        if (typeof parsed.is_qualified === 'boolean') {
+          if (!parsed.is_qualified) {
+            console.log(`[Bouncer Rejection] ${url}: ${parsed.reason || 'Unqualified target'}`);
+            return false;
+          }
+          return true;
+        }
+      }
+    } catch (err: any) {
+      console.warn('[Bouncer Gemini Warning]:', err?.message || err);
+    }
+  }
+
+  // 3. Tier 3 Fallback: Mistral AI (La Plateforme)
+  const mistralKey = process.env.MISTRAL_API_KEY;
+  if (mistralKey) {
+    try {
+      const mistral = new OpenAI({
+        apiKey: mistralKey,
+        baseURL: 'https://api.mistral.ai/v1',
+      });
+
+      const response = await mistral.chat.completions.create({
+        model: 'mistral-small-latest',
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: userPrompt },
+        ],
+        response_format: { type: 'json_object' },
+        temperature: 0.1,
+      });
+
+      const content = response.choices[0]?.message?.content;
+      if (content) {
+        const parsed = JSON.parse(content.replace(/^```json\s*/i, '').replace(/\s*```$/, '').trim());
+        if (typeof parsed.is_qualified === 'boolean') {
+          if (!parsed.is_qualified) {
+            console.log(`[Bouncer Rejection] ${url}: ${parsed.reason || 'Unqualified target'}`);
+            return false;
+          }
+          return true;
+        }
+      }
+    } catch (err: any) {
+      console.warn('[Bouncer Mistral Warning]:', err?.message || err);
+    }
+  }
+
+  // 4. Tier 4 Fallback: DeepSeek
+  const deepseekKey = process.env.DEEPSEEK_API_KEY;
+  if (deepseekKey) {
+    try {
+      const deepseek = new OpenAI({
+        apiKey: deepseekKey,
+        baseURL: 'https://api.deepseek.com',
+      });
+
+      const response = await deepseek.chat.completions.create({
+        model: 'deepseek-v4-flash',
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: userPrompt },
+        ],
+        response_format: { type: 'json_object' },
+        temperature: 0.1,
+      });
+
+      const content = response.choices[0]?.message?.content;
+      if (content) {
+        const parsed = JSON.parse(content.replace(/^```json\s*/i, '').replace(/\s*```$/, '').trim());
+        if (typeof parsed.is_qualified === 'boolean') {
+          if (!parsed.is_qualified) {
+            console.log(`[Bouncer Rejection] ${url}: ${parsed.reason || 'Unqualified target'}`);
+            return false;
+          }
+          return true;
+        }
+      }
+    } catch (err: any) {
+      console.warn('[Bouncer DeepSeek Warning]:', err?.message || err);
+    }
+  }
+
+  // 5. Tier 5 Fallback: OpenRouter (Last Resort)
   const openrouterKey = process.env.OPEN_ROUTER_API_KEY || process.env.OPENROUTER_API_KEY;
   if (openrouterKey) {
     try {
@@ -560,7 +781,7 @@ Return JSON ONLY: { "is_qualified": boolean, "reason": "Brief explanation of why
       });
 
       const response = await openrouter.chat.completions.create({
-        model: 'meta-llama/llama-3.3-70b-instruct:free',
+        model: 'auto:free',
         messages: [
           { role: 'system', content: systemPrompt },
           { role: 'user', content: userPrompt },
@@ -596,7 +817,8 @@ Return JSON ONLY: { "is_qualified": boolean, "reason": "Brief explanation of why
 export async function deepEnrichDomain(
   domainUrl: string,
   companyName?: string,
-  targetNiche?: string
+  targetNiche?: string,
+  targetPersonas?: string[]
 ): Promise<EnrichedContactData> {
   const targetUrls = [
     domainUrl,
@@ -719,7 +941,7 @@ export async function deepEnrichDomain(
     // Tier 2: Smart API Dorking for Founder with Groq Disambiguation (Serper API -> SerpApi fallback)
     const effectiveCompanyName = companyName || domainToTitleCase(rootDomain);
 
-    const dorkResult = await fetchEmailViaDorking(effectiveCompanyName, domainUrl);
+    const dorkResult = await fetchEmailViaDorking(effectiveCompanyName, domainUrl, targetPersonas);
     if (dorkResult) {
       email = dorkResult.email;
       enrichment_source = dorkResult.source;
@@ -771,8 +993,9 @@ export async function deepEnrichDomain(
 export async function enrichLeadEmail(
   domainUrl: string,
   domHtmlText?: string,
-  targetNiche?: string
+  targetNiche?: string,
+  targetPersonas?: string[]
 ): Promise<string | null> {
-  const data = await deepEnrichDomain(domainUrl, undefined, targetNiche);
+  const data = await deepEnrichDomain(domainUrl, undefined, targetNiche, targetPersonas);
   return data.email;
 }

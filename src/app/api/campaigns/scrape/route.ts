@@ -31,19 +31,27 @@ export async function POST(req: Request) {
       if (latest) campaignId = latest.id;
     }
 
-    // 1. Discover target domains (Queries Serper page 1 & 2 -> ~100 raw results)
-    const targetLeads = await discoverTargetDomains(niche, location);
-
     const processedLeads = [];
     let validEmailCount = 0;
+    const leadsNeeded = 20;
 
-    // 2. Process discovery targets sequentially with Waterfall Enrichment
-    for (const target of targetLeads) {
-      // Daily Cap Guard: Break loop as soon as 20 valid enriched leads are stored
-      if (validEmailCount >= 20) {
-        console.log('[Scrape Pipeline] Target quota reached (20 valid enriched leads). Breaking enrichment loop.');
-        break;
+    // 1. Phase 1: Discovery Sweep
+    console.log('[Scrape Pipeline] Phase 1: Aggregating raw leads from Google...');
+    const rawCandidates = [];
+    for (let p = 1; p <= 5; p++) {
+      const pageLeads = await discoverTargetDomains(niche, location, p);
+      if (pageLeads.length > 0) {
+        rawCandidates.push(...pageLeads);
       }
+    }
+    console.log(`[Scrape Pipeline] Phase 1 Complete: Found ${rawCandidates.length} raw candidates.`);
+
+    // 2. Phase 2: Sequential Deep Dive
+    console.log('[Scrape Pipeline] Phase 2: Sequential Deep Dive...');
+    for (const target of rawCandidates) {
+      if (validEmailCount >= leadsNeeded) break;
+
+      console.log(`[Processing Lead] Evaluating: ${target.websiteUrl}`);
 
       // Deduplicate against database
       const { data: existing } = await supabaseAdmin.from('outreach_leads').select('id').eq('website_url', target.websiteUrl).maybeSingle();
@@ -54,24 +62,24 @@ export async function POST(req: Request) {
 
       // If the AI Bouncer rejected this company, skip saving it to the database entirely
       if (contactData.is_rejected) {
-        console.log(`[Scrape Route] Skipping database insertion for rejected lead: ${target.websiteUrl}`);
+        console.log(`[Bouncer] Rejected: ${target.websiteUrl}`);
+        continue;
+      }
+
+      if (!contactData.email) {
+        console.log(`[Enrichment] No verified email found for: ${target.websiteUrl}`);
         continue;
       }
 
       // Generate AI audit, pitch, and email subject line using Niche Matrix
       const aiResult = await generateAuditAndPitch(target.companyName, target.websiteUrl, contactData.dom_snippet, niche);
 
-      const status = contactData.email ? 'NEW' : 'MISSING_EMAIL';
-      if (contactData.email) {
-        validEmailCount++;
-      }
-
       const screenshotUrl = `https://api.microlink.io?url=${encodeURIComponent(target.websiteUrl)}&screenshot=true`;
 
       const leadRecord = {
         companyName: target.companyName,
         websiteUrl: target.websiteUrl,
-        contactEmail: contactData.email || 'N/A',
+        contactEmail: contactData.email,
         phone: contactData.phone,
         whatsapp: contactData.whatsapp,
         instagramUrl: contactData.instagram_url,
@@ -79,11 +87,13 @@ export async function POST(req: Request) {
         emailSubject: aiResult.email_subject,
         auditNotes: aiResult.audit_summary,
         pitchText: aiResult.generated_pitch,
-        status,
+        status: 'NEW',
         enrichmentSource: contactData.enrichment_source || 'NONE'
       };
 
       processedLeads.push(leadRecord);
+      validEmailCount++;
+      console.log(`[Success] Saved lead ${validEmailCount}/${leadsNeeded}: ${target.websiteUrl}`);
 
       // Persist to Supabase
       if (campaignId) {
@@ -99,7 +109,7 @@ export async function POST(req: Request) {
           email_subject: aiResult.email_subject,
           audit_notes: aiResult.audit_summary,
           pitch_text: aiResult.generated_pitch,
-          status,
+          status: 'NEW',
           screenshot_url: screenshotUrl,
           raw_scraped_data: { 
             snippet: target.snippet, 

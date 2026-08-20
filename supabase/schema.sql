@@ -92,7 +92,34 @@ END $$;
 
 -- 4. Add dynamic daily limit configuration to campaigns
 ALTER TABLE campaigns 
-  ADD COLUMN IF NOT EXISTS daily_lead_limit INT DEFAULT 20;
+  ADD COLUMN IF NOT EXISTS daily_lead_limit INT DEFAULT 20,
+  ADD COLUMN IF NOT EXISTS exhausted_locations TEXT[] DEFAULT '{}';
 
 COMMIT;
 
+-- 1. Remove all old test data (Reset to 0)
+TRUNCATE TABLE activity_logs, outreach_leads, campaigns RESTART IDENTITY CASCADE;
+
+-- 2. Ensure all required columns exist on the campaigns table
+ALTER TABLE campaigns 
+  ADD COLUMN IF NOT EXISTS daily_lead_limit INT DEFAULT 20,
+  ADD COLUMN IF NOT EXISTS exhausted_locations TEXT[] DEFAULT '{}';
+
+-- 3. Ensure all required columns & indexes exist on outreach_leads
+ALTER TABLE outreach_leads 
+  ADD COLUMN IF NOT EXISTS email_subject TEXT,
+  ADD COLUMN IF NOT EXISTS follow_up_step INT DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS last_contacted_at TIMESTAMPTZ;
+
+CREATE INDEX IF NOT EXISTS idx_outreach_leads_status_step 
+  ON outreach_leads(status, follow_up_step);
+
+-- 4. Add UNIQUE constraint to prevent duplicate website prospecting
+DO $$ 
+BEGIN
+    ALTER TABLE outreach_leads ADD CONSTRAINT unique_website_url UNIQUE (website_url);
+EXCEPTION
+    WHEN duplicate_table THEN NULL;
+    WHEN duplicate_object THEN NULL;
+    WHEN others THEN NULL;
+END $$;

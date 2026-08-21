@@ -3,8 +3,11 @@ import { discoverTargetDomains } from '@/lib/scraper/discovery';
 import { deepEnrichDomain } from '@/lib/scraper/enrichment';
 import { generateAuditAndPitch } from '@/lib/ai/pitch';
 import { supabaseAdmin } from '@/lib/supabase/admin';
+import { Client } from '@upstash/qstash';
 
-export const maxDuration = 300;
+export const maxDuration = 60; // Returns immediately after Phase 1 discovery and QStash dispatch
+
+const qstash = process.env.QSTASH_TOKEN ? new Client({ token: process.env.QSTASH_TOKEN }) : null;
 
 export async function POST(req: Request) {
   try {
@@ -31,49 +34,81 @@ export async function POST(req: Request) {
       if (latest) campaignId = latest.id;
     }
 
-    const processedLeads = [];
-    let validEmailCount = 0;
     const leadsNeeded = 20;
 
-    // 1. Phase 1: Discovery Sweep
+    // 1. Phase 1: Fast Discovery Sweep (Executes in ~3-5 seconds)
     console.log('[Scrape Pipeline] Phase 1: Aggregating raw leads from Google...');
     const rawCandidates = [];
-    for (let p = 1; p <= 5; p++) {
+    for (let p = 1; p <= 3; p++) {
       const pageLeads = await discoverTargetDomains(niche, location, p);
       if (pageLeads.length > 0) {
         rawCandidates.push(...pageLeads);
       }
+      if (rawCandidates.length >= leadsNeeded * 2) break;
     }
     console.log(`[Scrape Pipeline] Phase 1 Complete: Found ${rawCandidates.length} raw candidates.`);
 
-    // 2. Phase 2: Sequential Deep Dive
-    console.log('[Scrape Pipeline] Phase 2: Sequential Deep Dive...');
+    // 2. Offload Phase 2 to Upstash QStash Background Jobs if QSTASH_TOKEN is set (Production Async Mode)
+    if (qstash) {
+      const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+      const targetUrl = `${baseUrl}/api/queue/process-lead`;
+      let enqueuedCount = 0;
+
+      for (let i = 0; i < rawCandidates.length; i++) {
+        const target = rawCandidates[i];
+
+        // Deduplicate against database before enqueueing
+        const { data: existing } = await supabaseAdmin
+          .from('outreach_leads')
+          .select('id')
+          .eq('website_url', target.websiteUrl)
+          .maybeSingle();
+
+        if (existing) continue;
+
+        // Stagger QStash jobs by 3 seconds per lead to prevent API rate limit spikes
+        const delaySeconds = enqueuedCount * 3;
+
+        await qstash.publishJSON({
+          url: targetUrl,
+          body: {
+            target,
+            campaignId,
+            niche,
+          },
+          delay: delaySeconds,
+        });
+
+        enqueuedCount++;
+        if (enqueuedCount >= leadsNeeded) break;
+      }
+
+      console.log(`[Scrape Pipeline] Asynchronously enqueued ${enqueuedCount} background enrichment jobs via QStash.`);
+
+      return NextResponse.json({
+        success: true,
+        mode: 'ASYNC_QSTASH',
+        rawDiscoveredCount: rawCandidates.length,
+        enqueuedCount,
+        message: `Successfully initiated async background enrichment for ${enqueuedCount} leads. Leads will populate in real-time.`
+      });
+    }
+
+    // 3. Fallback: Synchronous Processing (Local Dev Mode when QSTASH_TOKEN is absent)
+    console.log('[Scrape Pipeline] QSTASH_TOKEN missing. Fallback to synchronous inline processing...');
+    const processedLeads = [];
+    let validEmailCount = 0;
+
     for (const target of rawCandidates) {
       if (validEmailCount >= leadsNeeded) break;
 
-      console.log(`[Processing Lead] Evaluating: ${target.websiteUrl}`);
-
-      // Deduplicate against database
       const { data: existing } = await supabaseAdmin.from('outreach_leads').select('id').eq('website_url', target.websiteUrl).maybeSingle();
       if (existing) continue;
 
-      // Deep enrich contact data via Waterfall (DOM -> Bouncer -> Serper Dork -> Hunter -> Apollo -> Snov)
       const contactData = await deepEnrichDomain(target.websiteUrl, target.companyName, niche);
+      if (contactData.is_rejected || !contactData.email) continue;
 
-      // If the AI Bouncer rejected this company, skip saving it to the database entirely
-      if (contactData.is_rejected) {
-        console.log(`[Bouncer] Rejected: ${target.websiteUrl}`);
-        continue;
-      }
-
-      if (!contactData.email) {
-        console.log(`[Enrichment] No verified email found for: ${target.websiteUrl}`);
-        continue;
-      }
-
-      // Generate AI audit, pitch, and email subject line using Niche Matrix
       const aiResult = await generateAuditAndPitch(target.companyName, target.websiteUrl, contactData.dom_snippet, niche);
-
       const screenshotUrl = `https://api.microlink.io?url=${encodeURIComponent(target.websiteUrl)}&screenshot=true`;
 
       const leadRecord = {
@@ -93,9 +128,7 @@ export async function POST(req: Request) {
 
       processedLeads.push(leadRecord);
       validEmailCount++;
-      console.log(`[Success] Saved lead ${validEmailCount}/${leadsNeeded}: ${target.websiteUrl}`);
 
-      // Persist to Supabase
       if (campaignId) {
         await supabaseAdmin.from('outreach_leads').insert({
           campaign_id: campaignId,
@@ -122,6 +155,7 @@ export async function POST(req: Request) {
 
     return NextResponse.json({
       success: true,
+      mode: 'SYNC_FALLBACK',
       processedCount: processedLeads.length,
       validEmailCount,
       leads: processedLeads

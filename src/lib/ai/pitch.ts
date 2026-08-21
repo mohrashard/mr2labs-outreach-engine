@@ -134,6 +134,8 @@ STRICT WRITING RULES:
 - Length: STRICTLY 4 sentences total. Maximum 150 words.
 - Never lie about a problem. If you cannot verify the exact issue, use phrasing like 'Companies at your stage often run into...'
 - Never explain your entire company or list your tech stack (React, Next.js, etc.). Sell the outcome.
+- Formatting: You MUST use double line breaks (\n\n) to create distinct paragraphs. Separate the greeting, the main body, and the CTA. Do NOT write a single block of text.
+- Typography: Use standard keyboard hyphens (-). Absolutely NO em dashes (—), en dashes (–), or non-breaking hyphens (‑).
 
 EMAIL FORMULA:
 Sentence 1 (Observation): Prove you looked at them. Use the scraped text or social links to make a real observation. (e.g., "I came across ${companyName} and noticed [specific detail about their site or online presence].")
@@ -370,7 +372,7 @@ MR² Labs System Outcome: ${nicheInfo.solution}`;
   const sentence3 = `At MR² Labs, we build custom systems that ${nicheInfo.solution}.`;
   const sentence4 = `Would you be open to a quick 10-minute conversation this week?`;
 
-  const fallbackBody = `${greeting}\n\n${sentence1} ${sentence2} ${sentence3} ${sentence4}`;
+  const fallbackBody = `${greeting}\n\n${sentence1} ${sentence2} ${sentence3}\n\n${sentence4}`;
 
   return {
     email_subject: `Question for ${companyName}`,
@@ -426,6 +428,8 @@ STRICT WRITING RULES:
 - Greeting: "${greeting}"
 - Length: STRICTLY 3 to 4 sentences total. Maximum 120 words.
 - Tone: Professional, authoritative, zero guilt-tripping.
+- Formatting: You MUST use double line breaks (\n\n) to create distinct paragraphs. Separate the greeting, the main body, and the CTA. Do NOT write a single block of text.
+- Typography: Use standard keyboard hyphens (-). Absolutely NO em dashes (—), en dashes (–), or non-breaking hyphens (‑).
 
 GOAL FOR THIS FOLLOW-UP:
 ${stepGoal}

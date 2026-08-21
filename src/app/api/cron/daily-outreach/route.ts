@@ -7,7 +7,7 @@ import { getNextCityDynamic } from '@/lib/scraper/cities';
 import { Client } from '@upstash/qstash';
 import { hasValidMxRecords } from '@/lib/email/validator';
 
-export const maxDuration = 300; // 5 mins
+export const maxDuration = 60; // 60s max execution time
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
@@ -32,6 +32,7 @@ export async function GET(req: Request) {
     startOfDay.setHours(0, 0, 0, 0);
 
     const scrapedSummary = [];
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
 
     for (const campaign of campaigns) {
       // Auto-expiry check
@@ -60,7 +61,7 @@ export async function GET(req: Request) {
       const leadsNeeded = dailyLimit - (count || 0);
       console.log(`[Cron] Campaign "${campaign.name}" (${campaign.location}) needs ${leadsNeeded} leads.`);
 
-      // 3. Run Discovery
+      // 3. Run Discovery (Fast SERP sweep)
       const discovered = await discoverTargetDomains(campaign.niche || 'General B2B', campaign.location);
 
       // 4. Auto-Pivot if city is exhausted (0 leads discovered)
@@ -81,66 +82,95 @@ export async function GET(req: Request) {
         continue; // Next execution will scrape the new city
       }
 
-      // 5. Run Enrichment until leadsNeeded is met
-      let successCount = 0;
-      for (const lead of discovered) {
-        if (successCount >= leadsNeeded) break;
+      // 5. Run Enrichment (Asynchronous via QStash if available)
+      if (qstash) {
+        const processLeadUrl = `${baseUrl}/api/queue/process-lead`;
+        let enqueuedScrapeCount = 0;
 
-        // Deduplicate against DB
-        const { data: existing } = await supabaseAdmin
-          .from('outreach_leads')
-          .select('id')
-          .eq('website_url', lead.websiteUrl)
-          .maybeSingle();
+        for (let i = 0; i < discovered.length; i++) {
+          if (enqueuedScrapeCount >= leadsNeeded) break;
 
-        if (existing) continue;
+          const lead = discovered[i];
+          const { data: existing } = await supabaseAdmin
+            .from('outreach_leads')
+            .select('id')
+            .eq('website_url', lead.websiteUrl)
+            .maybeSingle();
 
-        const enriched = await deepEnrichDomain(lead.websiteUrl, lead.companyName, campaign.niche, campaign.target_personas);
-        
-        if (enriched.is_rejected) {
-          console.log(`[Cron Scraper] Skipping rejected lead: ${lead.websiteUrl}`);
-          continue;
+          if (existing) continue;
+
+          await qstash.publishJSON({
+            url: processLeadUrl,
+            body: {
+              target: lead,
+              campaignId: campaign.id,
+              niche: campaign.niche,
+            },
+            delay: enqueuedScrapeCount * 4,
+          });
+
+          enqueuedScrapeCount++;
         }
 
-        const aiResult = await generateAuditAndPitch(lead.companyName, lead.websiteUrl, enriched.dom_snippet, campaign.niche);
-        const status = enriched.email ? 'NEW' : 'MISSING_EMAIL';
-        const screenshotUrl = `https://api.microlink.io?url=${encodeURIComponent(lead.websiteUrl)}&screenshot=true`;
+        scrapedSummary.push({ campaign: campaign.name, mode: 'ASYNC_QSTASH', enqueuedForScrape: enqueuedScrapeCount });
+      } else {
+        // Fallback: Inline synchronous enrichment for local dev
+        let successCount = 0;
+        for (const lead of discovered) {
+          if (successCount >= leadsNeeded) break;
 
-        // 6. Insert into DB
-        await supabaseAdmin.from('outreach_leads').insert({
-          campaign_id: campaign.id,
-          company_name: lead.companyName,
-          website_url: lead.websiteUrl,
-          email: enriched.email,
-          phone: enriched.phone,
-          whatsapp: enriched.whatsapp,
-          instagram_url: enriched.instagram_url,
-          linkedin_url: enriched.linkedin_url,
-          email_subject: aiResult.email_subject,
-          audit_notes: aiResult.audit_summary,
-          pitch_text: aiResult.generated_pitch,
-          status,
-          screenshot_url: screenshotUrl,
-          raw_scraped_data: { 
-            snippet: lead.snippet, 
-            dom_snippet: enriched.dom_snippet,
-            enrichment_source: enriched.enrichment_source 
+          const { data: existing } = await supabaseAdmin
+            .from('outreach_leads')
+            .select('id')
+            .eq('website_url', lead.websiteUrl)
+            .maybeSingle();
+
+          if (existing) continue;
+
+          const enriched = await deepEnrichDomain(lead.websiteUrl, lead.companyName, campaign.niche, campaign.target_personas);
+          
+          if (enriched.is_rejected) {
+            console.log(`[Cron Scraper] Skipping rejected lead: ${lead.websiteUrl}`);
+            continue;
           }
-        });
 
-        if (enriched.email) {
-          successCount++;
+          const aiResult = await generateAuditAndPitch(lead.companyName, lead.websiteUrl, enriched.dom_snippet, campaign.niche);
+          const status = enriched.email ? 'NEW' : 'MISSING_EMAIL';
+          const screenshotUrl = `https://api.microlink.io?url=${encodeURIComponent(lead.websiteUrl)}&screenshot=true`;
+
+          await supabaseAdmin.from('outreach_leads').insert({
+            campaign_id: campaign.id,
+            company_name: lead.companyName,
+            website_url: lead.websiteUrl,
+            email: enriched.email,
+            phone: enriched.phone,
+            whatsapp: enriched.whatsapp,
+            instagram_url: enriched.instagram_url,
+            linkedin_url: enriched.linkedin_url,
+            email_subject: aiResult.email_subject,
+            audit_notes: aiResult.audit_summary,
+            pitch_text: aiResult.generated_pitch,
+            status,
+            screenshot_url: screenshotUrl,
+            raw_scraped_data: { 
+              snippet: lead.snippet, 
+              dom_snippet: enriched.dom_snippet,
+              enrichment_source: enriched.enrichment_source 
+            }
+          });
+
+          if (enriched.email) {
+            successCount++;
+          }
         }
+        scrapedSummary.push({ campaign: campaign.name, mode: 'SYNC_FALLBACK', leadsAdded: successCount });
       }
-
-      scrapedSummary.push({ campaign: campaign.name, leadsAdded: successCount });
     }
 
-    // 7. Dispatch Email Queue via Upstash QStash (if configured)
+    // 6. Dispatch Email Queue via Upstash QStash (if configured)
     let enqueuedJobs = 0;
     if (qstash) {
-      const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
-      const targetUrl = `${baseUrl}/api/queue/send-email`;
+      const sendEmailUrl = `${baseUrl}/api/queue/send-email`;
       const GLOBAL_DAILY_LIMIT = Number(process.env.DAILY_EMAIL_LIMIT) || 290;
 
       const { count: sentToday } = await supabaseAdmin
@@ -207,7 +237,7 @@ export async function GET(req: Request) {
 
           if (!updateError) {
             await qstash.publishJSON({
-              url: targetUrl,
+              url: sendEmailUrl,
               body: { leadId: lead.id, followUpStep: nextStep },
               delay: delaySeconds,
             });

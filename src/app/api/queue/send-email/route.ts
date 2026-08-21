@@ -4,31 +4,39 @@ import { supabaseAdmin } from '@/lib/supabase/admin';
 import { sendColdEmail } from '@/lib/email/brevo';
 import { hasValidMxRecords } from '@/lib/email/validator';
 
-const receiver = new Receiver({
-  currentSigningKey: process.env.QSTASH_CURRENT_SIGNING_KEY!,
-  nextSigningKey: process.env.QSTASH_NEXT_SIGNING_KEY!,
-});
+const receiver = process.env.QSTASH_CURRENT_SIGNING_KEY && process.env.QSTASH_NEXT_SIGNING_KEY
+  ? new Receiver({
+      currentSigningKey: process.env.QSTASH_CURRENT_SIGNING_KEY,
+      nextSigningKey: process.env.QSTASH_NEXT_SIGNING_KEY,
+    })
+  : null;
+
+export const maxDuration = 60;
 
 export async function POST(request: Request) {
   try {
-    const signature = request.headers.get('upstash-signature');
-    if (!signature) {
-      return NextResponse.json({ error: 'Missing QStash signature' }, { status: 401 });
-    }
-
     const bodyText = await request.text();
-    
-    // Verify QStash signature using the raw body
-    const isValid = await receiver.verify({
-      signature,
-      body: bodyText,
-    }).catch((err) => {
-      console.error('QStash verification failed:', err);
-      return false;
-    });
 
-    if (!isValid) {
-      return NextResponse.json({ error: 'Invalid QStash signature' }, { status: 401 });
+    // Verify QStash signature strictly if signing keys are present
+    if (receiver) {
+      const signature = request.headers.get('upstash-signature');
+      if (!signature) {
+        return NextResponse.json({ error: 'Missing QStash signature' }, { status: 401 });
+      }
+
+      const isValid = await receiver.verify({
+        signature,
+        body: bodyText,
+      }).catch((err) => {
+        console.error('[Queue Send Email] QStash signature verification failed:', err);
+        return false;
+      });
+
+      if (!isValid) {
+        return NextResponse.json({ error: 'Invalid QStash signature' }, { status: 401 });
+      }
+    } else if (process.env.NODE_ENV === 'production') {
+      console.warn('[Queue Send Email] Warning: QStash signing keys are missing in production environment!');
     }
 
     const { leadId } = JSON.parse(bodyText);
@@ -101,7 +109,8 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ success: true, leadId: lead.id });
   } catch (error: any) {
-    console.error('[Queue] Send Email Error:', error);
+    console.error('[Queue Send Email Error]:', error);
+    // Returning 500 status code triggers automatic QStash retry for failed jobs
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }

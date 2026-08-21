@@ -2,16 +2,20 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { 
   Users, Mail, MessageSquareText, Activity, 
-  Play, RefreshCw, CheckCircle, AlertTriangle, Layers
+  Play, RefreshCw, CheckCircle, AlertTriangle, Layers, LogOut, ShieldCheck
 } from 'lucide-react';
 import { OutreachLead } from '@/types/lead';
 import { LeadsTable } from '@/components/leads/LeadsTable';
 import { LeadDetailDrawer } from '@/components/leads/LeadDetailDrawer';
 import { CampaignSetupForm } from '@/components/campaigns/CampaignSetupForm';
+import { createClient } from '@/lib/supabase/client';
 
 export default function AdminDashboard() {
+  const router = useRouter();
+  const [userEmail, setUserEmail] = useState<string | null>(null);
   const [isScraping, setIsScraping] = useState(false);
   const [isFlushing, setIsFlushing] = useState(false);
   const [selectedLead, setSelectedLead] = useState<OutreachLead | null>(null);
@@ -40,12 +44,35 @@ export default function AdminDashboard() {
   };
 
   useEffect(() => {
+    const fetchUser = async () => {
+      try {
+        const supabase = createClient();
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user && user.email) {
+          setUserEmail(user.email);
+        }
+      } catch (err) {
+        console.error('Error fetching auth user:', err);
+      }
+    };
+    fetchUser();
     fetchData();
   }, []);
 
   const showAlert = (type: 'success' | 'error', message: string) => {
     setAlert({ type, message });
     setTimeout(() => setAlert(null), 5000);
+  };
+
+  const handleSignOut = async () => {
+    try {
+      const supabase = createClient();
+      await supabase.auth.signOut();
+      router.push('/login');
+      router.refresh();
+    } catch (err) {
+      console.error('Sign out error:', err);
+    }
   };
 
   const handleCreateCampaign = async (formData: { campaignName: string; niche: string; location: string; startDate: string }) => {
@@ -79,7 +106,7 @@ export default function AdminDashboard() {
       const scrapeData = await scrapeRes.json();
       if (scrapeData.error) throw new Error(scrapeData.error);
       
-      showAlert('success', `Scraping complete. Processed ${scrapeData.processedCount} new leads.`);
+      showAlert('success', `Scraping complete. Processed ${scrapeData.processedCount || scrapeData.enqueuedCount} leads.`);
       fetchData();
     } catch (err: any) {
       showAlert('error', err.message);
@@ -98,7 +125,7 @@ export default function AdminDashboard() {
       });
       const data = await res.json();
       if (data.error) throw new Error(data.error);
-      showAlert('success', `Scrape successful! Processed ${data.processedCount} leads.`);
+      showAlert('success', `Scrape initiated! Processed/Enqueued leads successfully.`);
       fetchData();
     } catch (err: any) {
       showAlert('error', err.message);
@@ -148,7 +175,6 @@ export default function AdminDashboard() {
   const handleSendTestEmail = async (lead: OutreachLead) => {
     try {
       showAlert('success', `Sending test cold email for ${lead.company_name}...`);
-      // You can trigger single send API route or cron queue here
       const res = await fetch('/api/cron/daily-outreach', { 
         method: 'POST',
         headers: {
@@ -197,7 +223,14 @@ export default function AdminDashboard() {
             </div>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 flex-wrap justify-end">
+            {userEmail && (
+              <div className="flex items-center gap-2 px-3 py-2 bg-emerald-500/10 border border-emerald-500/20 text-emerald-300 rounded-xl text-xs font-medium">
+                <ShieldCheck className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                <span className="truncate max-w-[160px]" title={userEmail}>Admin: {userEmail}</span>
+              </div>
+            )}
+
             <Link 
               href="/templates"
               className="px-4 py-2.5 bg-purple-600/20 hover:bg-purple-600/30 text-purple-200 border border-purple-500/30 rounded-xl font-semibold text-xs transition-all flex items-center gap-2"
@@ -220,6 +253,14 @@ export default function AdminDashboard() {
             >
               <RefreshCw className={`w-3.5 h-3.5 ${isFlushing ? 'animate-spin' : ''}`} />
               {isFlushing ? 'Flushing...' : 'Flush Daily Queue'}
+            </button>
+            <button 
+              onClick={handleSignOut}
+              className="px-3 py-2.5 bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 border border-rose-500/20 rounded-xl font-semibold text-xs transition-all flex items-center gap-1.5"
+              title="Sign Out"
+            >
+              <LogOut className="w-3.5 h-3.5 text-rose-400" />
+              <span className="hidden sm:inline">Sign Out</span>
             </button>
           </div>
         </div>

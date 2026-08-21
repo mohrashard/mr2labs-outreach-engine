@@ -820,8 +820,49 @@ export async function deepEnrichDomain(
   targetNiche?: string,
   targetPersonas?: string[]
 ): Promise<EnrichedContactData> {
+  // SSRF Protection: Validate target domain format and reject internal IPs / metadata endpoints
+  try {
+    const parsed = new URL(domainUrl.startsWith('http') ? domainUrl : `https://${domainUrl}`);
+    const host = parsed.hostname.toLowerCase();
+    
+    // Block loopback, private RFC1918 IPs, link-local, and AWS metadata endpoints
+    if (
+      host === 'localhost' ||
+      host === '127.0.0.1' ||
+      host === '0.0.0.0' ||
+      host === '169.254.169.254' ||
+      host.startsWith('10.') ||
+      host.startsWith('192.168.') ||
+      /^172\.(1[6-9]|2[0-9]|3[0-1])\./.test(host)
+    ) {
+      console.warn(`[SSRF Prevention] Rejected internal or private domain target: ${domainUrl}`);
+      return {
+        email: null,
+        phone: null,
+        whatsapp: null,
+        instagram_url: null,
+        linkedin_url: null,
+        dom_snippet: '',
+        enrichment_source: 'NONE',
+        is_rejected: true
+      };
+    }
+  } catch {
+    console.warn(`[SSRF Prevention] Invalid URL structure provided: ${domainUrl}`);
+    return {
+      email: null,
+      phone: null,
+      whatsapp: null,
+      instagram_url: null,
+      linkedin_url: null,
+      dom_snippet: '',
+      enrichment_source: 'NONE',
+      is_rejected: true
+    };
+  }
+
   const targetUrls = [
-    domainUrl,
+    domainUrl.startsWith('http') ? domainUrl : `https://${domainUrl}`,
     `${domainUrl.replace(/\/$/, '')}/contact`,
     `${domainUrl.replace(/\/$/, '')}/about`
   ];

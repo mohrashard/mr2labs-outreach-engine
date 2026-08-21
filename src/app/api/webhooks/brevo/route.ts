@@ -3,6 +3,20 @@ import { supabaseAdmin } from '@/lib/supabase/admin';
 
 export async function POST(request: Request) {
   try {
+    // 1. Verify Secret Token (Header or URL Query Parameter)
+    const secret = process.env.CRON_SECRET || 'mr2labs_cron_secret_key_2026';
+    const authHeader = request.headers.get('authorization');
+    const { searchParams } = new URL(request.url);
+    const tokenQuery = searchParams.get('token');
+
+    const isValidHeader = authHeader === `Bearer ${secret}`;
+    const isValidQuery = tokenQuery === secret;
+
+    if (!isValidHeader && !isValidQuery && process.env.NODE_ENV === 'production') {
+      console.warn('[Brevo Webhook] Unauthorized webhook invocation attempt detected.');
+      return NextResponse.json({ error: 'Unauthorized webhook trigger' }, { status: 401 });
+    }
+
     const payload = await request.json();
 
     // Flexible extraction across Brevo inbound webhook schema variants

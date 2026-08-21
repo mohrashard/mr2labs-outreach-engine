@@ -82,66 +82,66 @@ export function LeadDetailDrawer({
     : (lead.raw_scraped_data || 'No raw scraped DOM text available.');
 
   return (
-    <div className="fixed inset-0 z-50 flex justify-end bg-black/70 backdrop-blur-sm animate-in fade-in duration-200">
+    <div className="fixed inset-0 z-50 flex justify-end bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
       {/* Backdrop Click to Close */}
       <div className="flex-1" onClick={onClose} />
 
       {/* Drawer Body */}
-      <div className="w-full max-w-2xl bg-[#09090b] border-l border-zinc-800 shadow-2xl flex flex-col h-full overflow-hidden animate-in slide-in-from-right duration-300">
+      <div className="w-full max-w-2xl bg-[#0B0C10] ring-l ring-white/[0.08] shadow-2xl flex flex-col h-full overflow-hidden animate-in slide-in-from-right duration-300">
         
         {/* Header */}
-        <div className="p-6 border-b border-zinc-800 bg-zinc-950/80 flex items-start justify-between">
+        <div className="px-7 py-6 border-b border-white/[0.06] bg-white/[0.01] flex items-start justify-between">
           <div>
             <div className="flex items-center gap-2">
-              <h2 className="text-xl font-bold text-white tracking-tight">{lead.company_name}</h2>
+              <h2 className="text-lg font-semibold text-slate-100 tracking-tight">{lead.company_name}</h2>
               <a 
                 href={lead.website_url} 
                 target="_blank" 
                 rel="noreferrer" 
-                className="text-zinc-500 hover:text-zinc-300 transition-colors"
+                className="text-slate-500 hover:text-slate-300 transition-colors"
               >
                 <ExternalLink className="w-4 h-4" />
               </a>
             </div>
-            <p className="text-xs text-zinc-400 font-mono mt-1">{lead.website_url}</p>
+            <p className="text-xs text-slate-400 font-mono mt-0.5">{lead.website_url}</p>
           </div>
 
           <button 
             onClick={onClose}
-            className="p-2 rounded-xl bg-zinc-900 hover:bg-zinc-800 text-zinc-400 hover:text-white transition-colors"
+            className="p-2 rounded-xl bg-white/[0.03] hover:bg-white/[0.08] ring-1 ring-white/[0.08] text-slate-400 hover:text-slate-100 transition-colors"
           >
-            <X className="w-5 h-5" />
+            <X className="w-4 h-4" />
           </button>
         </div>
 
         {/* Navigation Tabs */}
-        <div className="flex border-b border-zinc-800 bg-zinc-950/50 px-6">
+        <div className="flex border-b border-white/[0.06] bg-white/[0.005] px-6">
           <button
             onClick={() => setActiveTab('pitch')}
-            className={`py-3.5 px-4 text-xs font-semibold flex items-center gap-2 border-b-2 transition-all ${
+            className={`py-3.5 px-4 text-xs font-medium flex items-center gap-2 border-b-2 transition-all ${
               activeTab === 'pitch' 
-                ? 'border-indigo-500 text-indigo-400' 
-                : 'border-transparent text-zinc-400 hover:text-zinc-200'
+                ? 'border-indigo-400 text-indigo-300' 
+                : 'border-transparent text-slate-400 hover:text-slate-200'
             }`}
           >
             <Sparkles className="w-4 h-4 text-indigo-400" /> Pitch Studio
           </button>
           <button
             onClick={() => setActiveTab('dom')}
-            className={`py-3.5 px-4 text-xs font-semibold flex items-center gap-2 border-b-2 transition-all ${
+            className={`py-3.5 px-4 text-xs font-medium flex items-center gap-2 border-b-2 transition-all ${
               activeTab === 'dom' 
-                ? 'border-indigo-500 text-indigo-400' 
-                : 'border-transparent text-zinc-400 hover:text-zinc-200'
+                ? 'border-indigo-400 text-indigo-300' 
+                : 'border-transparent text-slate-400 hover:text-slate-200'
             }`}
           >
             <Code2 className="w-4 h-4 text-emerald-400" /> DOM & Contacts
           </button>
           <button
             onClick={() => setActiveTab('activity')}
-            className={`py-3.5 px-4 text-xs font-semibold flex items-center gap-2 border-b-2 transition-all ${
+            className={`py-3.5 px-4 text-xs font-medium flex items-center gap-2 border-b-2 transition-all ${
               activeTab === 'activity' 
-                ? 'border-indigo-500 text-indigo-400' 
-                : 'border-transparent text-zinc-400 hover:text-zinc-200'
+                ? 'border-indigo-400 text-indigo-300' 
+                : 'border-transparent text-slate-400 hover:text-slate-200'
             }`}
           >
             <Clock className="w-4 h-4 text-amber-400" /> Activity Logs
@@ -149,17 +149,17 @@ export function LeadDetailDrawer({
         </div>
 
         {/* Drawer Content Area */}
-        <div className="flex-1 overflow-y-auto p-6 space-y-6">
+        <div className="flex-1 overflow-y-auto p-7 space-y-6">
           {/* TAB 1: PITCH STUDIO */}
           {activeTab === 'pitch' && (
             <div className="space-y-5">
               {/* Lead Status Select */}
-              <div className="flex items-center justify-between p-4 bg-zinc-900/60 rounded-2xl border border-zinc-800">
-                <span className="text-xs font-semibold text-zinc-400 uppercase tracking-wider">Pipeline Status</span>
+              <div className="flex items-center justify-between p-4 bg-white/[0.02] rounded-2xl ring-1 ring-white/[0.06]">
+                <span className="text-xs font-medium text-slate-400 tracking-normal">Pipeline Status</span>
                 <select
                   value={status}
                   onChange={(e) => setStatus(e.target.value as LeadStatus)}
-                  className="bg-black border border-zinc-700 text-white rounded-xl px-3 py-1.5 text-xs font-semibold focus:ring-2 focus:ring-indigo-500 outline-none"
+                  className="bg-white/[0.04] ring-1 ring-white/[0.08] text-slate-200 rounded-xl px-3 py-1.5 text-xs font-medium focus:ring-1 focus:ring-indigo-400/40 outline-none"
                 >
                   <option value="NEW">NEW</option>
                   <option value="QUEUED">QUEUED</option>
@@ -173,7 +173,7 @@ export function LeadDetailDrawer({
 
               {/* Email Subject Line */}
               <div>
-                <label className="block text-xs font-semibold text-amber-300 mb-2 uppercase tracking-wider">
+                <label className="block text-xs font-medium text-amber-300/90 mb-2 tracking-normal">
                   Email Subject Line
                 </label>
                 <input
@@ -181,16 +181,16 @@ export function LeadDetailDrawer({
                   value={emailSubject}
                   onChange={(e) => setEmailSubject(e.target.value)}
                   placeholder="e.g. Quick question regarding site conversions"
-                  className="w-full bg-zinc-900 border border-zinc-800 rounded-xl px-4 py-3 text-sm text-white placeholder-zinc-600 focus:outline-none focus:ring-2 focus:ring-indigo-500/50"
+                  className="w-full bg-white/[0.025] hover:bg-white/[0.04] ring-1 ring-white/[0.08] focus:ring-1 focus:ring-indigo-400/40 rounded-xl px-4 py-3 text-sm text-slate-200 placeholder-slate-500 focus:outline-none transition-all duration-200"
                 />
               </div>
 
               {/* Site Audit Notes */}
               <div>
-                <label className="block text-xs font-semibold text-rose-400 mb-2 uppercase tracking-wider">
+                <label className="block text-xs font-medium text-rose-300/90 mb-2 tracking-normal">
                   AI Technical Audit Findings
                 </label>
-                <div className="p-4 bg-rose-950/20 border border-rose-900/40 rounded-2xl">
+                <div className="p-4 bg-rose-500/[0.05] ring-1 ring-rose-500/20 rounded-2xl">
                   <textarea
                     rows={2}
                     value={auditNotes}
@@ -202,7 +202,7 @@ export function LeadDetailDrawer({
 
               {/* Custom Pitch Generator */}
               <div>
-                <label className="block text-xs font-semibold text-indigo-400 mb-2 uppercase tracking-wider">
+                <label className="block text-xs font-medium text-indigo-300/90 mb-2 tracking-normal">
                   Tailored Pitch Proposal
                 </label>
                 <textarea
@@ -210,7 +210,7 @@ export function LeadDetailDrawer({
                   value={pitchText}
                   onChange={(e) => setPitchText(e.target.value)}
                   placeholder="Enter customized sales pitch..."
-                  className="w-full bg-zinc-900 border border-zinc-800 rounded-xl p-4 text-xs text-zinc-200 placeholder-zinc-600 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 leading-relaxed"
+                  className="w-full bg-white/[0.025] hover:bg-white/[0.04] ring-1 ring-white/[0.08] focus:ring-1 focus:ring-indigo-400/40 rounded-xl p-4 text-xs text-slate-200 placeholder-slate-500 focus:outline-none leading-relaxed transition-all duration-200"
                 />
               </div>
             </div>
@@ -220,40 +220,40 @@ export function LeadDetailDrawer({
           {activeTab === 'dom' && (
             <div className="space-y-6">
               {/* Direct Endpoints Card */}
-              <div className="p-5 bg-zinc-900/60 rounded-2xl border border-zinc-800 space-y-3">
-                <h3 className="text-xs font-bold text-zinc-400 uppercase tracking-wider">Direct Contact Endpoints</h3>
+              <div className="p-5 bg-white/[0.02] rounded-2xl ring-1 ring-white/[0.06] space-y-3">
+                <h3 className="text-xs font-medium text-slate-400 tracking-normal">Direct Contact Endpoints</h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  <div className="p-3 bg-black/40 rounded-xl border border-zinc-800 flex items-center justify-between">
+                  <div className="p-3 bg-black/20 rounded-xl ring-1 ring-white/[0.06] flex items-center justify-between">
                     <div className="flex items-center gap-2">
                       <Mail className="w-4 h-4 text-emerald-400" />
-                      <span className="text-xs text-zinc-300 font-mono truncate">{lead.email || 'No email found'}</span>
+                      <span className="text-xs text-slate-300 font-mono truncate">{lead.email || 'No email found'}</span>
                     </div>
                     {lead.email && (
-                      <button onClick={() => handleCopy(lead.email!, 'email')} className="text-zinc-500 hover:text-white">
+                      <button onClick={() => handleCopy(lead.email!, 'email')} className="text-slate-500 hover:text-white">
                         {copiedField === 'email' ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
                       </button>
                     )}
                   </div>
 
-                  <div className="p-3 bg-black/40 rounded-xl border border-zinc-800 flex items-center gap-2">
+                  <div className="p-3 bg-black/20 rounded-xl ring-1 ring-white/[0.06] flex items-center gap-2">
                     <Phone className="w-4 h-4 text-amber-400" />
-                    <span className="text-xs text-zinc-300 font-mono">{lead.phone || 'No phone'}</span>
+                    <span className="text-xs text-slate-300 font-mono">{lead.phone || 'No phone'}</span>
                   </div>
 
                   {lead.whatsapp && (
-                    <a href={lead.whatsapp} target="_blank" rel="noreferrer" className="p-3 bg-emerald-950/30 border border-emerald-800/50 rounded-xl flex items-center gap-2 text-xs text-emerald-400 hover:bg-emerald-900/40 transition-colors">
+                    <a href={lead.whatsapp} target="_blank" rel="noreferrer" className="p-3 bg-emerald-500/10 ring-1 ring-emerald-500/20 rounded-xl flex items-center gap-2 text-xs text-emerald-300 hover:bg-emerald-500/15 transition-colors">
                       <MessageSquare className="w-4 h-4" /> Open WhatsApp
                     </a>
                   )}
 
                   {lead.linkedin_url && (
-                    <a href={lead.linkedin_url} target="_blank" rel="noreferrer" className="p-3 bg-sky-950/30 border border-sky-800/50 rounded-xl flex items-center gap-2 text-xs text-sky-400 hover:bg-sky-900/40 transition-colors">
+                    <a href={lead.linkedin_url} target="_blank" rel="noreferrer" className="p-3 bg-sky-500/10 ring-1 ring-sky-500/20 rounded-xl flex items-center gap-2 text-xs text-sky-300 hover:bg-sky-500/15 transition-colors">
                       <Briefcase className="w-4 h-4" /> LinkedIn Profile
                     </a>
                   )}
 
                   {lead.instagram_url && (
-                    <a href={lead.instagram_url} target="_blank" rel="noreferrer" className="p-3 bg-pink-950/30 border border-pink-800/50 rounded-xl flex items-center gap-2 text-xs text-pink-400 hover:bg-pink-900/40 transition-colors">
+                    <a href={lead.instagram_url} target="_blank" rel="noreferrer" className="p-3 bg-pink-500/10 ring-1 ring-pink-500/20 rounded-xl flex items-center gap-2 text-xs text-pink-300 hover:bg-pink-500/15 transition-colors">
                       <Camera className="w-4 h-4" /> Instagram Page
                     </a>
                   )}
@@ -263,8 +263,8 @@ export function LeadDetailDrawer({
               {/* Live Preview / Screenshot */}
               {lead.screenshot_url && (
                 <div className="space-y-2">
-                  <h3 className="text-xs font-bold text-zinc-400 uppercase tracking-wider">Homepage Screenshot Preview</h3>
-                  <div className="rounded-2xl overflow-hidden border border-zinc-800 bg-black max-h-64">
+                  <h3 className="text-xs font-medium text-slate-400 tracking-normal">Homepage Screenshot Preview</h3>
+                  <div className="rounded-2xl overflow-hidden ring-1 ring-white/[0.08] bg-black max-h-64">
                     <img 
                       src={lead.screenshot_url} 
                       alt={lead.company_name}
@@ -277,15 +277,15 @@ export function LeadDetailDrawer({
               {/* Raw Scraped Text Explorer */}
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
-                  <h3 className="text-xs font-bold text-zinc-400 uppercase tracking-wider">Scraped DOM Text Snippet</h3>
+                  <h3 className="text-xs font-medium text-slate-400 tracking-normal">Scraped DOM Text Snippet</h3>
                   <button 
                     onClick={() => handleCopy(rawDomText, 'dom')} 
-                    className="text-xs text-zinc-500 hover:text-white flex items-center gap-1"
+                    className="text-xs text-slate-500 hover:text-slate-200 flex items-center gap-1"
                   >
                     {copiedField === 'dom' ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />} Copy Raw Text
                   </button>
                 </div>
-                <div className="p-4 bg-zinc-950 rounded-2xl border border-zinc-800 max-h-60 overflow-y-auto font-mono text-xs text-zinc-400 leading-relaxed whitespace-pre-wrap">
+                <div className="p-4 bg-black/40 rounded-2xl ring-1 ring-white/[0.06] max-h-60 overflow-y-auto font-mono text-xs text-slate-400 leading-relaxed whitespace-pre-wrap">
                   {rawDomText}
                 </div>
               </div>
@@ -295,36 +295,48 @@ export function LeadDetailDrawer({
           {/* TAB 3: ACTIVITY LOGS */}
           {activeTab === 'activity' && (
             <div className="space-y-4">
-              <h3 className="text-xs font-bold text-zinc-400 uppercase tracking-wider">Dispatch & Audit Timeline</h3>
+              <h3 className="text-xs font-medium text-slate-400 tracking-normal">Dispatch & Audit Timeline</h3>
               <div className="space-y-3">
-                <div className="p-4 bg-zinc-900/50 rounded-2xl border border-zinc-800 flex items-start gap-3">
-                  <div className="p-2 rounded-xl bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 mt-0.5">
+                <div className="p-4 bg-white/[0.02] rounded-2xl ring-1 ring-white/[0.06] flex items-start gap-3">
+                  <div className="p-2 rounded-xl bg-indigo-500/10 text-indigo-400 ring-1 ring-indigo-500/20 mt-0.5">
                     <Sparkles className="w-4 h-4" />
                   </div>
                   <div>
-                    <p className="text-xs font-semibold text-white">Lead Discovered & AI Audited</p>
-                    <p className="text-xs text-zinc-500 mt-0.5">{new Date(lead.created_at).toLocaleString()}</p>
+                    <p className="text-xs font-medium text-slate-100">Lead Discovered & AI Audited</p>
+                    <p className="text-xs text-slate-500 mt-0.5">{new Date(lead.created_at).toLocaleString()}</p>
                   </div>
                 </div>
 
                 {lead.sent_at ? (
-                  <div className="p-4 bg-zinc-900/50 rounded-2xl border border-zinc-800 flex items-start gap-3">
-                    <div className="p-2 rounded-xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 mt-0.5">
+                  <div className="p-4 bg-white/[0.02] rounded-2xl ring-1 ring-white/[0.06] flex items-start gap-3">
+                    <div className="p-2 rounded-xl bg-emerald-500/10 text-emerald-400 ring-1 ring-emerald-500/20 mt-0.5">
                       <Send className="w-4 h-4" />
                     </div>
                     <div>
-                      <p className="text-xs font-semibold text-white">Cold Pitch Email Dispatched</p>
-                      <p className="text-xs text-zinc-500 mt-0.5">{new Date(lead.sent_at).toLocaleString()}</p>
+                      <p className="text-xs font-medium text-slate-100">Cold Pitch Email Dispatched</p>
+                      <p className="text-xs text-slate-500 mt-0.5">{new Date(lead.sent_at).toLocaleString()}</p>
                     </div>
                   </div>
-                ) : (
-                  <div className="p-4 bg-zinc-900/30 rounded-2xl border border-zinc-800/50 flex items-start gap-3 opacity-60">
-                    <div className="p-2 rounded-xl bg-zinc-800 text-zinc-500 mt-0.5">
+                ) : (lead.scheduled_for || lead.status === 'QUEUED') ? (
+                  <div className="p-4 bg-white/[0.02] rounded-2xl ring-1 ring-white/[0.06] flex items-start gap-3">
+                    <div className="p-2 rounded-xl bg-amber-500/10 text-amber-400 ring-1 ring-amber-500/20 mt-0.5">
                       <Mail className="w-4 h-4" />
                     </div>
                     <div>
-                      <p className="text-xs font-semibold text-zinc-400">Email Pending Queue Flush</p>
-                      <p className="text-xs text-zinc-600 mt-0.5">Not dispatched yet</p>
+                      <p className="text-xs font-medium text-slate-100">Queued for Dispatch</p>
+                      <p className="text-xs text-slate-400 mt-0.5">
+                        {lead.scheduled_for ? new Date(lead.scheduled_for).toLocaleString() : 'Scheduled by Queue Worker'}
+                      </p>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="p-4 bg-white/[0.01] rounded-2xl ring-1 ring-white/[0.04] flex items-start gap-3 opacity-60">
+                    <div className="p-2 rounded-xl bg-white/[0.04] text-slate-500 mt-0.5">
+                      <Mail className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <p className="text-xs font-medium text-slate-400">Email Pending Queue Flush</p>
+                      <p className="text-xs text-slate-600 mt-0.5">Click "Flush Daily Queue" above to calculate & schedule dispatch</p>
                     </div>
                   </div>
                 )}
@@ -334,11 +346,11 @@ export function LeadDetailDrawer({
         </div>
 
         {/* Action Bar Footer */}
-        <div className="p-6 border-t border-zinc-800 bg-zinc-950 flex items-center justify-between gap-3">
+        <div className="p-6 border-t border-white/[0.06] bg-white/[0.01] flex items-center justify-between gap-3">
           <button
             onClick={handleSave}
             disabled={isSaving}
-            className="flex-1 py-3 bg-white hover:bg-zinc-200 disabled:opacity-50 text-black rounded-xl font-bold text-xs flex items-center justify-center gap-2 transition-all shadow-lg"
+            className="flex-1 py-3 bg-white/[0.05] hover:bg-white/[0.09] ring-1 ring-white/[0.08] disabled:opacity-50 text-slate-200 rounded-xl font-medium text-xs flex items-center justify-center gap-2 transition-all"
           >
             <Save className="w-4 h-4" /> {isSaving ? 'Saving...' : 'Save Lead Changes'}
           </button>
@@ -347,7 +359,7 @@ export function LeadDetailDrawer({
             <button
               onClick={handleSendTest}
               disabled={isSending}
-              className="py-3 px-5 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white rounded-xl font-bold text-xs flex items-center justify-center gap-2 transition-all shadow-lg shadow-indigo-600/20"
+              className="py-3 px-5 bg-gradient-to-r from-indigo-500 to-indigo-600 hover:from-indigo-400 hover:to-indigo-500 disabled:opacity-50 text-white rounded-xl font-medium text-xs flex items-center justify-center gap-2 transition-all shadow-md shadow-indigo-950/40"
             >
               <Send className="w-4 h-4" /> {isSending ? 'Sending...' : 'Send Test Email'}
             </button>

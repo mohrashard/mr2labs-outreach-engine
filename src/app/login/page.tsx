@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import Image from 'next/image';
 import { createClient } from '@/lib/supabase/client';
 import { Lock, Mail, Eye, EyeOff, ShieldAlert, Loader2, ArrowRight } from 'lucide-react';
 
@@ -50,8 +51,14 @@ export default function LoginPage() {
         
         {/* Logo & Header */}
         <div className="text-center mb-8 space-y-3">
-          <div className="inline-flex items-center justify-center w-14 h-14 rounded-3xl bg-gradient-to-tr from-indigo-500 to-cyan-400 font-black text-black text-2xl shadow-[0_0_30px_rgba(99,102,241,0.5)] mb-2">
-            MR²
+          <div className="inline-flex items-center justify-center mb-2">
+            <Image 
+              src="/mr-squared-logo.png" 
+              alt="MR² Labs Logo" 
+              width={64} 
+              height={64} 
+              className="w-16 h-16 rounded-2xl object-cover ring-1 ring-white/20 shadow-xl" 
+            />
           </div>
           <h1 className="text-2xl font-bold tracking-tight text-white">
             MR² Labs Admin Login

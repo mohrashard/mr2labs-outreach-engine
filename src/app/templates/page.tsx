@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { 
   ArrowLeft, Plus, Edit3, Trash2, Save, X, Search, 
   Layers, CheckCircle, AlertTriangle, Sparkles, Zap, RefreshCw, Target
@@ -157,9 +158,13 @@ export default function TemplatesPage() {
               Dashboard
             </Link>
             <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-2xl bg-gradient-to-tr from-purple-500 to-indigo-500 flex items-center justify-center text-white shadow-[0_0_20px_rgba(168,85,247,0.4)]">
-                <Layers className="w-5 h-5" />
-              </div>
+              <Image 
+                src="/mr-squared-logo.png" 
+                alt="MR² Labs Logo" 
+                width={36} 
+                height={36} 
+                className="w-9 h-9 rounded-xl object-cover ring-1 ring-white/20 shadow-sm" 
+              />
               <div>
                 <h1 className="text-xl font-bold tracking-tight text-white flex items-center gap-2">
                   Template Manager
@@ -201,33 +206,33 @@ export default function TemplatesPage() {
 
         {/* Stats Bar */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
-          <div className="bg-[#111116] border border-white/10 rounded-3xl p-5 shadow-xl flex items-center gap-4">
-            <div className="p-3 bg-purple-500/10 border border-purple-500/20 text-purple-400 rounded-2xl">
+          <div className="bg-white/[0.02] border border-transparent border-t-white/[0.05] shadow-[inset_0_1px_0_rgba(255,255,255,0.02)] rounded-3xl p-5 flex items-center gap-4">
+            <div className="p-3 bg-zinc-900/50 border border-zinc-800/50 text-zinc-400 rounded-2xl">
               <Target className="w-5 h-5" />
             </div>
             <div>
-              <p className="text-xs uppercase tracking-wider font-semibold text-gray-400">Active Niches</p>
-              <h4 className="text-2xl font-black text-white mt-0.5">{templates.length}</h4>
+              <p className="text-xs uppercase tracking-wider font-semibold text-zinc-500">Active Niches</p>
+              <h4 className="text-2xl font-black text-zinc-200 mt-0.5">{templates.length}</h4>
             </div>
           </div>
 
-          <div className="bg-[#111116] border border-white/10 rounded-3xl p-5 shadow-xl flex items-center gap-4">
-            <div className="p-3 bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 rounded-2xl">
+          <div className="bg-white/[0.02] border border-transparent border-t-white/[0.05] shadow-[inset_0_1px_0_rgba(255,255,255,0.02)] rounded-3xl p-5 flex items-center gap-4">
+            <div className="p-3 bg-zinc-900/50 border border-zinc-800/50 text-indigo-300/80 rounded-2xl">
               <Sparkles className="w-5 h-5" />
             </div>
             <div>
-              <p className="text-xs uppercase tracking-wider font-semibold text-gray-400">AI Prompt Engine</p>
-              <h4 className="text-sm font-bold text-white mt-0.5">Groq / GPT-OSS 20B</h4>
+              <p className="text-xs uppercase tracking-wider font-semibold text-zinc-500">AI Prompt Engine</p>
+              <h4 className="text-sm font-bold text-zinc-200 mt-0.5">Groq / GPT-OSS 20B</h4>
             </div>
           </div>
 
-          <div className="bg-[#111116] border border-white/10 rounded-3xl p-5 shadow-xl flex items-center gap-4">
-            <div className="p-3 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 rounded-2xl">
+          <div className="bg-white/[0.02] border border-transparent border-t-white/[0.05] shadow-[inset_0_1px_0_rgba(255,255,255,0.02)] rounded-3xl p-5 flex items-center gap-4">
+            <div className="p-3 bg-zinc-900/50 border border-zinc-800/50 text-zinc-400 rounded-2xl">
               <Zap className="w-5 h-5" />
             </div>
             <div>
-              <p className="text-xs uppercase tracking-wider font-semibold text-gray-400">Pitch Injection</p>
-              <h4 className="text-sm font-bold text-white mt-0.5">1-Sentence Customized</h4>
+              <p className="text-xs uppercase tracking-wider font-semibold text-zinc-500">Pitch Injection</p>
+              <h4 className="text-sm font-bold text-zinc-200 mt-0.5">1-Sentence Customized</h4>
             </div>
           </div>
         </div>
@@ -236,17 +241,17 @@ export default function TemplatesPage() {
         <div className="grid grid-cols-1 xl:grid-cols-3 gap-8 items-start">
           
           {/* Form Column */}
-          <div className="xl:col-span-1 bg-[#111116] border border-white/10 rounded-3xl p-6 shadow-2xl space-y-6">
-            <div className="flex items-center justify-between border-b border-white/10 pb-4">
+          <div className="xl:col-span-1 bg-white/[0.02] border border-transparent border-t-white/[0.05] shadow-[inset_0_1px_0_rgba(255,255,255,0.02)] rounded-3xl p-6 space-y-6">
+            <div className="flex items-center justify-between border-b border-white/[0.05] pb-4">
               <div className="flex items-center gap-2.5">
-                <div className="p-2 bg-indigo-500/10 border border-indigo-500/30 text-indigo-400 rounded-xl">
+                <div className="p-2 bg-zinc-900/50 border border-zinc-800/50 text-zinc-400 rounded-xl">
                   {editingId ? <Edit3 className="w-4 h-4" /> : <Plus className="w-4 h-4" />}
                 </div>
                 <div>
                   <h3 className="text-base font-bold text-white">
                     {editingId ? 'Edit Niche Template' : 'Add New Pitch Template'}
                   </h3>
-                  <p className="text-xs text-gray-400">
+                  <p className="text-xs text-zinc-500">
                     {editingId ? 'Modify existing pain points or solution' : 'Create dynamic angle for a new industry'}
                   </p>
                 </div>
@@ -265,7 +270,7 @@ export default function TemplatesPage() {
 
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
-                <label className="block text-xs font-semibold uppercase tracking-wider text-gray-300 mb-2">
+                <label className="block text-[10px] font-semibold uppercase tracking-widest text-zinc-500 mb-2">
                   Niche / Industry Name
                 </label>
                 <input 
@@ -273,13 +278,13 @@ export default function TemplatesPage() {
                   placeholder="e.g. Law Firm, MedSpa, HVAC Contractor"
                   value={nicheName}
                   onChange={(e) => setNicheName(e.target.value)}
-                  className="w-full bg-[#18181f] border border-white/10 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-indigo-500 transition-all placeholder:text-gray-600"
+                  className="w-full bg-white/[0.02] border border-white/[0.05] rounded-xl px-3.5 py-2.5 text-sm text-zinc-200 focus:outline-none focus:ring-1 focus:ring-zinc-700 transition-all placeholder-zinc-700"
                   required
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-semibold uppercase tracking-wider text-gray-300 mb-2">
+                <label className="block text-[10px] font-semibold uppercase tracking-widest text-zinc-500 mb-2">
                   Target Pain Points
                 </label>
                 <textarea 
@@ -287,13 +292,13 @@ export default function TemplatesPage() {
                   placeholder="e.g. Slow intake forms, poor mobile rendering, losing leads to aggregators."
                   value={painPoints}
                   onChange={(e) => setPainPoints(e.target.value)}
-                  className="w-full bg-[#18181f] border border-white/10 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-indigo-500 transition-all placeholder:text-gray-600 resize-none"
+                  className="w-full bg-white/[0.02] border border-white/[0.05] rounded-xl px-3.5 py-2.5 text-sm text-zinc-200 focus:outline-none focus:ring-1 focus:ring-zinc-700 transition-all placeholder-zinc-700 resize-none"
                   required
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-semibold uppercase tracking-wider text-gray-300 mb-2">
+                <label className="block text-[10px] font-semibold uppercase tracking-widest text-zinc-500 mb-2">
                   MR² Solution Strategy
                 </label>
                 <textarea 
@@ -301,7 +306,7 @@ export default function TemplatesPage() {
                   placeholder="e.g. MR² Labs builds sub-second Next.js client intake portals with automated lead routing."
                   value={mr2Solution}
                   onChange={(e) => setMr2Solution(e.target.value)}
-                  className="w-full bg-[#18181f] border border-white/10 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-indigo-500 transition-all placeholder:text-gray-600 resize-none"
+                  className="w-full bg-white/[0.02] border border-white/[0.05] rounded-xl px-3.5 py-2.5 text-sm text-zinc-200 focus:outline-none focus:ring-1 focus:ring-zinc-700 transition-all placeholder-zinc-700 resize-none"
                   required
                 />
               </div>
@@ -310,7 +315,7 @@ export default function TemplatesPage() {
                 <button
                   type="submit"
                   disabled={saving}
-                  className="flex-1 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 disabled:opacity-50 text-white font-semibold text-xs rounded-xl transition-all flex items-center justify-center gap-2 shadow-lg shadow-indigo-600/25"
+                  className="flex-1 py-3 bg-white text-black hover:bg-zinc-200 disabled:opacity-50 font-semibold text-xs rounded-xl transition-all flex items-center justify-center gap-2"
                 >
                   <Save className="w-4 h-4" />
                   {saving ? 'Saving...' : (editingId ? 'Save Changes' : 'Create Template')}
@@ -333,19 +338,19 @@ export default function TemplatesPage() {
           <div className="xl:col-span-2 space-y-5">
             
             {/* Search & Filter Header */}
-            <div className="flex flex-col sm:flex-row justify-between items-center gap-4 bg-[#111116] border border-white/10 rounded-3xl p-4">
+            <div className="flex flex-col sm:flex-row justify-between items-center gap-4 bg-white/[0.02] border border-transparent border-t-white/[0.05] rounded-3xl p-4">
               <div className="relative w-full sm:w-80">
-                <Search className="w-4 h-4 text-gray-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                <Search className="w-4 h-4 text-zinc-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
                 <input 
                   type="text"
                   placeholder="Search templates by niche or pains..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full bg-[#18181f] border border-white/10 rounded-xl pl-10 pr-4 py-2 text-xs text-white placeholder:text-gray-500 focus:outline-none focus:border-purple-500 transition-all"
+                  className="w-full bg-white/[0.03] border border-transparent rounded-xl pl-10 pr-4 py-2 text-xs text-white placeholder:text-zinc-500 focus:outline-none focus:ring-1 focus:ring-zinc-700 transition-all"
                 />
               </div>
 
-              <span className="text-xs text-gray-400 font-medium self-end sm:self-center">
+              <span className="text-xs text-zinc-500 font-medium self-end sm:self-center">
                 Showing {filteredTemplates.length} of {templates.length} templates
               </span>
             </div>
@@ -369,25 +374,25 @@ export default function TemplatesPage() {
                 {filteredTemplates.map((template, idx) => (
                   <div 
                     key={template.id || idx}
-                    className="bg-[#111116] border border-white/10 hover:border-purple-500/40 transition-all rounded-3xl p-5 shadow-xl flex flex-col justify-between group relative overflow-hidden"
+                    className="bg-white/[0.02] hover:bg-white/[0.03] transition-colors rounded-3xl p-6 md:p-8 flex flex-col justify-between group relative overflow-hidden"
                   >
-                    <div className="space-y-4">
+                    <div className="space-y-5">
                       {/* Card Header */}
                       <div className="flex items-center justify-between">
-                        <span className="px-3 py-1 bg-purple-500/15 border border-purple-500/30 text-purple-300 font-bold text-xs rounded-full">
+                        <span className="px-3 py-1 bg-white/[0.05] text-zinc-300 font-bold text-xs rounded-full">
                           {template.niche_name}
                         </span>
-                        <div className="flex items-center gap-1.5 opacity-80 group-hover:opacity-100 transition-opacity">
+                        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                           <button
                             onClick={() => handleStartEdit(template)}
-                            className="p-1.5 bg-white/5 hover:bg-indigo-500/20 text-gray-300 hover:text-indigo-300 rounded-lg transition-all border border-white/5"
+                            className="p-1.5 text-zinc-600 hover:text-zinc-300 transition-colors"
                             title="Edit Template"
                           >
                             <Edit3 className="w-3.5 h-3.5" />
                           </button>
                           <button
                             onClick={() => handleDelete(template.id, template.niche_name)}
-                            className="p-1.5 bg-white/5 hover:bg-rose-500/20 text-gray-300 hover:text-rose-400 rounded-lg transition-all border border-white/5"
+                            className="p-1.5 text-zinc-600 hover:text-zinc-300 transition-colors"
                             title="Delete Template"
                           >
                             <Trash2 className="w-3.5 h-3.5" />
@@ -397,24 +402,24 @@ export default function TemplatesPage() {
 
                       {/* Pain Points */}
                       <div>
-                        <span className="text-[10px] uppercase font-bold text-rose-400 tracking-wider">Target Pain Points</span>
-                        <p className="text-xs text-gray-300 mt-1 leading-relaxed bg-[#16161d] p-3 rounded-xl border border-white/5">
+                        <span className="text-[10px] uppercase tracking-widest font-bold text-zinc-500">Target Pain Points</span>
+                        <p className="text-xs text-zinc-300 mt-1.5 leading-relaxed">
                           {template.pain_points}
                         </p>
                       </div>
 
                       {/* Solution */}
                       <div>
-                        <span className="text-[10px] uppercase font-bold text-emerald-400 tracking-wider">MR² Solution Strategy</span>
-                        <p className="text-xs text-gray-300 mt-1 leading-relaxed bg-[#16161d] p-3 rounded-xl border border-white/5">
+                        <span className="text-[10px] uppercase tracking-widest font-bold text-zinc-500">MR² Solution Strategy</span>
+                        <p className="text-xs text-zinc-300 mt-1.5 leading-relaxed">
                           {template.mr2_solution}
                         </p>
                       </div>
                     </div>
 
-                    <div className="mt-4 pt-3 border-t border-white/5 flex items-center justify-between text-[11px] text-gray-500">
+                    <div className="mt-6 pt-4 border-t border-white/[0.05] flex items-center justify-between text-[11px] text-zinc-600">
                       <span>Injected into Groq prompt</span>
-                      <span className="font-mono text-[10px] text-purple-400">{template.id ? 'DB Synced' : 'Preset'}</span>
+                      <span className="font-mono text-[10px] text-zinc-500">{template.id ? 'DB Synced' : 'Preset'}</span>
                     </div>
                   </div>
                 ))}

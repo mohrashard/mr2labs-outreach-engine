@@ -62,23 +62,23 @@ export function CampaignSetupForm({ isScraping, onSubmit }: CampaignSetupFormPro
   };
 
   return (
-    <div className="bg-[#111116] border border-white/10 rounded-3xl p-7 shadow-2xl relative overflow-hidden flex flex-col justify-between">
-      <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-500/5 rounded-full blur-3xl pointer-events-none" />
+    <div className="bg-white/[0.015] ring-1 ring-white/[0.05] rounded-2xl p-6 shadow-xl shadow-black/20 backdrop-blur-md relative overflow-hidden flex flex-col justify-between">
+      <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-500/[0.02] rounded-full blur-3xl pointer-events-none" />
       
       <div>
-        <div className="flex items-center gap-3 mb-6">
-          <div className="p-3 bg-white/5 rounded-2xl border border-white/10 text-white">
-            <Play className="w-5 h-5" />
+        <div className="flex items-center gap-3.5 mb-6">
+          <div className="p-2.5 bg-white/[0.02] ring-1 ring-white/[0.06] rounded-xl text-slate-300">
+            <Play className="w-4 h-4" />
           </div>
           <div>
-            <h2 className="text-xl font-bold tracking-tight text-white">Campaign Launcher</h2>
-            <p className="text-xs text-gray-400">Configure parameters & trigger scraper</p>
+            <h2 className="text-base font-medium tracking-tight text-slate-200">Campaign Launcher</h2>
+            <p className="text-[11px] text-slate-500 mt-0.5">Configure parameters & trigger scraper</p>
           </div>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-xs font-semibold uppercase tracking-wider text-gray-400 mb-2">
+            <label className="block text-xs font-normal text-slate-400 mb-1.5 tracking-normal">
               Campaign Name
             </label>
             <input 
@@ -86,58 +86,58 @@ export function CampaignSetupForm({ isScraping, onSubmit }: CampaignSetupFormPro
               required
               value={campaignName}
               onChange={(e) => setCampaignName(e.target.value)}
-              className="w-full bg-black/50 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-gray-600 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all text-sm"
+              className="w-full bg-white/[0.03] hover:bg-white/[0.04] focus:bg-white/[0.05] focus:ring-1 focus:ring-indigo-400/30 rounded-xl px-4 py-2.5 text-slate-200 placeholder-slate-600 focus:outline-none transition-all duration-200 text-xs border border-transparent"
               placeholder="e.g. Q3 Real Estate Blitz"
             />
           </div>
 
           {/* Target Niche Dropdown from Pitch Templates */}
           <div className="relative" ref={dropdownRef}>
-            <label className="block text-xs font-semibold uppercase tracking-wider text-gray-400 mb-2 flex items-center justify-between">
+            <label className="block text-xs font-normal text-slate-400 mb-1.5 tracking-normal flex items-center justify-between">
               <span>Target Niche</span>
-              <span className="text-[10px] text-purple-400 font-medium flex items-center gap-1">
-                <Sparkles className="w-3 h-3" /> Pitch Templates Synced
+              <span className="text-[10px] text-purple-300/80 font-normal flex items-center gap-1">
+                <Sparkles className="w-3 h-3 text-purple-400/80" /> Templates Synced
               </span>
             </label>
 
             {/* Custom Dropdown Trigger Header */}
             <div 
               onClick={() => setIsOpen(!isOpen)}
-              className={`w-full bg-black/50 border border-white/10 rounded-xl px-4 py-3 text-white text-sm cursor-pointer flex items-center justify-between transition-all hover:border-indigo-500/40 ${
-                isOpen ? 'ring-2 ring-indigo-500/50 border-indigo-500' : ''
+              className={`w-full bg-white/[0.03] hover:bg-white/[0.04] focus:bg-white/[0.05] rounded-xl px-4 py-2.5 text-slate-200 text-xs cursor-pointer flex items-center justify-between transition-all duration-200 border border-transparent ${
+                isOpen ? 'ring-1 ring-indigo-400/30 bg-white/[0.05]' : ''
               }`}
             >
               {niche ? (
-                <span className="font-medium text-indigo-200 flex items-center gap-2">
-                  <Layers className="w-4 h-4 text-purple-400" />
+                <span className="font-normal text-indigo-200 flex items-center gap-2">
+                  <Layers className="w-3.5 h-3.5 text-purple-400/80" />
                   {niche}
                 </span>
               ) : (
-                <span className="text-gray-500">Select or type a niche template...</span>
+                <span className="text-slate-600">Select or type a niche template...</span>
               )}
-              <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform duration-200 ${isOpen ? 'rotate-180 text-indigo-400' : ''}`} />
+              <ChevronDown className={`w-3.5 h-3.5 text-slate-500 transition-transform duration-200 ${isOpen ? 'rotate-180 text-indigo-400' : ''}`} />
             </div>
 
             {/* Custom Dropdown Menu */}
             {isOpen && (
-              <div className="absolute left-0 right-0 top-full mt-2 bg-[#16161d] border border-white/15 rounded-2xl shadow-2xl z-50 overflow-hidden backdrop-blur-2xl animate-in fade-in zoom-in-95 duration-150">
+              <div className="absolute left-0 right-0 top-full mt-2 bg-[#0E1017]/95 ring-1 ring-white/[0.08] rounded-2xl shadow-2xl z-50 overflow-hidden backdrop-blur-2xl animate-in fade-in zoom-in-95 duration-150 p-1.5">
                 
                 {/* Search / Manual Input Field */}
-                <div className="p-3 border-b border-white/10 bg-black/40">
+                <div className="p-2 border-b border-white/[0.04] bg-black/20">
                   <input 
                     type="text"
                     placeholder="Search or enter custom niche..."
                     value={niche}
                     onChange={(e) => setNiche(e.target.value)}
-                    className="w-full bg-[#20202b] border border-white/10 rounded-lg px-3 py-2 text-xs text-white placeholder-gray-500 focus:outline-none focus:border-indigo-500"
+                    className="w-full bg-white/[0.03] focus:ring-1 focus:ring-indigo-400/30 rounded-lg px-3 py-1.5 text-xs text-slate-200 placeholder-slate-600 focus:outline-none border border-transparent"
                     onClick={(e) => e.stopPropagation()}
                   />
                 </div>
 
                 {/* Templates Options List */}
-                <div className="max-h-56 overflow-y-auto divide-y divide-white/5 py-1">
+                <div className="max-h-52 overflow-y-auto divide-y divide-white/[0.03] py-1">
                   {templates.length === 0 ? (
-                    <div className="px-4 py-3 text-xs text-gray-500 text-center">
+                    <div className="px-4 py-3 text-xs text-slate-500 text-center">
                       No pitch templates available. Type a custom niche above.
                     </div>
                   ) : (
@@ -147,21 +147,21 @@ export function CampaignSetupForm({ isScraping, onSubmit }: CampaignSetupFormPro
                         <div
                           key={template.id || template.niche_name}
                           onClick={() => handleSelectTemplate(template)}
-                          className={`px-4 py-3 hover:bg-indigo-600/15 cursor-pointer transition-colors flex items-center justify-between group ${
-                            isSelected ? 'bg-indigo-500/15 text-indigo-200 font-semibold' : 'text-gray-300'
+                          className={`px-3.5 py-2.5 hover:bg-white/[0.04] cursor-pointer transition-colors flex items-center justify-between rounded-xl group ${
+                            isSelected ? 'bg-indigo-500/10 text-indigo-200 font-normal' : 'text-slate-300'
                           }`}
                         >
                           <div className="space-y-0.5 pr-3">
-                            <div className="text-xs font-bold text-white group-hover:text-indigo-300 transition-colors flex items-center gap-2">
+                            <div className="text-xs font-medium text-slate-200 group-hover:text-indigo-300 transition-colors flex items-center gap-2">
                               {template.niche_name}
                             </div>
-                            <p className="text-[11px] text-gray-400 line-clamp-1">
+                            <p className="text-[11px] text-slate-500 line-clamp-1">
                               {template.pain_points}
                             </p>
                           </div>
 
                           {isSelected && (
-                            <Check className="w-4 h-4 text-indigo-400 shrink-0" />
+                            <Check className="w-3.5 h-3.5 text-indigo-400 shrink-0" />
                           )}
                         </div>
                       );
@@ -170,10 +170,10 @@ export function CampaignSetupForm({ isScraping, onSubmit }: CampaignSetupFormPro
                 </div>
 
                 {/* Bottom Footer Action */}
-                <div className="p-2 border-t border-white/10 bg-black/30 text-center">
+                <div className="p-2 border-t border-white/[0.04] text-center">
                   <a 
                     href="/templates" 
-                    className="text-[11px] text-purple-400 hover:text-purple-300 font-semibold inline-flex items-center gap-1"
+                    className="text-[11px] text-purple-300/80 hover:text-purple-200 font-normal inline-flex items-center gap-1"
                   >
                     + Manage & Create Pitch Templates
                   </a>
@@ -183,32 +183,32 @@ export function CampaignSetupForm({ isScraping, onSubmit }: CampaignSetupFormPro
           </div>
 
           <div>
-            <label className="block text-xs font-semibold uppercase tracking-wider text-gray-400 mb-2">Location</label>
+            <label className="block text-xs font-normal text-slate-400 mb-1.5 tracking-normal">Location</label>
             <input 
               type="text" 
               required
               value={location}
               onChange={(e) => setLocation(e.target.value)}
-              className="w-full bg-black/50 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-gray-600 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all text-sm"
+              className="w-full bg-white/[0.03] hover:bg-white/[0.04] focus:bg-white/[0.05] focus:ring-1 focus:ring-indigo-400/30 rounded-xl px-4 py-2.5 text-slate-200 placeholder-slate-600 focus:outline-none transition-all duration-200 text-xs border border-transparent"
               placeholder="e.g. Miami, Florida"
             />
           </div>
 
           <div>
-            <label className="block text-xs font-semibold uppercase tracking-wider text-gray-400 mb-2">Start Date</label>
+            <label className="block text-xs font-normal text-slate-400 mb-1.5 tracking-normal">Start Date</label>
             <input 
               type="date" 
               required
               value={startDate}
               onChange={(e) => setStartDate(e.target.value)}
-              className="w-full bg-black/50 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-gray-600 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all text-sm [color-scheme:dark]"
+              className="w-full bg-white/[0.03] hover:bg-white/[0.04] focus:bg-white/[0.05] focus:ring-1 focus:ring-indigo-400/30 rounded-xl px-4 py-2.5 text-slate-200 placeholder-slate-600 focus:outline-none transition-all duration-200 text-xs [color-scheme:dark] border border-transparent"
             />
           </div>
 
           {startDate && (
-            <div className="p-4 bg-indigo-500/10 rounded-xl border border-indigo-500/20 text-sm text-indigo-200 flex justify-between items-center animate-in fade-in zoom-in duration-300">
-              <span>Auto-expires:</span>
-              <span className="font-bold bg-indigo-500/20 px-2 py-1 rounded-md">
+            <div className="p-3 bg-indigo-500/10 rounded-xl ring-1 ring-indigo-500/15 text-xs text-indigo-300 flex justify-between items-center animate-in fade-in duration-200">
+              <span className="text-slate-400">Auto-expires:</span>
+              <span className="font-medium bg-indigo-500/20 px-2 py-0.5 rounded-md text-indigo-200 text-[11px]">
                 {new Date(new Date(startDate).getTime() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]}
               </span>
             </div>
@@ -217,9 +217,9 @@ export function CampaignSetupForm({ isScraping, onSubmit }: CampaignSetupFormPro
           <button 
             type="submit"
             disabled={isScraping || !niche}
-            className="w-full py-3.5 mt-4 bg-white hover:bg-gray-200 disabled:opacity-50 text-black rounded-xl font-bold shadow-[0_0_15px_rgba(255,255,255,0.1)] hover:shadow-[0_0_20px_rgba(255,255,255,0.2)] transition-all flex items-center justify-center gap-2"
+            className="w-full py-3 mt-4 bg-gradient-to-r from-indigo-500/90 to-indigo-600/90 hover:from-indigo-500 hover:to-indigo-600 disabled:opacity-40 text-white rounded-full font-medium shadow-md shadow-indigo-950/30 transition-all duration-200 ease-out flex items-center justify-center gap-2 text-xs"
           >
-            <Play className="w-4 h-4" fill="currentColor" />
+            <Play className="w-3.5 h-3.5" fill="currentColor" />
             {isScraping ? 'Deploying Scraper...' : 'Save & Discovery Scrape'}
           </button>
         </form>

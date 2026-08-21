@@ -7,6 +7,7 @@ import {
   Users, Mail, MessageSquareText, Activity, 
   Play, RefreshCw, CheckCircle, AlertTriangle, Layers, LogOut, ShieldCheck
 } from 'lucide-react';
+import Image from 'next/image';
 import { OutreachLead } from '@/types/lead';
 import { LeadsTable } from '@/components/leads/LeadsTable';
 import { LeadDetailDrawer } from '@/components/leads/LeadDetailDrawer';
@@ -191,75 +192,82 @@ export default function AdminDashboard() {
   };
 
   return (
-    <div className="min-h-screen bg-[#09090b] text-gray-100 font-sans selection:bg-indigo-500 selection:text-white pb-20">
+    <div className="min-h-screen bg-[#0a0a0c] text-slate-300 font-sans selection:bg-indigo-500/20 selection:text-indigo-200 pb-20 relative">
       
+      {/* Ambient background soft veil */}
+      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full max-w-7xl h-[380px] bg-gradient-to-b from-indigo-950/[0.04] via-slate-900/[0.015] to-transparent blur-3xl pointer-events-none" />
+
       {/* Toast Alert */}
       {alert && (
-        <div className={`fixed top-5 right-5 z-50 flex items-center gap-3 px-4 py-3 rounded-2xl border shadow-2xl backdrop-blur-xl animate-in slide-in-from-top duration-300 ${
+        <div className={`fixed top-5 right-5 z-50 flex items-center gap-3 px-4 py-3 rounded-2xl ring-1 shadow-2xl backdrop-blur-2xl animate-in slide-in-from-top duration-300 ${
           alert.type === 'success' 
-            ? 'bg-emerald-950/80 border-emerald-500/30 text-emerald-200' 
-            : 'bg-rose-950/80 border-rose-500/30 text-rose-200'
+            ? 'bg-[#0A1210]/90 ring-emerald-500/20 text-emerald-300' 
+            : 'bg-[#180C10]/90 ring-rose-500/20 text-rose-300'
         }`}>
-          {alert.type === 'success' ? <CheckCircle className="w-5 h-5 text-emerald-400" /> : <AlertTriangle className="w-5 h-5 text-rose-400" />}
-          <span className="text-sm font-medium">{alert.message}</span>
+          {alert.type === 'success' ? <CheckCircle className="w-4 h-4 text-emerald-400" /> : <AlertTriangle className="w-4 h-4 text-rose-400" />}
+          <span className="text-xs font-normal">{alert.message}</span>
         </div>
       )}
 
       {/* Header Bar */}
-      <header className="border-b border-white/10 bg-black/40 backdrop-blur-xl sticky top-0 z-40">
-        <div className="max-w-7xl mx-auto px-6 py-4 flex flex-col md:flex-row justify-between items-center gap-4">
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-2xl bg-gradient-to-tr from-indigo-500 to-cyan-400 flex items-center justify-center font-black text-black text-lg shadow-[0_0_20px_rgba(99,102,241,0.4)]">
-              MR²
-            </div>
+      <header className="border-b border-white/[0.04] bg-[#0a0a0c]/80 backdrop-blur-2xl sticky top-0 z-40">
+        <div className="max-w-7xl mx-auto px-6 py-3.5 flex flex-col md:flex-row justify-between items-center gap-4">
+          <div className="flex items-center gap-3.5">
+            <Image 
+              src="/mr-squared-logo.png" 
+              alt="MR² Labs Logo" 
+              width={34} 
+              height={34} 
+              className="w-8 h-8 rounded-lg object-cover ring-1 ring-white/10 shadow-sm" 
+            />
             <div>
-              <h1 className="text-xl font-bold tracking-tight text-white flex items-center gap-2">
+              <h1 className="text-sm font-medium tracking-tight text-slate-200 flex items-center gap-2">
                 Outreach Engine
-                <span className="text-[10px] font-semibold px-2 py-0.5 bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 rounded-full">
+                <span className="text-[10px] font-normal px-2 py-0.5 bg-indigo-500/10 text-indigo-300/90 rounded-full">
                   v2.0 Autonomous
                 </span>
               </h1>
-              <p className="text-xs text-gray-400">Multi-provider discovery, AI auditing & Brevo dispatch</p>
+              <p className="text-[11px] text-slate-500 mt-0.5 font-normal">Multi-provider discovery, AI auditing & Brevo dispatch</p>
             </div>
           </div>
 
-          <div className="flex items-center gap-3 flex-wrap justify-end">
+          <div className="flex items-center gap-2 flex-wrap justify-end">
             {userEmail && (
-              <div className="flex items-center gap-2 px-3 py-2 bg-emerald-500/10 border border-emerald-500/20 text-emerald-300 rounded-xl text-xs font-medium">
-                <ShieldCheck className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+              <div className="flex items-center gap-2 px-3 py-1.5 bg-white/[0.02] text-slate-400 rounded-full text-xs font-normal">
+                <ShieldCheck className="w-3.5 h-3.5 text-emerald-400/80 shrink-0" />
                 <span className="truncate max-w-[160px]" title={userEmail}>Admin: {userEmail}</span>
               </div>
             )}
 
             <Link 
               href="/templates"
-              className="px-4 py-2.5 bg-purple-600/20 hover:bg-purple-600/30 text-purple-200 border border-purple-500/30 rounded-xl font-semibold text-xs transition-all flex items-center gap-2"
+              className="px-3.5 py-2 hover:bg-white/[0.04] text-slate-400 hover:text-slate-200 rounded-full font-normal text-xs transition-colors duration-200 flex items-center gap-2"
             >
-              <Layers className="w-3.5 h-3.5 text-purple-400" />
+              <Layers className="w-3.5 h-3.5 text-purple-400/80" />
               Template Builder
             </Link>
             <button 
               onClick={handleRunScraper}
               disabled={isScraping}
-              className="px-4 py-2.5 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white rounded-xl font-semibold text-xs transition-all flex items-center gap-2 shadow-lg shadow-indigo-600/20"
+              className="px-4 py-2 bg-indigo-500/15 hover:bg-indigo-500/25 disabled:opacity-40 text-indigo-300 hover:text-indigo-200 rounded-full font-medium text-xs transition-all duration-200 flex items-center gap-2"
             >
-              <Play className="w-3.5 h-3.5" />
+              <Play className="w-3 h-3" />
               {isScraping ? 'Scraping...' : 'Run Scraper Now'}
             </button>
             <button 
               onClick={handleFlushQueue}
               disabled={isFlushing}
-              className="px-4 py-2.5 bg-white/10 hover:bg-white/20 disabled:opacity-50 text-white rounded-xl font-semibold text-xs transition-all flex items-center gap-2 border border-white/10"
+              className="px-3.5 py-2 hover:bg-white/[0.04] disabled:opacity-40 text-slate-400 hover:text-slate-200 rounded-full font-normal text-xs transition-colors duration-200 flex items-center gap-2"
             >
               <RefreshCw className={`w-3.5 h-3.5 ${isFlushing ? 'animate-spin' : ''}`} />
               {isFlushing ? 'Flushing...' : 'Flush Daily Queue'}
             </button>
             <button 
               onClick={handleSignOut}
-              className="px-3 py-2.5 bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 border border-rose-500/20 rounded-xl font-semibold text-xs transition-all flex items-center gap-1.5"
+              className="px-3 py-2 hover:bg-rose-500/10 text-slate-400 hover:text-rose-300 rounded-full font-normal text-xs transition-colors duration-200 flex items-center gap-1.5"
               title="Sign Out"
             >
-              <LogOut className="w-3.5 h-3.5 text-rose-400" />
+              <LogOut className="w-3.5 h-3.5 text-rose-400/80" />
               <span className="hidden sm:inline">Sign Out</span>
             </button>
           </div>
@@ -267,73 +275,77 @@ export default function AdminDashboard() {
       </header>
 
       {/* Main Content Area */}
-      <main className="max-w-7xl mx-auto px-6 pt-8 space-y-8">
+      <main className="max-w-7xl mx-auto px-6 pt-9 space-y-9 relative z-10">
         
         {/* Metric Cards Top Bar */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-          <div className="bg-[#111116] border border-white/10 rounded-3xl p-6 shadow-xl relative overflow-hidden group hover:border-indigo-500/50 transition-all">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+          
+          <div className="bg-white/[0.015] hover:bg-white/[0.03] ring-1 ring-white/[0.05] hover:ring-white/[0.1] rounded-2xl p-6 shadow-sm backdrop-blur-md transition-all duration-200 ease-out group">
             <div className="flex justify-between items-start">
               <div>
-                <p className="text-xs font-semibold uppercase tracking-wider text-gray-400">Total Scraped</p>
-                <h3 className="text-3xl font-black text-white mt-1">{metrics.totalScraped}</h3>
+                <p className="text-xs font-normal text-slate-500 tracking-normal">Total Scraped</p>
+                <h3 className="text-2xl font-medium tracking-tight text-slate-200 mt-1">{metrics.totalScraped}</h3>
               </div>
-              <div className="p-3 bg-white/5 rounded-2xl border border-white/10 text-indigo-400">
-                <Users className="w-5 h-5" />
+              <div className="p-2.5 bg-white/[0.02] ring-1 ring-white/[0.06] rounded-xl text-slate-400 group-hover:text-indigo-300 transition-colors duration-200">
+                <Users className="w-4 h-4" />
               </div>
             </div>
-            <div className="mt-4 flex items-center text-xs text-emerald-400 font-medium">
-              <span>+100% active discovery</span>
+            <div className="mt-4 flex items-center text-[11px] text-slate-500 font-normal">
+              <span className="text-emerald-400/90 font-normal">+100%</span>
+              <span className="ml-1 text-slate-500">active discovery</span>
             </div>
           </div>
 
-          <div className="bg-[#111116] border border-white/10 rounded-3xl p-6 shadow-xl relative overflow-hidden group hover:border-emerald-500/50 transition-all">
+          <div className="bg-white/[0.015] hover:bg-white/[0.03] ring-1 ring-white/[0.05] hover:ring-white/[0.1] rounded-2xl p-6 shadow-sm backdrop-blur-md transition-all duration-200 ease-out group">
             <div className="flex justify-between items-start">
               <div>
-                <p className="text-xs font-semibold uppercase tracking-wider text-gray-400">Emails Sent Today</p>
-                <h3 className="text-3xl font-black text-white mt-1">{metrics.emailsSentToday}</h3>
+                <p className="text-xs font-normal text-slate-500 tracking-normal">Emails Sent Today</p>
+                <h3 className="text-2xl font-medium tracking-tight text-slate-200 mt-1">{metrics.emailsSentToday}</h3>
               </div>
-              <div className="p-3 bg-white/5 rounded-2xl border border-white/10 text-emerald-400">
-                <Mail className="w-5 h-5" />
+              <div className="p-2.5 bg-white/[0.02] ring-1 ring-white/[0.06] rounded-xl text-slate-400 group-hover:text-emerald-300 transition-colors duration-200">
+                <Mail className="w-4 h-4" />
               </div>
             </div>
-            <div className="mt-4 flex items-center text-xs text-gray-400 font-medium">
+            <div className="mt-4 flex items-center text-[11px] text-slate-500 font-normal">
               <span>Limit: 20 per day</span>
             </div>
           </div>
 
-          <div className="bg-[#111116] border border-white/10 rounded-3xl p-6 shadow-xl relative overflow-hidden group hover:border-purple-500/50 transition-all">
+          <div className="bg-white/[0.015] hover:bg-white/[0.03] ring-1 ring-white/[0.05] hover:ring-white/[0.1] rounded-2xl p-6 shadow-sm backdrop-blur-md transition-all duration-200 ease-out group">
             <div className="flex justify-between items-start">
               <div>
-                <p className="text-xs font-semibold uppercase tracking-wider text-gray-400">Reply Rate</p>
-                <h3 className="text-3xl font-black text-white mt-1">{metrics.replyRate}</h3>
+                <p className="text-xs font-normal text-slate-500 tracking-normal">Reply Rate</p>
+                <h3 className="text-2xl font-medium tracking-tight text-slate-200 mt-1">{metrics.replyRate}</h3>
               </div>
-              <div className="p-3 bg-white/5 rounded-2xl border border-white/10 text-purple-400">
-                <MessageSquareText className="w-5 h-5" />
+              <div className="p-2.5 bg-white/[0.02] ring-1 ring-white/[0.06] rounded-xl text-slate-400 group-hover:text-purple-300 transition-colors duration-200">
+                <MessageSquareText className="w-4 h-4" />
               </div>
             </div>
-            <div className="mt-4 flex items-center text-xs text-purple-400 font-medium">
-              <span>Brevo inbound webhooks live</span>
+            <div className="mt-4 flex items-center text-[11px] text-slate-500 font-normal">
+              <span className="text-purple-300/80 font-normal">Brevo inbound</span>
+              <span className="ml-1 text-slate-500">webhooks live</span>
             </div>
           </div>
 
-          <div className="bg-[#111116] border border-white/10 rounded-3xl p-6 shadow-xl relative overflow-hidden group hover:border-cyan-500/50 transition-all">
+          <div className="bg-white/[0.015] hover:bg-white/[0.03] ring-1 ring-white/[0.05] hover:ring-white/[0.1] rounded-2xl p-6 shadow-sm backdrop-blur-md transition-all duration-200 ease-out group">
             <div className="flex justify-between items-start">
               <div>
-                <p className="text-xs font-semibold uppercase tracking-wider text-gray-400">Active Campaigns</p>
-                <h3 className="text-3xl font-black text-white mt-1">{metrics.activeCampaigns}</h3>
+                <p className="text-xs font-normal text-slate-500 tracking-normal">Active Campaigns</p>
+                <h3 className="text-2xl font-medium tracking-tight text-slate-200 mt-1">{metrics.activeCampaigns}</h3>
               </div>
-              <div className="p-3 bg-white/5 rounded-2xl border border-white/10 text-cyan-400">
-                <Activity className="w-5 h-5" />
+              <div className="p-2.5 bg-white/[0.02] ring-1 ring-white/[0.06] rounded-xl text-slate-400 group-hover:text-cyan-300 transition-colors duration-200">
+                <Activity className="w-4 h-4" />
               </div>
             </div>
-            <div className="mt-4 flex items-center text-xs text-cyan-400 font-medium">
+            <div className="mt-4 flex items-center text-[11px] text-slate-500 font-normal">
               <span>30-day auto expiry policy</span>
             </div>
           </div>
+
         </div>
 
         {/* Dashboard Main Grid: Setup Form + Clean Pipeline Table */}
-        <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
+        <div className="grid grid-cols-1 xl:grid-cols-3 gap-9">
           
           {/* Campaign Launcher Form */}
           <div className="xl:col-span-1">

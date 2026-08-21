@@ -24,5 +24,6 @@ export interface OutreachLead {
   status: LeadStatus;
   screenshot_url?: string | null;
   sent_at?: string | null;
+  scheduled_for?: string | null;
   created_at: string;
 }

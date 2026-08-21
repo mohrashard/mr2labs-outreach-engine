@@ -123,3 +123,7 @@ EXCEPTION
     WHEN duplicate_object THEN NULL;
     WHEN others THEN NULL;
 END $$;
+
+ALTER TABLE outreach_leads 
+ADD COLUMN scheduled_for TIMESTAMP WITH TIME ZONE;
+

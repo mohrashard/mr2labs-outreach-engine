@@ -14,6 +14,14 @@ interface LeadsTableProps {
 
 export function LeadsTable({ leads, onSelectLead }: LeadsTableProps) {
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [filter, setFilter] = useState<'today' | 'all'>('today');
+
+  const filteredLeads = leads.filter(lead => {
+    if (filter === 'all') return true;
+    const leadDate = new Date(lead.created_at).setHours(0,0,0,0);
+    const today = new Date().setHours(0,0,0,0);
+    return leadDate === today;
+  });
 
   const handleCopy = (e: React.MouseEvent, email: string, id: string) => {
     e.stopPropagation();
@@ -69,8 +77,22 @@ export function LeadsTable({ leads, onSelectLead }: LeadsTableProps) {
         <div className="flex items-center gap-3">
           <h2 className="text-base font-medium tracking-tight text-slate-200">Scraped Leads Pipeline</h2>
           <span className="text-xs font-normal px-2.5 py-0.5 bg-white/[0.03] rounded-full text-slate-400">
-            {leads.length} Leads
+            {filteredLeads.length} Leads
           </span>
+        </div>
+        <div className="flex items-center bg-black/40 rounded-lg p-1 ring-1 ring-white/5">
+          <button 
+            onClick={() => setFilter('today')}
+            className={`px-3 py-1 rounded-md text-xs transition-colors ${filter === 'today' ? 'bg-white/10 text-slate-200 shadow-sm' : 'text-slate-500 hover:text-slate-300'}`}
+          >
+            Today's Batch
+          </button>
+          <button 
+            onClick={() => setFilter('all')}
+            className={`px-3 py-1 rounded-md text-xs transition-colors ${filter === 'all' ? 'bg-white/10 text-slate-200 shadow-sm' : 'text-slate-500 hover:text-slate-300'}`}
+          >
+            All Leads
+          </button>
         </div>
       </div>
 
@@ -86,14 +108,14 @@ export function LeadsTable({ leads, onSelectLead }: LeadsTableProps) {
             </tr>
           </thead>
           <tbody className="divide-y divide-white/[0.03]">
-            {leads.length === 0 ? (
+            {filteredLeads.length === 0 ? (
               <tr>
                 <td colSpan={5} className="py-12 text-center text-slate-500 font-normal text-sm">
-                  No leads found. Create a campaign to start discovery scraping.
+                  No leads found in this view.
                 </td>
               </tr>
             ) : (
-              leads.map((lead) => (
+              filteredLeads.map((lead) => (
                 <tr 
                   key={lead.id} 
                   onClick={() => onSelectLead(lead)}

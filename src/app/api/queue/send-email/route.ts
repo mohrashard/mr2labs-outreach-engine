@@ -3,6 +3,7 @@ import { Receiver } from '@upstash/qstash';
 import { supabaseAdmin } from '@/lib/supabase/admin';
 import { sendColdEmail } from '@/lib/email/brevo';
 import { hasValidMxRecords } from '@/lib/email/validator';
+import { generateFollowUpPitch } from '@/lib/ai/pitch';
 
 const receiver = process.env.QSTASH_CURRENT_SIGNING_KEY && process.env.QSTASH_NEXT_SIGNING_KEY
   ? new Receiver({
@@ -39,7 +40,7 @@ export async function POST(request: Request) {
       console.warn('[Queue Send Email] Warning: QStash signing keys are missing in production environment!');
     }
 
-    const { leadId } = JSON.parse(bodyText);
+    const { leadId, followUpStep = 0 } = JSON.parse(bodyText);
 
     if (!leadId) {
       return NextResponse.json({ error: 'Missing leadId in payload' }, { status: 400 });
@@ -48,7 +49,7 @@ export async function POST(request: Request) {
     // Fetch lead details
     const { data: lead, error: leadError } = await supabaseAdmin
       .from('outreach_leads')
-      .select('id, email, email_subject, pitch_text, company_name')
+      .select('id, email, email_subject, pitch_text, company_name, campaigns(niche)')
       .eq('id', leadId)
       .single();
 
@@ -76,12 +77,27 @@ export async function POST(request: Request) {
       });
     }
 
+    let subject = lead.email_subject || `Quick question regarding ${lead.company_name}`;
+    let pitchText = lead.pitch_text;
+
+    // Dynamically generate AI Follow-Up if step > 0
+    if (followUpStep > 0) {
+       console.log(`[Queue Send Email] Generating Follow-Up Step ${followUpStep} for ${lead.company_name}`);
+       const aiFollowUp = await generateFollowUpPitch(
+         lead.pitch_text || '',
+         followUpStep,
+         lead.company_name,
+         Array.isArray(lead.campaigns) ? lead.campaigns[0]?.niche : (lead.campaigns as any)?.niche
+       );
+       subject = aiFollowUp.email_subject || subject;
+       pitchText = aiFollowUp.generated_pitch;
+    }
+
     // Prepare email
-    const subject = lead.email_subject || `Quick question regarding ${lead.company_name}`;
     const htmlContent = `
       <div style="font-family: sans-serif; font-size: 14px; color: #333; line-height: 1.6;">
         <p>Hi there,</p>
-        <p>${lead.pitch_text}</p>
+        <p>${pitchText}</p>
         <p>Best regards,<br/>MR² Labs Team</p>
       </div>
     `;
@@ -98,13 +114,13 @@ export async function POST(request: Request) {
       })
       .eq('id', lead.id);
 
-    // Record activity log
+    // Record activity log with the EXACT pitch text sent
     await supabaseAdmin
       .from('activity_logs')
       .insert({
         lead_id: lead.id,
         event_type: 'EMAIL_SENT',
-        payload: { email: lead.email, subject }
+        payload: { email: lead.email, subject, step: followUpStep, content: pitchText }
       });
 
     return NextResponse.json({ success: true, leadId: lead.id });

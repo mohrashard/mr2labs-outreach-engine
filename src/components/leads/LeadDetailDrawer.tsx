@@ -21,7 +21,7 @@ export function LeadDetailDrawer({
   onUpdateLead, 
   onSendTestEmail 
 }: LeadDetailDrawerProps) {
-  const [activeTab, setActiveTab] = useState<'pitch' | 'dom' | 'activity'>('pitch');
+  const [activeTab, setActiveTab] = useState<'pitch' | 'dom' | 'activity' | 'followups'>('pitch');
   const [emailSubject, setEmailSubject] = useState('');
   const [auditNotes, setAuditNotes] = useState('');
   const [pitchText, setPitchText] = useState('');
@@ -30,6 +30,7 @@ export function LeadDetailDrawer({
   const [isSaving, setIsSaving] = useState(false);
   const [isSending, setIsSending] = useState(false);
   const [copiedField, setCopiedField] = useState<string | null>(null);
+  const [realLogs, setRealLogs] = useState<any[]>([]);
 
   useEffect(() => {
     if (lead) {
@@ -39,6 +40,17 @@ export function LeadDetailDrawer({
       setStatus(lead.status);
     }
   }, [lead]);
+
+  useEffect(() => {
+    if (lead && activeTab === 'activity') {
+      fetch(`/api/leads/logs?leadId=${lead.id}`)
+        .then(res => res.json())
+        .then(data => {
+          if (data.logs) setRealLogs(data.logs);
+        })
+        .catch(console.error);
+    }
+  }, [lead, activeTab]);
 
   if (!lead) return null;
 
@@ -145,6 +157,16 @@ export function LeadDetailDrawer({
             }`}
           >
             <Clock className="w-4 h-4 text-amber-400" /> Activity Logs
+          </button>
+          <button
+            onClick={() => setActiveTab('followups')}
+            className={`py-3.5 px-4 text-xs font-medium flex items-center gap-2 border-b-2 transition-all ${
+              activeTab === 'followups' 
+                ? 'border-purple-400 text-purple-300' 
+                : 'border-transparent text-slate-400 hover:text-slate-200'
+            }`}
+          >
+            <MessageSquare className="w-4 h-4 text-purple-400" /> Follow-ups
           </button>
         </div>
 
@@ -297,49 +319,125 @@ export function LeadDetailDrawer({
             <div className="space-y-4">
               <h3 className="text-xs font-medium text-slate-400 tracking-normal">Dispatch & Audit Timeline</h3>
               <div className="space-y-3">
-                <div className="p-4 bg-white/[0.02] rounded-2xl ring-1 ring-white/[0.06] flex items-start gap-3">
+                
+                {/* 1. Real Activity Logs (Includes Follow-ups) */}
+                {realLogs.map((log: any) => (
+                  <div key={log.id} className="p-4 bg-white/[0.02] rounded-2xl ring-1 ring-white/[0.06] flex items-start gap-3">
+                    <div className={`p-2 rounded-xl mt-0.5 ring-1 ${log.event_type === 'EMAIL_SENT' ? 'bg-emerald-500/10 text-emerald-400 ring-emerald-500/20' : 'bg-slate-500/10 text-slate-400 ring-slate-500/20'}`}>
+                      {log.event_type === 'EMAIL_SENT' ? <Send className="w-4 h-4" /> : <FileText className="w-4 h-4" />}
+                    </div>
+                    <div className="flex-1">
+                      <p className="text-xs font-medium text-slate-100">
+                        {log.event_type === 'EMAIL_SENT' 
+                          ? `Email Dispatched (Step ${log.payload?.step || 0})` 
+                          : log.event_type}
+                      </p>
+                      <p className="text-[10px] text-slate-500 mt-0.5">{new Date(log.created_at).toLocaleString()}</p>
+                      
+                      {log.payload?.subject && (
+                        <p className="text-xs text-indigo-300 mt-2 font-medium">Subject: {log.payload.subject}</p>
+                      )}
+                      {log.payload?.content && (
+                        <div className="mt-2 p-3 bg-black/40 rounded-xl text-[11px] text-slate-300 whitespace-pre-wrap ring-1 ring-white/5 font-serif leading-relaxed">
+                          {log.payload.content}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ))}
+
+                {/* 2. Lead Discovered (Static Base Event) */}
+                <div className="p-4 bg-white/[0.02] rounded-2xl ring-1 ring-white/[0.06] flex items-start gap-3 opacity-80">
                   <div className="p-2 rounded-xl bg-indigo-500/10 text-indigo-400 ring-1 ring-indigo-500/20 mt-0.5">
                     <Sparkles className="w-4 h-4" />
                   </div>
                   <div>
                     <p className="text-xs font-medium text-slate-100">Lead Discovered & AI Audited</p>
-                    <p className="text-xs text-slate-500 mt-0.5">{new Date(lead.created_at).toLocaleString()}</p>
+                    <p className="text-[10px] text-slate-500 mt-0.5">{new Date(lead.created_at).toLocaleString()}</p>
                   </div>
                 </div>
 
-                {lead.sent_at ? (
-                  <div className="p-4 bg-white/[0.02] rounded-2xl ring-1 ring-white/[0.06] flex items-start gap-3">
-                    <div className="p-2 rounded-xl bg-emerald-500/10 text-emerald-400 ring-1 ring-emerald-500/20 mt-0.5">
-                      <Send className="w-4 h-4" />
-                    </div>
-                    <div>
-                      <p className="text-xs font-medium text-slate-100">Cold Pitch Email Dispatched</p>
-                      <p className="text-xs text-slate-500 mt-0.5">{new Date(lead.sent_at).toLocaleString()}</p>
-                    </div>
-                  </div>
-                ) : (lead.scheduled_for || lead.status === 'QUEUED') ? (
-                  <div className="p-4 bg-white/[0.02] rounded-2xl ring-1 ring-white/[0.06] flex items-start gap-3">
+                {/* 3. Pending/Queued Status Note */}
+                {(lead.scheduled_for || lead.status === 'QUEUED') ? (
+                  <div className="p-4 bg-white/[0.02] rounded-2xl ring-1 ring-amber-500/20 flex items-start gap-3">
                     <div className="p-2 rounded-xl bg-amber-500/10 text-amber-400 ring-1 ring-amber-500/20 mt-0.5">
-                      <Mail className="w-4 h-4" />
+                      <Clock className="w-4 h-4 animate-pulse" />
                     </div>
                     <div>
-                      <p className="text-xs font-medium text-slate-100">Queued for Dispatch</p>
-                      <p className="text-xs text-slate-400 mt-0.5">
-                        {lead.scheduled_for ? new Date(lead.scheduled_for).toLocaleString() : 'Scheduled by Queue Worker'}
+                      <p className="text-xs font-medium text-amber-300">Queued for AI Generation & Dispatch</p>
+                      <p className="text-[10px] text-slate-400 mt-0.5">
+                        AI will draft and send Step {lead.follow_up_step} at: <br/>
+                        <span className="text-amber-200 font-semibold">{lead.scheduled_for ? new Date(lead.scheduled_for).toLocaleString() : 'Scheduled by Worker'}</span>
                       </p>
                     </div>
                   </div>
-                ) : (
+                ) : lead.status === 'NEW' ? (
                   <div className="p-4 bg-white/[0.01] rounded-2xl ring-1 ring-white/[0.04] flex items-start gap-3 opacity-60">
                     <div className="p-2 rounded-xl bg-white/[0.04] text-slate-500 mt-0.5">
                       <Mail className="w-4 h-4" />
                     </div>
                     <div>
                       <p className="text-xs font-medium text-slate-400">Email Pending Queue Flush</p>
-                      <p className="text-xs text-slate-600 mt-0.5">Click "Flush Daily Queue" above to calculate & schedule dispatch</p>
+                      <p className="text-[10px] text-slate-600 mt-0.5">Click "Flush Daily Queue" above to calculate & schedule dispatch</p>
                     </div>
                   </div>
-                )}
+                ) : null}
+              </div>
+            </div>
+          )}
+
+          {/* TAB 4: FOLLOW-UPS */}
+          {activeTab === 'followups' && (
+            <div className="space-y-4">
+              <h3 className="text-xs font-medium text-slate-400 tracking-normal">Autonomous Follow-up Sequence</h3>
+              
+              <div className="space-y-4">
+                {[1, 2, 3].map((stepNumber) => {
+                  const log = realLogs.find((l: any) => l.event_type === 'EMAIL_SENT' && l.payload?.step === stepNumber);
+                  const isQueuedNow = lead.follow_up_step === stepNumber && lead.status === 'QUEUED';
+                  const isWaitingNow = lead.follow_up_step === stepNumber - 1 && lead.status === 'SENT';
+                  const isLocked = !log && !isQueuedNow && !isWaitingNow;
+
+                  return (
+                    <div key={stepNumber} className={`p-5 rounded-2xl ring-1 ${log ? 'bg-purple-500/5 ring-purple-500/20' : isQueuedNow || isWaitingNow ? 'bg-amber-500/5 ring-amber-500/20' : 'bg-white/[0.01] ring-white/[0.04] opacity-50'}`}>
+                      <div className="flex items-center justify-between mb-3">
+                        <h4 className={`text-sm font-semibold flex items-center gap-2 ${log ? 'text-purple-300' : isQueuedNow || isWaitingNow ? 'text-amber-300' : 'text-slate-500'}`}>
+                          Step {stepNumber}
+                          {log && <Check className="w-3.5 h-3.5 text-emerald-400" />}
+                          {isQueuedNow && <Clock className="w-3.5 h-3.5 animate-pulse" />}
+                        </h4>
+                        <span className="text-[10px] text-slate-500">
+                          {log ? new Date(log.created_at).toLocaleString() : isQueuedNow ? 'Queued' : isWaitingNow ? 'Waiting' : 'Locked'}
+                        </span>
+                      </div>
+
+                      {log ? (
+                        <div className="space-y-2">
+                          <p className="text-xs text-slate-300 font-medium bg-black/40 p-2 rounded-lg ring-1 ring-white/5">
+                            Subject: {log.payload?.subject}
+                          </p>
+                          <div className="p-3 bg-black/40 rounded-xl text-xs text-slate-300 whitespace-pre-wrap ring-1 ring-white/5 font-serif leading-relaxed">
+                            {log.payload?.content}
+                          </div>
+                        </div>
+                      ) : isQueuedNow || isWaitingNow ? (
+                        <div className="p-4 bg-black/20 rounded-xl ring-1 ring-white/5 flex flex-col items-center justify-center text-center gap-2">
+                          <Sparkles className="w-5 h-5 text-amber-500/50" />
+                          <p className="text-xs text-slate-400">
+                            AI hasn't written this yet. <br/>
+                            It will dynamically draft and send this step {lead.scheduled_for ? `at ${new Date(lead.scheduled_for).toLocaleString()}` : 'soon'}.
+                          </p>
+                        </div>
+                      ) : (
+                        <div className="p-4 bg-black/20 rounded-xl ring-1 ring-white/5 flex items-center justify-center">
+                          <p className="text-xs text-slate-600 flex items-center gap-2">
+                            Requires Step {stepNumber - 1} to be completed
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             </div>
           )}

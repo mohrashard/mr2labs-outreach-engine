@@ -60,16 +60,52 @@ export async function POST(request: Request) {
       return NextResponse.json({ skipped: true, reason: 'ALREADY_EXISTS', leadId: existing.id });
     }
 
+    // 1.5. Check daily quota before spending API credits
+    let dailyLimit = 20;
+    if (campaignId) {
+      const { data: campaign } = await supabaseAdmin
+        .from('campaigns')
+        .select('daily_lead_limit')
+        .eq('id', campaignId)
+        .single();
+      if (campaign?.daily_lead_limit) dailyLimit = campaign.daily_lead_limit;
+    }
+
+    const startOfDay = new Date();
+    startOfDay.setHours(0, 0, 0, 0);
+
+    const { count: createdToday } = await supabaseAdmin
+      .from('outreach_leads')
+      .select('*', { count: 'exact', head: true })
+      .eq('campaign_id', campaignId)
+      .gte('created_at', startOfDay.toISOString());
+
+    async function logEvent(type: string, msg: string, meta: any = {}) {
+      try {
+        await supabaseAdmin.from('system_logs').insert({ event_type: type, message: msg, metadata: meta });
+      } catch (e) {
+        console.error('Failed to log system event', e);
+      }
+    }
+
+    if ((createdToday || 0) >= dailyLimit) {
+      console.log(`[Background Worker] Quota met (${createdToday}/${dailyLimit}) for campaign: ${campaignId}. Skipping enrichment to save credits.`);
+      await logEvent('QUOTA_MET', `Skipped ${target.websiteUrl} - Daily quota reached.`, { url: target.websiteUrl, campaignId });
+      return NextResponse.json({ skipped: true, reason: 'QUOTA_MET' });
+    }
+
     // 2. Deep enrich contact data via Waterfall (DOM -> Bouncer -> Serper Dork -> Hunter -> Apollo -> Snov)
     const contactData = await deepEnrichDomain(target.websiteUrl, target.companyName, niche);
 
     if (contactData.is_rejected) {
       console.log(`[Background Worker - Bouncer] Rejected: ${target.websiteUrl}`);
+      await logEvent('BOUNCER_REJECTED', `Rejected ${target.websiteUrl} - Bouncer validation failed.`, { url: target.websiteUrl });
       return NextResponse.json({ skipped: true, reason: 'REJECTED_BY_BOUNCER' });
     }
 
     if (!contactData.email) {
       console.log(`[Background Worker - Enrichment] No verified email found for: ${target.websiteUrl}`);
+      await logEvent('NO_EMAIL', `Skipped ${target.websiteUrl} - No valid email found.`, { url: target.websiteUrl });
       return NextResponse.json({ skipped: true, reason: 'NO_VERIFIED_EMAIL' });
     }
 
@@ -118,9 +154,13 @@ export async function POST(request: Request) {
     }
 
     console.log(`[Background Worker Success] Created lead ID ${insertedLead.id} for ${target.websiteUrl}`);
+    await logEvent('SUCCESS', `Successfully scraped and pitched ${target.websiteUrl}`, { url: target.websiteUrl, email: contactData.email, leadId: insertedLead.id });
     return NextResponse.json({ success: true, leadId: insertedLead.id });
   } catch (error: any) {
     console.error('[Background Worker Error]:', error);
+    try {
+      await supabaseAdmin.from('system_logs').insert({ event_type: 'ERROR', message: `Worker crashed: ${error.message}`, metadata: { error: error.message } });
+    } catch (e) {}
     // Returning 500 status code triggers automatic QStash retry for failed jobs
     return NextResponse.json({ error: error.message }, { status: 500 });
   }

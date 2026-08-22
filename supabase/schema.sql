@@ -125,5 +125,19 @@ EXCEPTION
 END $$;
 
 ALTER TABLE outreach_leads 
-ADD COLUMN scheduled_for TIMESTAMP WITH TIME ZONE;
+ADD COLUMN IF NOT EXISTS scheduled_for TIMESTAMP WITH TIME ZONE;
 
+-- 5. Add System Logs table for background worker visibility
+CREATE TABLE IF NOT EXISTS system_logs (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    event_type TEXT NOT NULL,
+    message TEXT NOT NULL,
+    metadata JSONB,
+    created_at TIMESTAMPTZ DEFAULT now()
+);
+
+-- 6. Ensure campaigns table has follow-up settings
+ALTER TABLE campaigns 
+  ADD COLUMN IF NOT EXISTS step_1_days INT DEFAULT 3,
+  ADD COLUMN IF NOT EXISTS step_2_days INT DEFAULT 5,
+  ADD COLUMN IF NOT EXISTS step_3_days INT DEFAULT 10;

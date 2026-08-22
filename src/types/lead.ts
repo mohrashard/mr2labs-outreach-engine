@@ -25,5 +25,7 @@ export interface OutreachLead {
   screenshot_url?: string | null;
   sent_at?: string | null;
   scheduled_for?: string | null;
+  follow_up_step?: number;
+  last_contacted_at?: string | null;
   created_at: string;
 }

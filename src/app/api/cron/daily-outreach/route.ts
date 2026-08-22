@@ -68,7 +68,12 @@ export async function GET(req: Request) {
         console.log(`[Cron] Campaign "${campaign.name}" (${campaign.location}) needs ${leadsNeeded} leads.`);
 
         // 3. Run Discovery (Fast SERP sweep)
-        const discovered = await discoverTargetDomains(campaign.niche || 'General B2B', campaign.location);
+        const discovered = [];
+        for (let p = 1; p <= 4; p++) {
+          const pageLeads = await discoverTargetDomains(campaign.niche || 'General B2B', campaign.location, p);
+          if (pageLeads.length > 0) discovered.push(...pageLeads);
+          if (discovered.length >= leadsNeeded * 4) break;
+        }
 
         // 4. Auto-Pivot if city is exhausted (0 leads discovered)
         if (discovered.length === 0) {
@@ -94,7 +99,7 @@ export async function GET(req: Request) {
           let enqueuedScrapeCount = 0;
 
           for (let i = 0; i < discovered.length; i++) {
-            if (enqueuedScrapeCount >= leadsNeeded) break;
+            if (enqueuedScrapeCount >= leadsNeeded * 4) break;
 
             const lead = discovered[i];
             const { data: existing } = await supabaseAdmin

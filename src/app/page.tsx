@@ -13,6 +13,7 @@ import { LeadsTable } from '@/components/leads/LeadsTable';
 import { LeadDetailDrawer } from '@/components/leads/LeadDetailDrawer';
 import { CampaignSetupForm } from '@/components/campaigns/CampaignSetupForm';
 import { createClient } from '@/lib/supabase/client';
+import { LiveLogs } from '@/components/dashboard/LiveLogs';
 
 export default function AdminDashboard() {
   const router = useRouter();
@@ -44,6 +45,8 @@ export default function AdminDashboard() {
     }
   };
 
+  const [nextCronTime, setNextCronTime] = useState('Calculating...');
+
   useEffect(() => {
     const fetchUser = async () => {
       try {
@@ -56,6 +59,15 @@ export default function AdminDashboard() {
         console.error('Error fetching auth user:', err);
       }
     };
+
+    // Dynamically calculate next 09:00 UTC cron run in local timezone
+    const date = new Date();
+    date.setUTCHours(9, 0, 0, 0);
+    if (date.getTime() < Date.now()) {
+      date.setDate(date.getDate() + 1);
+    }
+    setNextCronTime(date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', timeZoneName: 'short' }));
+
     fetchUser();
     fetchData();
   }, []);
@@ -244,8 +256,28 @@ export default function AdminDashboard() {
               className="px-3.5 py-2 hover:bg-white/[0.04] text-slate-400 hover:text-slate-200 rounded-full font-normal text-xs transition-colors duration-200 flex items-center gap-2"
             >
               <Layers className="w-3.5 h-3.5 text-purple-400/80" />
-              Template Builder
+              Templates
             </Link>
+            <Link 
+              href="/followups"
+              className="px-3.5 py-2 hover:bg-white/[0.04] text-slate-400 hover:text-slate-200 rounded-full font-normal text-xs transition-colors duration-200 flex items-center gap-2"
+            >
+              <Mail className="w-3.5 h-3.5 text-blue-400/80" />
+              Follow-ups
+            </Link>
+            <a 
+              href="#live-logs"
+              className="px-3.5 py-2 hover:bg-white/[0.04] text-slate-400 hover:text-slate-200 rounded-full font-normal text-xs transition-colors duration-200 flex items-center gap-2"
+            >
+              <Activity className="w-3.5 h-3.5 text-emerald-400/80" />
+              Logs
+            </a>
+            
+            <div className="flex flex-col items-end mr-2 ml-2">
+              <span className="text-[10px] text-slate-400 font-medium">Next Queue Start</span>
+              <span className="text-[10px] text-indigo-400 font-semibold">{nextCronTime}</span>
+            </div>
+            
             <button 
               onClick={handleRunScraper}
               disabled={isScraping}
@@ -363,6 +395,9 @@ export default function AdminDashboard() {
             />
           </div>
         </div>
+        
+        {/* Live Scraper Logs */}
+        <LiveLogs />
 
       </main>
 

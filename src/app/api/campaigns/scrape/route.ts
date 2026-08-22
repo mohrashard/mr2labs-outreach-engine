@@ -35,16 +35,17 @@ export async function POST(req: Request) {
     }
 
     const leadsNeeded = 20;
+    const enqueueLimit = 80;
 
     // 1. Phase 1: Fast Discovery Sweep (Executes in ~3-5 seconds)
     console.log('[Scrape Pipeline] Phase 1: Aggregating raw leads from Google...');
     const rawCandidates = [];
-    for (let p = 1; p <= 3; p++) {
+    for (let p = 1; p <= 4; p++) {
       const pageLeads = await discoverTargetDomains(niche, location, p);
       if (pageLeads.length > 0) {
         rawCandidates.push(...pageLeads);
       }
-      if (rawCandidates.length >= leadsNeeded * 2) break;
+      if (rawCandidates.length >= enqueueLimit) break;
     }
     console.log(`[Scrape Pipeline] Phase 1 Complete: Found ${rawCandidates.length} raw candidates.`);
 
@@ -80,7 +81,7 @@ export async function POST(req: Request) {
         });
 
         enqueuedCount++;
-        if (enqueuedCount >= leadsNeeded) break;
+        if (enqueuedCount >= enqueueLimit) break;
       }
 
       console.log(`[Scrape Pipeline] Asynchronously enqueued ${enqueuedCount} background enrichment jobs via QStash.`);

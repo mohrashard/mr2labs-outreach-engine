@@ -169,8 +169,9 @@ export async function POST(request: Request) {
       throw insertError;
     }
 
-    console.log(`[Background Worker Success] Created lead ID ${insertedLead.id} for ${target.websiteUrl}`);
-    await logEvent('SUCCESS', `Successfully scraped and pitched ${target.websiteUrl}`, { url: target.websiteUrl, email: contactData.email, leadId: insertedLead.id });
+    const toolName = contactData.enrichment_source || 'Unknown';
+    console.log(`[Background Worker Success] Created lead ID ${insertedLead.id} for ${target.websiteUrl} using ${toolName}`);
+    await logEvent('SUCCESS', `Successfully scraped and verified ${target.websiteUrl} using Tool: ${toolName}`, { url: target.websiteUrl, email: contactData.email, tool: toolName, leadId: insertedLead.id });
     return NextResponse.json({ success: true, leadId: insertedLead.id });
   } catch (error: any) {
     console.error('[Background Worker Error]:', error);

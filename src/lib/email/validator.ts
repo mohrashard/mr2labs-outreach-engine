@@ -39,8 +39,19 @@ import { VerifaliaRestClient, WaitOptions } from 'verifalia';
  * Tier 3: EmailAwesome (HTTP Fallback 2)
  * Tier 4: Native MX Checker (Last resort)
  */
+const catchAllCache = new Set<string>();
+
 export async function verifyEmailHttpBridge(email: string | null | undefined, allowCatchAll: boolean = true): Promise<boolean> {
   if (!email || !email.includes('@')) return false;
+
+  const domain = email.split('@')[1].toLowerCase();
+
+  // If we are strictly checking guesses (allowCatchAll=false) and we already know 
+  // this domain is a Catch-All, instantly reject without spending API credits!
+  if (!allowCatchAll && catchAllCache.has(domain)) {
+    console.log(`[Validation] Instantly rejected ${email} (Domain ${domain} is cached as Catch-All)`);
+    return false;
+  }
 
   console.log(`[Validation] Running 3-step verification waterfall for: ${email}`);
 
@@ -61,41 +72,40 @@ export async function verifyEmailHttpBridge(email: string | null | undefined, al
       if (job && job.entries && job.entries.length > 0) {
         const entry = job.entries[0];
         if (entry.classification === 'Deliverable') return true;
-        if (entry.classification === 'CatchAll') return allowCatchAll;
+        if (entry.classification === 'CatchAll') {
+          catchAllCache.add(domain);
+          return allowCatchAll;
+        }
         if (entry.classification === 'Undeliverable') return false;
       }
     }
   } catch (err) {
     console.warn(`[Validation] Verifalia failed or timed out. Cascading to Tier 2...`);
   }
-
-  // Tier 2: Verify My Email
+  // Tier 2: MyEmailVerifier (100/day Free)
   try {
-    const vmeKey = process.env.VERIFY_MY_EMAIL;
-    if (vmeKey) {
-      console.log(`[Validation] Testing with Verify My Email...`);
-      // Note: Endpoint depends on the specific provider (e.g., app.verify-email.org or similar)
-      const res = await fetch(`https://app.verify-email.org/api/v1/verifier/verify?email=${encodeURIComponent(email)}`, {
+    const mevKey = process.env.VERIFY_MY_EMAIL || process.env.MY_EMAIL_VERIFIER;
+    if (mevKey) {
+      console.log(`[Validation] Testing with MyEmailVerifier...`);
+      const res = await fetch(`https://clientapi.myemailverifier.com/verifier/validate_single/${encodeURIComponent(email)}/${mevKey}`, {
         method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${vmeKey}`,
-          'Accept': 'application/json'
-        },
         signal: AbortSignal.timeout(5000)
       });
-      
       if (res.ok) {
         const data = await res.json();
-        if (data.status === 'valid') return true;
-        if (data.status === 'catch-all') return allowCatchAll;
-        if (data.status === 'invalid') return false;
+        if (data.Status === 'Valid') return true;
+        if (data.Status === 'Catch-All') {
+          catchAllCache.add(domain);
+          return allowCatchAll;
+        }
+        if (data.Status === 'Invalid') return false;
       }
     }
   } catch (err) {
-    console.warn(`[Validation] Verify My Email failed or timed out. Cascading to Tier 3...`);
+    console.warn(`[Validation] MyEmailVerifier failed or timed out. Cascading to Tier 3...`);
   }
 
-  // Tier 3: EmailAwesome
+  // Tier 4: EmailAwesome
   try {
     const awesomeKey = process.env.EMAIL_AWESOME;
     if (awesomeKey) {
@@ -112,7 +122,10 @@ export async function verifyEmailHttpBridge(email: string | null | undefined, al
       if (res.ok) {
         const data = await res.json();
         if (data.state === 'deliverable' || data.is_valid === true) return true;
-        if (data.state === 'catch_all') return allowCatchAll;
+        if (data.state === 'catch_all') {
+          catchAllCache.add(domain);
+          return allowCatchAll;
+        }
         if (data.state === 'undeliverable') return false;
       }
     }

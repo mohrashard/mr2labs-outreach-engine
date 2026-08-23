@@ -480,7 +480,8 @@ async function fetchEmailViaDorking(
   // 5. Verify email via HTTP bridge in order of mathematical quality
   // CRITICAL: We pass allowCatchAll=false here. If we guess an email on a Catch-All server, 
   // it will falsely return Deliverable. We must reject guesses on Catch-All servers and cascade to Apollo.
-  for (const { email: candidate, score } of scoredCandidates) {
+  const topCandidates = scoredCandidates.slice(0, 2); // Cap at top 2 to save API credits
+  for (const { email: candidate, score } of topCandidates) {
     if (isValidLeadEmail(candidate)) {
       console.log(`[Validation] Testing permutation ${candidate} (Quality Score: ${score})`);
       const isValid = await verifyEmailHttpBridge(candidate, false);

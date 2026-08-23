@@ -21,6 +21,7 @@ export default function TemplatesPage() {
   const [nicheName, setNicheName] = useState('');
   const [painPoints, setPainPoints] = useState('');
   const [mr2Solution, setMr2Solution] = useState('');
+  const [isTechnicalAudience, setIsTechnicalAudience] = useState(false);
 
   // Toast Notification
   const [alert, setAlert] = useState<{ type: 'success' | 'error', message: string } | null>(null);
@@ -56,6 +57,7 @@ export default function TemplatesPage() {
     setNicheName('');
     setPainPoints('');
     setMr2Solution('');
+    setIsTechnicalAudience(false);
   };
 
   const handleStartEdit = (template: PitchTemplate) => {
@@ -63,6 +65,7 @@ export default function TemplatesPage() {
     setNicheName(template.niche_name);
     setPainPoints(template.pain_points);
     setMr2Solution(template.mr2_solution);
+    setIsTechnicalAudience(!!template.is_technical_audience);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
@@ -82,7 +85,8 @@ export default function TemplatesPage() {
         id: editingId && !editingId.includes(' ') ? editingId : undefined,
         niche_name: nicheName.trim(),
         pain_points: painPoints.trim(),
-        mr2_solution: mr2Solution.trim()
+        mr2_solution: mr2Solution.trim(),
+        is_technical_audience: isTechnicalAudience
       };
 
       const res = await fetch(endpoint, {
@@ -311,6 +315,20 @@ export default function TemplatesPage() {
                 />
               </div>
 
+              <div className="flex items-center gap-3 p-3 bg-white/[0.02] border border-white/[0.05] rounded-xl">
+                <input 
+                  type="checkbox"
+                  id="technical_audience"
+                  checked={isTechnicalAudience}
+                  onChange={(e) => setIsTechnicalAudience(e.target.checked)}
+                  className="w-4 h-4 rounded border-zinc-700 bg-zinc-900 text-white focus:ring-1 focus:ring-zinc-500 focus:ring-offset-0"
+                />
+                <label htmlFor="technical_audience" className="text-xs text-zinc-300 select-none cursor-pointer">
+                  <span className="font-bold text-white block">Technical Audience (CTO / Tech Founder)</span>
+                  <span className="text-zinc-500">Focuses pitch on DNS, security, and DOM bloat instead of UX/revenue.</span>
+                </label>
+              </div>
+
               <div className="pt-2 flex items-center gap-3">
                 <button
                   type="submit"
@@ -379,9 +397,16 @@ export default function TemplatesPage() {
                     <div className="space-y-5">
                       {/* Card Header */}
                       <div className="flex items-center justify-between">
-                        <span className="px-3 py-1 bg-white/[0.05] text-zinc-300 font-bold text-xs rounded-full">
-                          {template.niche_name}
-                        </span>
+                        <div className="flex items-center gap-2">
+                          <span className="px-3 py-1 bg-white/[0.05] text-zinc-300 font-bold text-xs rounded-full">
+                            {template.niche_name}
+                          </span>
+                          {template.is_technical_audience && (
+                            <span className="px-2 py-1 bg-indigo-500/10 text-indigo-400 font-bold text-[10px] rounded-full border border-indigo-500/20">
+                              Technical
+                            </span>
+                          )}
+                        </div>
                         <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                           <button
                             onClick={() => handleStartEdit(template)}

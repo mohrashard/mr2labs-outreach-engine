@@ -55,7 +55,7 @@ export async function GET() {
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const { niche_name, pain_points, mr2_solution } = body;
+    const { niche_name, pain_points, mr2_solution, is_technical_audience } = body;
 
     if (!niche_name || !pain_points || !mr2_solution) {
       return NextResponse.json({ error: 'niche_name, pain_points, and mr2_solution are required.' }, { status: 400 });
@@ -64,7 +64,12 @@ export async function POST(req: Request) {
     const { data, error } = await supabaseAdmin
       .from('pitch_templates')
       .upsert(
-        { niche_name: niche_name.trim(), pain_points: pain_points.trim(), mr2_solution: mr2_solution.trim() },
+        { 
+          niche_name: niche_name.trim(), 
+          pain_points: pain_points.trim(), 
+          mr2_solution: mr2_solution.trim(),
+          is_technical_audience: !!is_technical_audience 
+        },
         { onConflict: 'niche_name' }
       )
       .select('*')
@@ -85,7 +90,7 @@ export async function POST(req: Request) {
 export async function PUT(req: Request) {
   try {
     const body = await req.json();
-    const { id, niche_name, pain_points, mr2_solution } = body;
+    const { id, niche_name, pain_points, mr2_solution, is_technical_audience } = body;
 
     if (!id && !niche_name) {
       return NextResponse.json({ error: 'ID or niche_name is required for update.' }, { status: 400 });
@@ -93,8 +98,8 @@ export async function PUT(req: Request) {
 
     let query = supabaseAdmin.from('pitch_templates');
     let updateQuery = id 
-      ? query.update({ niche_name, pain_points, mr2_solution }).eq('id', id)
-      : query.update({ pain_points, mr2_solution }).eq('niche_name', niche_name);
+      ? query.update({ niche_name, pain_points, mr2_solution, is_technical_audience: !!is_technical_audience }).eq('id', id)
+      : query.update({ pain_points, mr2_solution, is_technical_audience: !!is_technical_audience }).eq('niche_name', niche_name);
 
     const { data, error } = await updateQuery.select('*').single();
 

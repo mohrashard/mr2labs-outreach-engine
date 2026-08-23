@@ -3,6 +3,7 @@ export interface PitchTemplate {
   niche_name: string;
   pain_points: string;
   mr2_solution: string;
+  is_technical_audience: boolean;
   created_at?: string;
 }
 

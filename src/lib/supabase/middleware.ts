@@ -33,11 +33,13 @@ export async function updateSession(request: NextRequest) {
 
   const pathname = request.nextUrl.pathname;
 
-  // Exempt background worker routes, crons, webhooks, and static files from auth checks
+  // Exempt background worker routes, crons, webhooks, and public email assets from auth checks
   if (
     pathname.startsWith('/api/queue') ||
     pathname.startsWith('/api/cron') ||
     pathname.startsWith('/api/webhooks') ||
+    pathname.startsWith('/api/thumbnail') ||
+    pathname.startsWith('/api/response') ||
     pathname.startsWith('/_next') ||
     pathname.startsWith('/favicon.ico')
   ) {

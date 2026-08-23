@@ -17,6 +17,8 @@ export interface PitchGenerationParams {
   linkedinUrl?: string | null;
   instagramUrl?: string | null;
   founderName?: string | null;
+  isTechnicalAudience?: boolean;
+  rawAuditData?: Record<string, any>;
 }
 
 export const NICHE_TEMPLATES: Record<string, { pains: string; solution: string }> = {
@@ -42,7 +44,7 @@ export const NICHE_TEMPLATES: Record<string, { pains: string; solution: string }
   }
 };
 
-export function getNicheContext(nicheInput?: string): { niche: string; pains: string; solution: string } {
+export function getNicheContext(nicheInput?: string): { niche: string; pains: string; solution: string; is_technical_audience?: boolean } {
   if (!nicheInput) {
     return { niche: "General B2B", ...NICHE_TEMPLATES["General B2B"] };
   }
@@ -62,7 +64,7 @@ export function getNicheContext(nicheInput?: string): { niche: string; pains: st
   };
 }
 
-export async function getNicheContextAsync(nicheInput?: string): Promise<{ niche: string; pains: string; solution: string }> {
+export async function getNicheContextAsync(nicheInput?: string): Promise<{ niche: string; pains: string; solution: string; is_technical_audience?: boolean }> {
   const defaultNiche = nicheInput || "General B2B";
 
   try {
@@ -77,7 +79,8 @@ export async function getNicheContextAsync(nicheInput?: string): Promise<{ niche
         return {
           niche: match.niche_name,
           pains: match.pain_points,
-          solution: match.mr2_solution
+          solution: match.mr2_solution,
+          is_technical_audience: match.is_technical_audience
         };
       }
     }
@@ -96,6 +99,24 @@ function cleanAndRepairJson(rawText: string): string {
   return cleaned;
 }
 
+function validateAndCleanBody(body: string): string | null {
+  if (!body) return null;
+  
+  const mandatoryEnding = "so I ran a complete diagnostic audit on your business for free—take a look at the attached dashboard.";
+  
+  // Trim anything after the mandatory ending
+  const endingIndex = body.indexOf(mandatoryEnding);
+  if (endingIndex === -1) return null; // Reject entirely if ending is missing
+  
+  const cleaned = body.slice(0, endingIndex + mandatoryEnding.length).trim();
+  
+  // Reject if it's still multiple sentences before the hook
+  const sentencesBefore = cleaned.split(/[.!?]/).filter(s => s.trim().length > 10);
+  if (sentencesBefore.length > 2) return null; // Too many sentences, reject
+  
+  return cleaned;
+}
+
 export async function generateAuditAndPitch(
   companyName: string, 
   domain: string, 
@@ -105,6 +126,8 @@ export async function generateAuditAndPitch(
     linkedinUrl?: string | null;
     instagramUrl?: string | null;
     founderName?: string | null;
+    isTechnicalAudience?: boolean;
+    rawAuditData?: Record<string, any>;
   }
 ): Promise<AuditResult> {
   const nicheInfo = await getNicheContextAsync(nicheInput);
@@ -124,45 +147,115 @@ export async function generateAuditAndPitch(
     ? extraParams.founderName.split(' ')[0]
     : null;
 
-  const systemPrompt = `You are an elite B2B Sales Development Rep for MR² Labs. Your goal is to write a highly personalized, low-friction cold email to a ${nicheInfo.niche} business. 
-Do NOT explain what MR² Labs is. Do NOT list our technology stack (React, Python, Next.js, Supabase, etc.). 
-Focus purely on a business outcome.
+  // Pre-process raw audit data to extract only true/positive flags
+  let flaggedOnly: Record<string, any> = {};
+  if (extraParams?.rawAuditData) {
+    for (const [key, value] of Object.entries(extraParams.rawAuditData)) {
+      if (value === true || (typeof value === 'number' && value > 0) || (typeof value === 'string' && value.length > 0)) {
+        flaggedOnly[key] = value;
+      }
+    }
+  }
 
-STRICT WRITING RULES:
-- Subject Line: Exactly 1 to 4 words. No clickbait.
-- Greeting: "Hi ${founderFirst || ''}," (if founder first name is provided) or "Hi," (if founder name is unknown).
-- Length: STRICTLY 4 sentences total. Maximum 150 words.
-- Never lie about a problem. If you cannot verify the exact issue, use phrasing like 'Companies at your stage often run into...'
-- Never explain your entire company or list your tech stack (React, Next.js, etc.). Sell the outcome.
-- Formatting: You MUST use double line breaks (\n\n) to create distinct paragraphs. Separate the greeting, the main body, and the CTA. Do NOT write a single block of text.
-- Typography: Use standard keyboard hyphens (-). Absolutely NO em dashes (—), en dashes (–), or non-breaking hyphens (‑).
+  const toneInstructions = nicheInfo.is_technical_audience
+    ? `TECHNICAL AUDIENCE — Write engineer-to-engineer.
+  - Name the specific vulnerability, CVE class, or performance metric directly
+  - Acceptable terms: HSTS, DMARC, SPF, hydration payload, egress cost, clickjacking, DOM bloat
+  - Impact clause must reference: infrastructure risk, security posture, or edge performance degradation
+  - Example: "I noticed your frontend is serving a 240KB __NEXT_DATA__ hydration payload on every route and your headers are missing HSTS, creating both a performance bottleneck and a downgrade attack surface, so I ran a complete diagnostic audit on your business for free—take a look at the attached dashboard."`
+    : `NON-TECHNICAL AUDIENCE — Translate every technical flaw into a business outcome.
+  - BANNED words/acronyms: DMARC, SPF, HSTS, hydration, payload, CSP, header, SSL, HTTP, JSON
+  - For each flaw type, use these plain-English translations:
+      * dmarc_missing / spf_missing -> "your domain has no email authentication, meaning competitors can send fake emails pretending to be you"
+      * hsts_missing / clickjacking_vulnerable -> "your site has a security gap that can expose your clients' browsers to attacks"
+      * hydration_bloat_kb / html_size_kb -> "your website is sending massive amounts of hidden data overhead on every page load, severely slowing it down for mobile users"
+      * missing_mobile_autocomplete -> "your contact forms are missing autocomplete, adding friction that causes mobile users to drop off before submitting"
+      * has_scheduler (if false) -> "you have no automated booking system, meaning leads that visit after hours have no way to self-schedule"
+  - Impact clause must reference: lost leads, wasted admin hours, missed revenue, or poor client trust`;
 
-EMAIL FORMULA:
-Sentence 1 (Observation): Prove you looked at them. Use the scraped text or social links to make a real observation. (e.g., "I came across ${companyName} and noticed [specific detail about their site or online presence].")
-Sentence 2 (The Problem): Frame the pain point generally. Do NOT say "You are losing leads." Say "${nicheInfo.niche} teams often lose opportunities when ${nicheInfo.pains}."
-Sentence 3 (The Outcome): State what our system does. "At MR² Labs, we build custom systems that ${nicheInfo.solution}."
-Sentence 4 (The CTA): Ultra low-friction ask. "Worth a quick 10-minute conversation this week?" or "Open to a quick 10-minute chat?"
+  const systemPrompt = `You are a cold email copywriter for MR² Labs. Your only job is to write exactly ONE sentence — the opening hook of a cold email — based on a JSON audit of the prospect's website.
 
-Output valid JSON ONLY in this format. You MUST complete the "internal_diagnosis" block before writing the email:
+## YOUR INPUTS
+You will receive:
+- A JSON object of audit flags. Each flag is either: boolean true/false, a numeric value, or a string.
+- The prospect's niche and primary pain point.
+
+## STEP 1 — SELECT THE SINGLE MOST CRITICAL FLAW
+Scan the audit JSON. Select exactly ONE flaw using this strict priority hierarchy (top = highest priority):
+
+TIER 1 — SECURITY & INFRASTRUCTURE (always leads if present):
+  - dmarc_missing: true -> "no DMARC record protecting your domain from email spoofing"
+  - spf_missing: true -> "no SPF record, leaving your domain open to spoofing"
+  - hsts_missing: true -> "no HSTS header, exposing your site to downgrade attacks"
+  - clickjacking_vulnerable: true -> "no X-Frame-Options header, leaving your site vulnerable to clickjacking"
+  - caa_missing: true -> "no Certificate Authority Authorization, meaning any rogue CA can issue SSL certificates for your domain"
+  - legacy_server_headers: (string) -> "your server is broadcasting outdated signatures like [VALUE]"
+
+TIER 2 — PERFORMANCE & BLOAT (leads if no Tier 1 flaw):
+  - hydration_bloat_kb > 150 -> "pulling a massive [VALUE]KB hydration payload on every route"
+  - html_size_kb > 250 -> "your initial HTML payload is bloated to [VALUE]KB"
+  - missing_cache_headers: true -> "your static assets are missing immutable cache headers"
+  - has_tracker_bloat: true -> "heavy third-party trackers are blocking the main thread"
+
+TIER 3 — CONVERSION & UX (leads if no Tier 1 or 2 flaw):
+  - missing_mobile_autocomplete: true -> "intake forms are missing autocomplete"
+  - has_scheduler: false -> "no automated appointment scheduler or booking widget"
+  - missing_opengraph: true -> "missing Open Graph metadata, breaking social link previews"
+  - has_mailto_trap: true -> "using outdated 'mailto:' links instead of proper lead capture forms"
+
+CRITICAL RULE: Only reference a flaw if it is explicitly present in the JSON as \`true\`, as a string, or as a number exceeding the threshold above. If a key is absent, false, or null — it does not exist. Do NOT invent or assume any values.
+
+## STEP 2 — WRITE EXACTLY ONE SENTENCE
+Use this exact formula:
+"I noticed [SPECIFIC FLAW WITH REAL DATA FROM JSON], [IMPACT CLAUSE], so I ran a complete diagnostic audit on your business for free—take a look at the attached dashboard."
+
+The sentence must end with: "so I ran a complete diagnostic audit on your business for free—take a look at the attached dashboard."
+This ending is MANDATORY and must be reproduced verbatim.
+
+## STEP 3 — SPECIFICITY RULES
+The flaw observation MUST include at least ONE of the following to feel credible:
+- A real number from the audit JSON (KB, ms, a score)
+- The domain name itself
+- A specific page or feature ("your contact page", "your Instagram link in bio")
+
+Generic = ignored. Specific = credible = replies.
+
+BAD: "I noticed your site has security issues"
+GOOD: "I noticed realtymiami.com has no DMARC record and your contact form loads in 4.8 seconds on mobile"
+
+## STEP 4 — CURIOSITY GAP
+The impact clause must create a knowledge gap — hint at MORE findings without revealing them.
+Instead of: "which is costing you leads"
+Use: "which is just one of 6 issues we flagged in the full diagnostic"
+
+This forces them to open the PDF to see what else you found.
+
+## TONE ROUTING
+${toneInstructions}
+
+## SUBJECT LINE
+Write a subject line of exactly 1 to 4 words. No clickbait. No questions. State the flaw category or the audit offer plainly.
+Good examples: "Site audit", "Security gap", "Load time issue", "Diagnostic for [Company]"
+Bad examples: "You won't believe this", "Quick question", "Following up"
+
+## OUTPUT FORMAT
+Return ONLY this JSON object. No preamble. No explanation. No markdown fences.
 {
-  "internal_diagnosis": {
-    "what_they_do": "Based on their website text, what exact services do they offer?",
-    "observable_problem": "What technical or operational gap is likely missing based on what they do?",
-    "likely_business_impact": "How does this gap hurt their revenue, capacity, or growth?"
-  },
-  "email_subject": "1 to 4 words",
-  "generated_email_body": "The complete 4-sentence email string based strictly on your diagnosis."
+  "email_subject": "1 to 4 word subject line",
+  "generated_email_body": "The complete single sentence."
 }
 
-CRITICAL INSTRUCTION: Do NOT generate or attempt to invoke any tool calls or function calls. You are returning raw text formatted as JSON only.`;
+HARD CONSTRAINTS — violation of any of these is a failure:
+1. generated_email_body must be exactly ONE sentence.
+2. The sentence must end with the exact string: "so I ran a complete diagnostic audit on your business for free—take a look at the attached dashboard."
+3. Do NOT add a greeting, sign-off, or second sentence under any circumstances.
+4. Do NOT reference any flaw not present in the audit JSON as true or above threshold.
+5. Do NOT use placeholder text like [Company Name] or [X seconds] — use real values from the JSON or the company name variable.`;
 
   const userPrompt = `Target Company Name: ${companyName}
 Domain: ${domain}
-Scraped Website Text: ${cleanedSnippet}
-Available Socials: ${socialPlatformsStr}
-Founder Name: ${extraParams?.founderName || 'Unknown'}
 Niche Pain Point: ${nicheInfo.pains}
-MR² Labs System Outcome: ${nicheInfo.solution}`;
+Scraped Audit Data: ${JSON.stringify(flaggedOnly)}`;
 
   // 1. Try Groq (via OpenAI SDK)
   if (process.env.GROQ_API_KEY) {
@@ -184,13 +277,13 @@ MR² Labs System Outcome: ${nicheInfo.solution}`;
       const content = completion.choices[0]?.message?.content;
       if (content) {
         const parsed = JSON.parse(cleanAndRepairJson(content));
-        const email_subject = parsed.email_subject || `Question for ${companyName}`;
-        const generated_email_body = parsed.generated_email_body || parsed.generated_pitch || parsed.pitch_text;
+        const email_subject = parsed.email_subject || `Diagnostic for ${companyName}`;
+        const generated_email_body = validateAndCleanBody(parsed.generated_email_body);
 
         if (generated_email_body) {
           return {
             email_subject,
-            audit_summary: `4-Sentence SDR Pitch for ${companyName}`,
+            audit_summary: `1-Sentence Hook for ${companyName}`,
             generated_pitch: generated_email_body,
             audit_notes: `Target Niche: ${nicheInfo.niche} | Socials: ${socialPlatformsStr}`,
             pitch_text: generated_email_body,
@@ -225,13 +318,13 @@ MR² Labs System Outcome: ${nicheInfo.solution}`;
       const content = completion.choices[0]?.message?.content;
       if (content) {
         const parsed = JSON.parse(cleanAndRepairJson(content));
-        const email_subject = parsed.email_subject || `Question for ${companyName}`;
-        const generated_email_body = parsed.generated_email_body || parsed.generated_pitch || parsed.pitch_text;
+        const email_subject = parsed.email_subject || `Diagnostic for ${companyName}`;
+        const generated_email_body = validateAndCleanBody(parsed.generated_email_body);
 
         if (generated_email_body) {
           return {
             email_subject,
-            audit_summary: `4-Sentence SDR Pitch for ${companyName}`,
+            audit_summary: `1-Sentence Hook for ${companyName}`,
             generated_pitch: generated_email_body,
             audit_notes: `Target Niche: ${nicheInfo.niche} | Socials: ${socialPlatformsStr}`,
             pitch_text: generated_email_body,
@@ -264,13 +357,13 @@ MR² Labs System Outcome: ${nicheInfo.solution}`;
       const content = completion.choices[0]?.message?.content;
       if (content) {
         const parsed = JSON.parse(cleanAndRepairJson(content));
-        const email_subject = parsed.email_subject || `Question for ${companyName}`;
-        const generated_email_body = parsed.generated_email_body || parsed.generated_pitch || parsed.pitch_text;
+        const email_subject = parsed.email_subject || `Diagnostic for ${companyName}`;
+        const generated_email_body = validateAndCleanBody(parsed.generated_email_body);
 
         if (generated_email_body) {
           return {
             email_subject,
-            audit_summary: `4-Sentence SDR Pitch for ${companyName}`,
+            audit_summary: `1-Sentence Hook for ${companyName}`,
             generated_pitch: generated_email_body,
             audit_notes: `Target Niche: ${nicheInfo.niche} | Socials: ${socialPlatformsStr}`,
             pitch_text: generated_email_body,
@@ -303,13 +396,13 @@ MR² Labs System Outcome: ${nicheInfo.solution}`;
       const content = completion.choices[0]?.message?.content;
       if (content) {
         const parsed = JSON.parse(cleanAndRepairJson(content));
-        const email_subject = parsed.email_subject || `Question for ${companyName}`;
-        const generated_email_body = parsed.generated_email_body || parsed.generated_pitch || parsed.pitch_text;
+        const email_subject = parsed.email_subject || `Diagnostic for ${companyName}`;
+        const generated_email_body = validateAndCleanBody(parsed.generated_email_body);
 
         if (generated_email_body) {
           return {
             email_subject,
-            audit_summary: `4-Sentence SDR Pitch for ${companyName}`,
+            audit_summary: `1-Sentence Hook for ${companyName}`,
             generated_pitch: generated_email_body,
             audit_notes: `Target Niche: ${nicheInfo.niche} | Socials: ${socialPlatformsStr}`,
             pitch_text: generated_email_body,
@@ -347,13 +440,13 @@ MR² Labs System Outcome: ${nicheInfo.solution}`;
       const content = completion.choices[0]?.message?.content;
       if (content) {
         const parsed = JSON.parse(cleanAndRepairJson(content));
-        const email_subject = parsed.email_subject || `Question for ${companyName}`;
-        const generated_email_body = parsed.generated_email_body || parsed.generated_pitch || parsed.pitch_text;
+        const email_subject = parsed.email_subject || `Diagnostic for ${companyName}`;
+        const generated_email_body = validateAndCleanBody(parsed.generated_email_body);
 
         if (generated_email_body) {
           return {
             email_subject,
-            audit_summary: `4-Sentence SDR Pitch for ${companyName}`,
+            audit_summary: `1-Sentence Hook for ${companyName}`,
             generated_pitch: generated_email_body,
             audit_notes: `Target Niche: ${nicheInfo.niche} | Socials: ${socialPlatformsStr}`,
             pitch_text: generated_email_body,
@@ -365,18 +458,12 @@ MR² Labs System Outcome: ${nicheInfo.solution}`;
     }
   }
 
-  // 6. Structured Static Fallback (4-Sentence SDR Formula)
-  const greeting = founderFirst ? `Hi ${founderFirst},` : 'Hi,';
-  const sentence1 = `I came across ${companyName} while reviewing ${nicheInfo.niche} companies in your market.`;
-  const sentence2 = `${nicheInfo.niche} teams often run into bottlenecks when ${nicheInfo.pains}, especially as they grow.`;
-  const sentence3 = `At MR² Labs, we build custom systems that ${nicheInfo.solution}.`;
-  const sentence4 = `Would you be open to a quick 10-minute conversation this week?`;
-
-  const fallbackBody = `${greeting}\n\n${sentence1} ${sentence2} ${sentence3}\n\n${sentence4}`;
+  // 6. Structured Static Fallback (1-Sentence Formula)
+  const fallbackBody = `I noticed your site has a few missing security and performance configurations that are likely losing you conversions, so I ran a complete diagnostic audit on your business for free—take a look at the attached dashboard.`;
 
   return {
-    email_subject: `Question for ${companyName}`,
-    audit_summary: `4-Sentence SDR Pitch for ${companyName}`,
+    email_subject: `Diagnostic for ${companyName}`,
+    audit_summary: `1-Sentence SDR Pitch for ${companyName}`,
     generated_pitch: fallbackBody,
     audit_notes: `Target Niche: ${nicheInfo.niche}`,
     pitch_text: fallbackBody,

@@ -1,6 +1,7 @@
 import * as cheerio from 'cheerio';
 import OpenAI from 'openai';
 import { hasValidMxRecords } from '@/lib/email/validator';
+import { runTechnicalAudit, AuditResult } from '@/lib/scraper/audit';
 
 export interface EnrichedContactData {
   email: string | null;
@@ -11,6 +12,7 @@ export interface EnrichedContactData {
   dom_snippet: string;
   enrichment_source?: 'DOM' | 'SERPER_DORK' | 'SERPAPI_DORK' | 'APOLLO' | 'PROSPEO' | 'HUNTER' | 'SNOV' | 'NONE';
   is_rejected?: boolean;
+  raw_scraped_data?: AuditResult;
 }
 
 export interface DisambiguatedFounder {
@@ -874,6 +876,10 @@ export async function deepEnrichDomain(
   let linkedin_url: string | null = null;
   let textSnippets: string[] = [];
   let enrichment_source: 'DOM' | 'SERPER_DORK' | 'SERPAPI_DORK' | 'APOLLO' | 'PROSPEO' | 'HUNTER' | 'SNOV' | 'NONE' = 'NONE';
+  
+  let primaryHtml = '';
+  let primaryHeaders: Headers | null = null;
+  let primaryUrl = '';
 
   // Tier 1: Fast DOM Regex Scraping (Cost: $0)
   for (const url of targetUrls) {
@@ -890,6 +896,13 @@ export async function deepEnrichDomain(
       if (!res.ok) continue;
 
       const html = await res.text();
+      
+      if (!primaryHtml) {
+        primaryHtml = html;
+        primaryHeaders = res.headers;
+        primaryUrl = url;
+      }
+
       const $ = cheerio.load(html);
 
       $('script, style, nav, footer, svg').remove();
@@ -1020,6 +1033,16 @@ export async function deepEnrichDomain(
     }
   }
 
+  // Phase 2: Autonomous Node.js Audit execution
+  let raw_scraped_data: AuditResult | undefined = undefined;
+  if (primaryHtml && primaryHeaders) {
+    try {
+      raw_scraped_data = await runTechnicalAudit(primaryUrl, primaryHtml, primaryHeaders);
+    } catch (err) {
+      console.warn(`[Audit Error] Failed to run technical audit for ${primaryUrl}:`, err);
+    }
+  }
+
   return {
     email,
     phone,
@@ -1027,7 +1050,8 @@ export async function deepEnrichDomain(
     instagram_url,
     linkedin_url,
     dom_snippet,
-    enrichment_source
+    enrichment_source,
+    raw_scraped_data
   };
 }
 

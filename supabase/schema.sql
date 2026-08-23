@@ -62,6 +62,7 @@ CREATE TABLE IF NOT EXISTS pitch_templates (
     niche_name TEXT UNIQUE NOT NULL,
     pain_points TEXT NOT NULL,
     mr2_solution TEXT NOT NULL,
+    is_technical_audience BOOLEAN DEFAULT false,
     created_at TIMESTAMPTZ DEFAULT now()
 );
 
@@ -141,3 +142,7 @@ ALTER TABLE campaigns
   ADD COLUMN IF NOT EXISTS step_1_days INT DEFAULT 3,
   ADD COLUMN IF NOT EXISTS step_2_days INT DEFAULT 5,
   ADD COLUMN IF NOT EXISTS step_3_days INT DEFAULT 10;
+
+-- 7. Add technical audience flag to pitch templates
+ALTER TABLE pitch_templates
+  ADD COLUMN IF NOT EXISTS is_technical_audience BOOLEAN DEFAULT false;

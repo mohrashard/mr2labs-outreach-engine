@@ -118,6 +118,7 @@ export async function POST(request: Request) {
       {
         linkedinUrl: contactData.linkedin_url,
         instagramUrl: contactData.instagram_url,
+        rawAuditData: contactData.raw_scraped_data
       }
     );
 
@@ -143,7 +144,8 @@ export async function POST(request: Request) {
         raw_scraped_data: { 
           snippet: target.snippet, 
           dom_snippet: contactData.dom_snippet,
-          enrichment_source: contactData.enrichment_source 
+          enrichment_source: contactData.enrichment_source,
+          audit_data: contactData.raw_scraped_data
         }
       })
       .select('id')

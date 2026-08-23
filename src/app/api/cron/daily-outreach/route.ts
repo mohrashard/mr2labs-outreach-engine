@@ -100,37 +100,35 @@ export async function GET(req: Request) {
         // 5. Run Enrichment (Asynchronous via QStash if available)
         if (qstash) {
           const processLeadUrl = `${baseUrl}/api/queue/process-lead`;
-          let enqueuedScrapeCount = 0;
+          
+          // 1. Fetch all existing domains in ONE query instead of hundreds of sequential queries
+          const { data: existingRecords } = await supabaseAdmin
+            .from('outreach_leads')
+            .select('website_url');
+          const existingUrls = new Set(existingRecords?.map(r => r.website_url) || []);
+          
+          // 2. Filter out already-scraped domains instantly
+          const newLeads = discovered
+            .filter(lead => !existingUrls.has(lead.websiteUrl))
+            .slice(0, leadsNeeded * 15); // Cap to buffer
 
-          for (let i = 0; i < discovered.length; i++) {
-            if (enqueuedScrapeCount >= leadsNeeded * 15) break;
+          // 3. Publish to QStash in parallel to bypass Vercel 60s Timeout limit
+          const publishPromises = newLeads.map((lead, index) => {
+            return qstash.publishJSON({
+              url: processLeadUrl,
+              body: {
+                target: lead,
+                campaignId: campaign.id,
+                niche: campaign.niche,
+              },
+              delay: index * 3, // Stagger processing slightly
+            }).catch(err => console.warn(`[Cron] QStash publish skipped (${err.message})`));
+          });
 
-            const lead = discovered[i];
-            const { data: existing } = await supabaseAdmin
-              .from('outreach_leads')
-              .select('id')
-              .eq('website_url', lead.websiteUrl)
-              .maybeSingle();
-
-            if (existing) continue;
-
-            try {
-              await qstash.publishJSON({
-                url: processLeadUrl,
-                body: {
-                  target: lead,
-                  campaignId: campaign.id,
-                  niche: campaign.niche,
-                },
-                delay: enqueuedScrapeCount * 4,
-              });
-              enqueuedScrapeCount++;
-            } catch (qstashErr: any) {
-              console.warn(`[Cron] QStash publish skipped for discovery (${qstashErr.message}).`);
-            }
-          }
-
-          scrapedSummary.push({ campaign: campaign.name, mode: 'ASYNC_QSTASH', enqueuedForScrape: enqueuedScrapeCount });
+          await Promise.all(publishPromises);
+          
+          console.log(`[Cron] Enqueued ${newLeads.length} leads to QStash asynchronously.`);
+          scrapedSummary.push({ campaign: campaign.name, mode: 'ASYNC_QSTASH', enqueuedForScrape: newLeads.length });
         } else {
           // Fallback: Inline synchronous enrichment for local dev
           let successCount = 0;

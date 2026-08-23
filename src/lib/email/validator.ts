@@ -39,7 +39,7 @@ import { VerifaliaRestClient, WaitOptions } from 'verifalia';
  * Tier 3: EmailAwesome (HTTP Fallback 2)
  * Tier 4: Native MX Checker (Last resort)
  */
-export async function verifyEmailHttpBridge(email: string | null | undefined): Promise<boolean> {
+export async function verifyEmailHttpBridge(email: string | null | undefined, allowCatchAll: boolean = true): Promise<boolean> {
   if (!email || !email.includes('@')) return false;
 
   console.log(`[Validation] Running 3-step verification waterfall for: ${email}`);
@@ -60,11 +60,9 @@ export async function verifyEmailHttpBridge(email: string | null | undefined): P
       
       if (job && job.entries && job.entries.length > 0) {
         const entry = job.entries[0];
-        if (entry.classification === 'Deliverable' || entry.classification === 'CatchAll') {
-          return true;
-        } else if (entry.classification === 'Undeliverable') {
-          return false;
-        }
+        if (entry.classification === 'Deliverable') return true;
+        if (entry.classification === 'CatchAll') return allowCatchAll;
+        if (entry.classification === 'Undeliverable') return false;
       }
     }
   } catch (err) {
@@ -88,7 +86,8 @@ export async function verifyEmailHttpBridge(email: string | null | undefined): P
       
       if (res.ok) {
         const data = await res.json();
-        if (data.status === 'valid' || data.status === 'catch-all') return true;
+        if (data.status === 'valid') return true;
+        if (data.status === 'catch-all') return allowCatchAll;
         if (data.status === 'invalid') return false;
       }
     }
@@ -112,7 +111,8 @@ export async function verifyEmailHttpBridge(email: string | null | undefined): P
 
       if (res.ok) {
         const data = await res.json();
-        if (data.state === 'deliverable' || data.state === 'catch_all' || data.is_valid === true) return true;
+        if (data.state === 'deliverable' || data.is_valid === true) return true;
+        if (data.state === 'catch_all') return allowCatchAll;
         if (data.state === 'undeliverable') return false;
       }
     }

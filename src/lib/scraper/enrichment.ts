@@ -1,6 +1,6 @@
 import * as cheerio from 'cheerio';
 import OpenAI from 'openai';
-import { hasValidMxRecords } from '@/lib/email/validator';
+import { verifyEmailHttpBridge } from '@/lib/email/validator';
 import { runTechnicalAudit, AuditResult } from '@/lib/scraper/audit';
 
 export interface EnrichedContactData {
@@ -436,19 +436,53 @@ async function fetchEmailViaDorking(
 
   if (!first) return null;
 
-  const candidates: string[] = [];
+  const rawCandidates: string[] = [];
+  rawCandidates.push(`${first}@${rootDomain}`);
   if (last) {
-    candidates.push(`${first}.${last}@${rootDomain}`);
-    candidates.push(`${first}${last}@${rootDomain}`);
-    candidates.push(`${first[0]}${last}@${rootDomain}`);
+    rawCandidates.push(`${first}.${last}@${rootDomain}`);
+    rawCandidates.push(`${first[0]}${last}@${rootDomain}`);
+    rawCandidates.push(`${first}${last}@${rootDomain}`);
   }
-  candidates.push(`${first}@${rootDomain}`);
 
-  // 5. Verify MX records
-  for (const candidate of candidates) {
+  // MATHEMATICAL QUALITY CHECKER
+  // Assigns a weighted probability score to each candidate based on domain properties and character lengths.
+  const scoredCandidates = rawCandidates.map(candidate => {
+    let score = 100;
+    
+    // 1. Domain Length Heuristic (Startups use shorter domains and favor first@)
+    const isShortDomain = rootDomain.length < 12;
+    
+    if (candidate.startsWith(`${first}@`)) {
+      score += isShortDomain ? 30 : 10;
+    } else if (candidate.startsWith(`${first}.${last}@`)) {
+      // Standard Enterprise format, highly probable for longer mature domains
+      score += isShortDomain ? 10 : 30;
+    } else if (candidate.startsWith(`${first[0]}${last}@`)) {
+      // Legacy corporate format
+      score += 15;
+    } else {
+      score += 5; // firstlast@
+    }
+
+    // 2. Character Length Penalty (B2B emails optimize for brevity)
+    // Subtract points for excessively long email handles
+    const handle = candidate.split('@')[0];
+    if (handle.length > 12) {
+      score -= (handle.length - 12) * 2; 
+    }
+
+    return { email: candidate, score };
+  });
+
+  // Sort candidates by highest mathematical score first
+  scoredCandidates.sort((a, b) => b.score - a.score);
+
+  // 5. Verify email via HTTP bridge in order of mathematical quality
+  for (const { email: candidate, score } of scoredCandidates) {
     if (isValidLeadEmail(candidate)) {
-      const hasMx = await hasValidMxRecords(candidate);
-      if (hasMx) {
+      console.log(`[Validation] Testing permutation ${candidate} (Quality Score: ${score})`);
+      const isValid = await verifyEmailHttpBridge(candidate);
+      if (isValid) {
         console.log(`[${dorkSource} Verified Success] Found founder email for ${cleanName} (${first} ${last}): ${candidate}`);
         return { email: candidate, source: dorkSource };
       }
@@ -914,10 +948,20 @@ export async function deepEnrichDomain(
       // Tier 1 Email Extraction
       if (!email) {
         const emailMatches = pageHtml.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g) || [];
-        const valid = emailMatches.find(e => isValidLeadEmail(e));
-        if (valid) {
-          email = valid.toLowerCase();
-          enrichment_source = 'DOM';
+        const rootDomain = extractCleanHostname(domainUrl);
+        
+        // Find the first valid email that belongs directly to the target company's domain
+        const matchingDomainEmail = emailMatches.find(e => {
+          const lower = e.toLowerCase().trim();
+          return isValidLeadEmail(lower) && lower.endsWith(`@${rootDomain}`);
+        });
+
+        if (matchingDomainEmail) {
+          // Only spend 1 API credit verifying the primary domain match
+          if (await verifyEmailHttpBridge(matchingDomainEmail)) {
+            email = matchingDomainEmail.toLowerCase();
+            enrichment_source = 'DOM';
+          }
         }
       }
 
@@ -960,10 +1004,18 @@ export async function deepEnrichDomain(
 
         if (!email) {
           const emailMatches = renderedHtml.toLowerCase().match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g) || [];
-          const valid = emailMatches.find(e => isValidLeadEmail(e));
-          if (valid) {
-            email = valid.toLowerCase();
-            enrichment_source = 'DOM';
+          const rootDomain = extractCleanHostname(domainUrl);
+          
+          const matchingDomainEmail = emailMatches.find(e => {
+            const lower = e.toLowerCase().trim();
+            return isValidLeadEmail(lower) && lower.endsWith(`@${rootDomain}`);
+          });
+
+          if (matchingDomainEmail) {
+            if (await verifyEmailHttpBridge(matchingDomainEmail)) {
+              email = matchingDomainEmail.toLowerCase();
+              enrichment_source = 'DOM';
+            }
           }
         }
       }
@@ -996,38 +1048,42 @@ export async function deepEnrichDomain(
     const effectiveCompanyName = companyName || domainToTitleCase(rootDomain);
 
     const dorkResult = await fetchEmailViaDorking(effectiveCompanyName, domainUrl, targetPersonas);
-    if (dorkResult) {
+    if (dorkResult && await verifyEmailHttpBridge(dorkResult.email)) {
       email = dorkResult.email;
       enrichment_source = dorkResult.source;
     }
 
     // Tier 3: Apollo API (Generous Free Tier)
     if (!email) {
-      email = await fetchEmailFromApollo(rootDomain);
-      if (email) {
+      const candidate = await fetchEmailFromApollo(rootDomain);
+      if (candidate && await verifyEmailHttpBridge(candidate)) {
+        email = candidate;
         enrichment_source = 'APOLLO';
       }
     }
 
     // Tier 4: Prospeo API (50/day Free Tier)
     if (!email) {
-      email = await fetchEmailFromProspeo(rootDomain, companyName);
-      if (email) {
+      const candidate = await fetchEmailFromProspeo(rootDomain, companyName);
+      if (candidate && await verifyEmailHttpBridge(candidate)) {
+        email = candidate;
         enrichment_source = 'PROSPEO';
       }
     }
 
     // Tier 5: Hunter / Snov (Strict Reserves)
     if (!email) {
-      email = await fetchEmailFromHunter(rootDomain);
-      if (email) {
+      const candidate = await fetchEmailFromHunter(rootDomain);
+      if (candidate && await verifyEmailHttpBridge(candidate)) {
+        email = candidate;
         enrichment_source = 'HUNTER';
       }
     }
 
     if (!email) {
-      email = await fetchEmailFromSnov(rootDomain);
-      if (email) {
+      const candidate = await fetchEmailFromSnov(rootDomain);
+      if (candidate && await verifyEmailHttpBridge(candidate)) {
+        email = candidate;
         enrichment_source = 'SNOV';
       }
     }

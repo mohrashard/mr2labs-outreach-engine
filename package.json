@@ -19,7 +19,8 @@
     "openai": "^7.5.0",
     "papaparse": "^5.6.0",
     "react": "19.2.8",
-    "react-dom": "19.2.8"
+    "react-dom": "19.2.8",
+    "verifalia": "^5.0.0"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",

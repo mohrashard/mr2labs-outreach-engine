@@ -99,12 +99,26 @@ export async function POST(request: Request) {
 
     if (contactData.is_rejected) {
       console.log(`[Background Worker - Bouncer] Rejected: ${target.websiteUrl}`);
+      await supabaseAdmin.from('outreach_leads').insert({
+        campaign_id: campaignId || null,
+        company_name: target.companyName,
+        website_url: target.websiteUrl,
+        status: 'REJECTED',
+        audit_notes: 'Rejected by Niche Bouncer criteria.'
+      });
       await logEvent('BOUNCER_REJECTED', `Rejected ${target.websiteUrl} - Bouncer validation failed.`, { url: target.websiteUrl });
       return NextResponse.json({ skipped: true, reason: 'REJECTED_BY_BOUNCER' });
     }
 
     if (!contactData.email) {
       console.log(`[Background Worker - Enrichment] No verified email found for: ${target.websiteUrl}`);
+      await supabaseAdmin.from('outreach_leads').insert({
+        campaign_id: campaignId || null,
+        company_name: target.companyName,
+        website_url: target.websiteUrl,
+        status: 'REJECTED',
+        audit_notes: 'No valid verified email found in pipeline.'
+      });
       await logEvent('NO_EMAIL', `Skipped ${target.websiteUrl} - No valid email found.`, { url: target.websiteUrl });
       return NextResponse.json({ skipped: true, reason: 'NO_VERIFIED_EMAIL' });
     }

@@ -67,12 +67,16 @@ export async function GET(req: Request) {
         const leadsNeeded = dailyLimit - availableLeadsCount;
         console.log(`[Cron] Campaign "${campaign.name}" (${campaign.location}) needs ${leadsNeeded} leads.`);
 
-        // 3. Run Discovery (Fast SERP sweep)
+        // 3. Run Discovery (Deep SERP sweep)
+        // We scrape up to 10 pages to ensure we get a massive pool of domains.
+        // Even if we enqueue 200 domains, the QStash worker checks the DB quota before verifying,
+        // so it will instantly stop spending credits once exactly 20 leads are verified.
         const discovered = [];
-        for (let p = 1; p <= 4; p++) {
+        for (let p = 1; p <= 10; p++) {
           const pageLeads = await discoverTargetDomains(campaign.niche || 'General B2B', campaign.location, p);
           if (pageLeads.length > 0) discovered.push(...pageLeads);
-          if (discovered.length >= leadsNeeded * 4) break;
+          // Stop discovering if we have a huge buffer (e.g., 300 leads) to ensure we hit the 20 target
+          if (discovered.length >= leadsNeeded * 15) break;
         }
 
         // 4. Auto-Pivot if city is exhausted (0 leads discovered)
@@ -99,7 +103,7 @@ export async function GET(req: Request) {
           let enqueuedScrapeCount = 0;
 
           for (let i = 0; i < discovered.length; i++) {
-            if (enqueuedScrapeCount >= leadsNeeded * 4) break;
+            if (enqueuedScrapeCount >= leadsNeeded * 15) break;
 
             const lead = discovered[i];
             const { data: existing } = await supabaseAdmin

@@ -15,6 +15,8 @@ const qstash = process.env.QSTASH_TOKEN ? new Client({ token: process.env.QSTASH
 
 export async function GET(req: Request) {
   try {
+    const url = new URL(req.url);
+    const action = url.searchParams.get('action'); // 'dispatch' or 'scrape'
     const now = new Date();
 
     // 1. Fetch active campaigns
@@ -35,10 +37,8 @@ export async function GET(req: Request) {
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
 
     // 1. DISPATCH EMAILS FIRST (Fast)
-    // We do this first so Vercel doesn't kill the function during the slow scraping phase
-    // ensuring follow-ups and existing leads are always queued.
     let enqueuedJobs = 0;
-    if (qstash) {
+    if (qstash && (action === 'dispatch' || !action)) {
       const sendEmailUrl = `${baseUrl}/api/queue/send-email`;
       const GLOBAL_DAILY_LIMIT = Number(process.env.DAILY_EMAIL_LIMIT) || 290;
 
@@ -159,10 +159,18 @@ export async function GET(req: Request) {
       }
     }
 
+    if (action === 'dispatch') {
+      return NextResponse.json({ 
+        status: 'Dispatch Complete',
+        enqueuedJobs
+      });
+    }
+
     // 2. DISCOVERY & ENRICHMENT NEXT (Slow)
-    for (const campaign of campaigns) {
-      // Auto-expiry check
-      if (campaign.end_date && new Date(campaign.end_date) < now) {
+    if (action === 'scrape' || !action) {
+      for (const campaign of campaigns) {
+        // Auto-expiry check
+        if (campaign.end_date && new Date(campaign.end_date) < now) {
         await supabaseAdmin
           .from('campaigns')
           .update({ is_active: false })
@@ -302,7 +310,7 @@ export async function GET(req: Request) {
       }
     }
 
-
+    }
 
     return NextResponse.json({ 
       status: 'Cron Execution Complete',

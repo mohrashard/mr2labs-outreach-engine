@@ -99,22 +99,44 @@ function cleanAndRepairJson(rawText: string): string {
   return cleaned;
 }
 
-function validateAndCleanBody(body: string): string | null {
-  if (!body) return null;
-  
-  const mandatoryEnding = "so I ran a complete diagnostic audit on your business for free—take a look at the attached dashboard.";
-  
-  // Trim anything after the mandatory ending
-  const endingIndex = body.indexOf(mandatoryEnding);
-  if (endingIndex === -1) return null; // Reject entirely if ending is missing
-  
-  const cleaned = body.slice(0, endingIndex + mandatoryEnding.length).trim();
-  
-  // Reject if it's still multiple sentences before the hook
-  const sentencesBefore = cleaned.split(/[.!?]/).filter(s => s.trim().length > 10);
-  if (sentencesBefore.length > 2) return null; // Too many sentences, reject
-  
-  return cleaned;
+export const MR2_SERVICES = {
+  WEBSITE_REBUILD: {
+    name: "Website Redesign & Conversion",
+    outcome: "turn the website into a faster, modern conversion-focused experience"
+  },
+  AI_AUTOMATION: {
+    name: "AI Lead Automation",
+    outcome: "automate repetitive lead and customer workflows"
+  },
+  CUSTOM_SOFTWARE: {
+    name: "Custom Business Software",
+    outcome: "replace manual workflows with custom software built around your operations"
+  },
+  SECURITY_REMEDIATION: {
+    name: "Website Security Remediation",
+    outcome: "remediate security weaknesses and perform a broader technical hardening"
+  },
+  PERFORMANCE: {
+    name: "Website Performance Optimization",
+    outcome: "optimize the site's loading speed and Core Web Vitals"
+  },
+  WHITE_LABEL: {
+    name: "White-Label Engineering",
+    outcome: "provide your agency with additional technical capacity without internal hiring"
+  }
+};
+
+export interface AuditResult {
+  email_subject: string;
+  audit_summary: string;
+  generated_pitch: string;
+  audit_notes?: string;
+  pitch_text?: string;
+  audit_finding?: string;
+  business_impact?: string;
+  recommended_service?: string;
+  service_pitch?: string;
+  error?: string;
 }
 
 export async function generateAuditAndPitch(
@@ -161,96 +183,56 @@ export async function generateAuditAndPitch(
     ? `TECHNICAL AUDIENCE — Write engineer-to-engineer.
   - Name the specific vulnerability, CVE class, or performance metric directly
   - Acceptable terms: HSTS, DMARC, SPF, hydration payload, egress cost, clickjacking, DOM bloat
-  - Impact clause must reference: infrastructure risk, security posture, or edge performance degradation
-  - Example: "I noticed your frontend is serving a 240KB __NEXT_DATA__ hydration payload on every route and your headers are missing HSTS, creating both a performance bottleneck and a downgrade attack surface, so I ran a complete diagnostic audit on your business for free—take a look at the attached dashboard."`
+  - Example output: "the site is serving a 240KB __NEXT_DATA__ hydration payload on every route and missing HSTS, creating a performance bottleneck and security risk"`
     : `NON-TECHNICAL AUDIENCE — Translate every technical flaw into a business outcome.
   - BANNED words/acronyms: DMARC, SPF, HSTS, hydration, payload, CSP, header, SSL, HTTP, JSON
   - For each flaw type, use these plain-English translations:
-      * dmarc_missing / spf_missing -> "your domain has no email authentication, meaning competitors can send fake emails pretending to be you"
-      * hsts_missing / clickjacking_vulnerable -> "your site has a security gap that can expose your clients' browsers to attacks"
-      * hydration_bloat_kb / html_size_kb -> "your website is sending massive amounts of hidden data overhead on every page load, severely slowing it down for mobile users"
-      * missing_mobile_autocomplete -> "your contact forms are missing autocomplete, adding friction that causes mobile users to drop off before submitting"
-      * has_scheduler (if false) -> "you have no automated booking system, meaning leads that visit after hours have no way to self-schedule"
-  - Impact clause must reference: lost leads, wasted admin hours, missed revenue, or poor client trust`;
+      * dmarc_missing / spf_missing -> "the domain has no email authentication, meaning competitors can send fake emails pretending to be you"
+      * hsts_missing / clickjacking_vulnerable -> "the site has a security gap that can expose your clients' browsers to attacks"
+      * hydration_bloat_kb / html_size_kb -> "the website is sending massive amounts of hidden data on every page load, severely slowing it down for mobile users"
+      * missing_mobile_autocomplete -> "contact forms are missing autocomplete, adding friction that causes mobile users to drop off before submitting"
+      * has_scheduler (if false) -> "there is no automated booking system, meaning leads that visit after hours have no way to self-schedule"`;
 
-  const systemPrompt = `You are a cold email copywriter for MR² Labs. Your only job is to write exactly ONE sentence — the opening hook of a cold email — based on a JSON audit of the prospect's website.
+  const systemPrompt = `You are an elite consultative sales agent for MR² Labs. Your job is to analyze a JSON audit of a prospect's website and select the MOST COMMERCIALLY RELEVANT service to pitch them.
 
-## YOUR INPUTS
-You will receive:
-- A JSON object of audit flags. Each flag is either: boolean true/false, a numeric value, or a string.
-- The prospect's niche and primary pain point.
+## SERVICE CATALOG
+Use this exact catalog to map findings to the primary MR² Service:
+- WEBSITE_REBUILD: name: "Website Redesign & Conversion", outcome: "turn the website into a faster, modern conversion-focused experience"
+- AI_AUTOMATION: name: "AI Lead Automation", outcome: "automate repetitive lead and customer workflows"
+- CUSTOM_SOFTWARE: name: "Custom Business Software", outcome: "replace manual workflows with custom software built around your operations"
+- SECURITY_REMEDIATION: name: "Website Security Remediation", outcome: "remediate security weaknesses and perform a broader technical hardening"
+- PERFORMANCE: name: "Website Performance Optimization", outcome: "optimize the site's loading speed and Core Web Vitals"
+- WHITE_LABEL: name: "White-Label Engineering", outcome: "provide your agency with additional technical capacity without internal hiring"
 
-## STEP 1 — SELECT THE SINGLE MOST CRITICAL FLAW
-Scan the audit JSON. Select exactly ONE flaw using this strict priority hierarchy (top = highest priority):
+## CRITICAL RULE FOR NO FINDINGS
+If the JSON audit is empty, or all values are false/null/0, you MUST return exactly:
+{ "error": "The automated audit could not generate a verified finding." }
+Do not invent problems.
 
-TIER 1 — SECURITY & INFRASTRUCTURE (always leads if present):
-  - dmarc_missing: true -> "no DMARC record protecting your domain from email spoofing"
-  - spf_missing: true -> "no SPF record, leaving your domain open to spoofing"
-  - hsts_missing: true -> "no HSTS header, exposing your site to downgrade attacks"
-  - clickjacking_vulnerable: true -> "no X-Frame-Options header, leaving your site vulnerable to clickjacking"
-  - caa_missing: true -> "no Certificate Authority Authorization, meaning any rogue CA can issue SSL certificates for your domain"
-  - legacy_server_headers: (string) -> "your server is broadcasting outdated signatures like [VALUE]"
+## STEP 1 — SELECT THE PRIMARY FLAW & SERVICE
+Scan the audit JSON. Select exactly ONE primary flaw. Map it to the exact service name from the catalog above.
 
-TIER 2 — PERFORMANCE & BLOAT (leads if no Tier 1 flaw):
-  - hydration_bloat_kb > 150 -> "pulling a massive [VALUE]KB hydration payload on every route"
-  - html_size_kb > 250 -> "your initial HTML payload is bloated to [VALUE]KB"
-  - missing_cache_headers: true -> "your static assets are missing immutable cache headers"
-  - has_tracker_bloat: true -> "heavy third-party trackers are blocking the main thread"
-
-TIER 3 — CONVERSION & UX (leads if no Tier 1 or 2 flaw):
-  - missing_mobile_autocomplete: true -> "intake forms are missing autocomplete"
-  - has_scheduler: false -> "no automated appointment scheduler or booking widget"
-  - missing_opengraph: true -> "missing Open Graph metadata, breaking social link previews"
-  - has_mailto_trap: true -> "using outdated 'mailto:' links instead of proper lead capture forms"
-
-CRITICAL RULE: Only reference a flaw if it is explicitly present in the JSON as \`true\`, as a string, or as a number exceeding the threshold above. If a key is absent, false, or null — it does not exist. Do NOT invent or assume any values.
-
-## STEP 2 — WRITE EXACTLY ONE SENTENCE
-Use this exact formula:
-"I noticed [SPECIFIC FLAW WITH REAL DATA FROM JSON], [IMPACT CLAUSE], so I ran a complete diagnostic audit on your business for free—take a look at the attached dashboard."
-
-The sentence must end with: "so I ran a complete diagnostic audit on your business for free—take a look at the attached dashboard."
-This ending is MANDATORY and must be reproduced verbatim.
-
-## STEP 3 — SPECIFICITY RULES
-The flaw observation MUST include at least ONE of the following to feel credible:
-- A real number from the audit JSON (KB, ms, a score)
-- The domain name itself
-- A specific page or feature ("your contact page", "your Instagram link in bio")
-
-Generic = ignored. Specific = credible = replies.
-
-BAD: "I noticed your site has security issues"
-GOOD: "I noticed realtymiami.com has no DMARC record and your contact form loads in 4.8 seconds on mobile"
-
-## STEP 4 — CURIOSITY GAP
-The impact clause must create a knowledge gap — hint at MORE findings without revealing them.
-Instead of: "which is costing you leads"
-Use: "which is just one of 6 issues we flagged in the full diagnostic"
-
-This forces them to open the PDF to see what else you found.
-
-## TONE ROUTING
-${toneInstructions}
-
-## SUBJECT LINE
-Write a subject line of exactly 1 to 4 words. No clickbait. No questions. State the flaw category or the audit offer plainly.
-Good examples: "Site audit", "Security gap", "Load time issue", "Diagnostic for [Company]"
-Bad examples: "You won't believe this", "Quick question", "Following up"
+## STEP 2 — GENERATE THE EMAIL BODY
+Write a 4-sentence cold email using this exact formula:
+1. Observation: "I ran a quick technical check on your website and noticed [finding]."
+2. Problem: "This can [business impact]."
+3. Attachment Note & Pitch: "I've attached a quick audit highlighting what we found. MR² Labs can [service outcome]."
+4. CTA: "Would you be open to a quick 10-minute conversation?"
 
 ## OUTPUT FORMAT
-Return ONLY this JSON object. No preamble. No explanation. No markdown fences.
+Return ONLY this JSON object. No preamble.
 {
   "email_subject": "1 to 4 word subject line",
-  "generated_email_body": "The complete single sentence."
+  "audit_finding": "The specific technical finding",
+  "business_impact": "The business consequence",
+  "recommended_service": "The exact service name from the catalog",
+  "service_pitch": "The MR2 Labs can... pitch",
+  "email_body": "The complete 4-sentence email (include Hi [Name], and Best, Mohamed)"
 }
 
-HARD CONSTRAINTS — violation of any of these is a failure:
-1. generated_email_body must be exactly ONE sentence.
-2. The sentence must end with the exact string: "so I ran a complete diagnostic audit on your business for free—take a look at the attached dashboard."
-3. Do NOT add a greeting, sign-off, or second sentence under any circumstances.
-4. Do NOT reference any flaw not present in the audit JSON as true or above threshold.
-5. Do NOT use placeholder text like [Company Name] or [X seconds] — use real values from the JSON or the company name variable.`;
+HARD CONSTRAINTS:
+1. Do NOT use placeholder text like [Company Name] — use real values from the JSON.
+2. Only reference a flaw if it is explicitly present in the JSON as true or above threshold.`;
 
   const userPrompt = `Target Company Name: ${companyName}
 Domain: ${domain}
@@ -278,15 +260,25 @@ Scraped Audit Data: ${JSON.stringify(flaggedOnly)}`;
       if (content) {
         const parsed = JSON.parse(cleanAndRepairJson(content));
         const email_subject = parsed.email_subject || `Diagnostic for ${companyName}`;
-        const generated_email_body = validateAndCleanBody(parsed.generated_email_body);
-
-        if (generated_email_body) {
+        if (parsed.error) {
+          return { email_subject: '', audit_summary: '', generated_pitch: '', error: parsed.error };
+        }
+        if (parsed.audit_finding && parsed.email_body) {
           return {
             email_subject,
-            audit_summary: `1-Sentence Hook for ${companyName}`,
-            generated_pitch: generated_email_body,
-            audit_notes: `Target Niche: ${nicheInfo.niche} | Socials: ${socialPlatformsStr}`,
-            pitch_text: generated_email_body,
+            audit_summary: `Audit Pitch for ${companyName}`,
+            generated_pitch: parsed.email_body,
+            audit_notes: JSON.stringify({
+              finding: parsed.audit_finding,
+              impact: parsed.business_impact,
+              service: parsed.recommended_service || 'Consultation',
+              pitch: parsed.service_pitch
+            }),
+            pitch_text: parsed.email_body,
+            audit_finding: parsed.audit_finding,
+            business_impact: parsed.business_impact,
+            recommended_service: parsed.recommended_service,
+            service_pitch: parsed.service_pitch,
           };
         }
       }
@@ -319,15 +311,25 @@ Scraped Audit Data: ${JSON.stringify(flaggedOnly)}`;
       if (content) {
         const parsed = JSON.parse(cleanAndRepairJson(content));
         const email_subject = parsed.email_subject || `Diagnostic for ${companyName}`;
-        const generated_email_body = validateAndCleanBody(parsed.generated_email_body);
-
-        if (generated_email_body) {
+        if (parsed.error) {
+          return { email_subject: '', audit_summary: '', generated_pitch: '', error: parsed.error };
+        }
+        if (parsed.audit_finding && parsed.email_body) {
           return {
             email_subject,
-            audit_summary: `1-Sentence Hook for ${companyName}`,
-            generated_pitch: generated_email_body,
-            audit_notes: `Target Niche: ${nicheInfo.niche} | Socials: ${socialPlatformsStr}`,
-            pitch_text: generated_email_body,
+            audit_summary: `Audit Pitch for ${companyName}`,
+            generated_pitch: parsed.email_body,
+            audit_notes: JSON.stringify({
+              finding: parsed.audit_finding,
+              impact: parsed.business_impact,
+              service: parsed.recommended_service || 'Consultation',
+              pitch: parsed.service_pitch
+            }),
+            pitch_text: parsed.email_body,
+            audit_finding: parsed.audit_finding,
+            business_impact: parsed.business_impact,
+            recommended_service: parsed.recommended_service,
+            service_pitch: parsed.service_pitch,
           };
         }
       }
@@ -358,15 +360,25 @@ Scraped Audit Data: ${JSON.stringify(flaggedOnly)}`;
       if (content) {
         const parsed = JSON.parse(cleanAndRepairJson(content));
         const email_subject = parsed.email_subject || `Diagnostic for ${companyName}`;
-        const generated_email_body = validateAndCleanBody(parsed.generated_email_body);
-
-        if (generated_email_body) {
+        if (parsed.error) {
+          return { email_subject: '', audit_summary: '', generated_pitch: '', error: parsed.error };
+        }
+        if (parsed.audit_finding && parsed.email_body) {
           return {
             email_subject,
-            audit_summary: `1-Sentence Hook for ${companyName}`,
-            generated_pitch: generated_email_body,
-            audit_notes: `Target Niche: ${nicheInfo.niche} | Socials: ${socialPlatformsStr}`,
-            pitch_text: generated_email_body,
+            audit_summary: `Audit Pitch for ${companyName}`,
+            generated_pitch: parsed.email_body,
+            audit_notes: JSON.stringify({
+              finding: parsed.audit_finding,
+              impact: parsed.business_impact,
+              service: parsed.recommended_service || 'Consultation',
+              pitch: parsed.service_pitch
+            }),
+            pitch_text: parsed.email_body,
+            audit_finding: parsed.audit_finding,
+            business_impact: parsed.business_impact,
+            recommended_service: parsed.recommended_service,
+            service_pitch: parsed.service_pitch,
           };
         }
       }
@@ -397,15 +409,25 @@ Scraped Audit Data: ${JSON.stringify(flaggedOnly)}`;
       if (content) {
         const parsed = JSON.parse(cleanAndRepairJson(content));
         const email_subject = parsed.email_subject || `Diagnostic for ${companyName}`;
-        const generated_email_body = validateAndCleanBody(parsed.generated_email_body);
-
-        if (generated_email_body) {
+        if (parsed.error) {
+          return { email_subject: '', audit_summary: '', generated_pitch: '', error: parsed.error };
+        }
+        if (parsed.audit_finding && parsed.email_body) {
           return {
             email_subject,
-            audit_summary: `1-Sentence Hook for ${companyName}`,
-            generated_pitch: generated_email_body,
-            audit_notes: `Target Niche: ${nicheInfo.niche} | Socials: ${socialPlatformsStr}`,
-            pitch_text: generated_email_body,
+            audit_summary: `Audit Pitch for ${companyName}`,
+            generated_pitch: parsed.email_body,
+            audit_notes: JSON.stringify({
+              finding: parsed.audit_finding,
+              impact: parsed.business_impact,
+              service: parsed.recommended_service || 'Consultation',
+              pitch: parsed.service_pitch
+            }),
+            pitch_text: parsed.email_body,
+            audit_finding: parsed.audit_finding,
+            business_impact: parsed.business_impact,
+            recommended_service: parsed.recommended_service,
+            service_pitch: parsed.service_pitch,
           };
         }
       }
@@ -441,15 +463,25 @@ Scraped Audit Data: ${JSON.stringify(flaggedOnly)}`;
       if (content) {
         const parsed = JSON.parse(cleanAndRepairJson(content));
         const email_subject = parsed.email_subject || `Diagnostic for ${companyName}`;
-        const generated_email_body = validateAndCleanBody(parsed.generated_email_body);
-
-        if (generated_email_body) {
+        if (parsed.error) {
+          return { email_subject: '', audit_summary: '', generated_pitch: '', error: parsed.error };
+        }
+        if (parsed.audit_finding && parsed.email_body) {
           return {
             email_subject,
-            audit_summary: `1-Sentence Hook for ${companyName}`,
-            generated_pitch: generated_email_body,
-            audit_notes: `Target Niche: ${nicheInfo.niche} | Socials: ${socialPlatformsStr}`,
-            pitch_text: generated_email_body,
+            audit_summary: `Audit Pitch for ${companyName}`,
+            generated_pitch: parsed.email_body,
+            audit_notes: JSON.stringify({
+              finding: parsed.audit_finding,
+              impact: parsed.business_impact,
+              service: parsed.recommended_service || 'Consultation',
+              pitch: parsed.service_pitch
+            }),
+            pitch_text: parsed.email_body,
+            audit_finding: parsed.audit_finding,
+            business_impact: parsed.business_impact,
+            recommended_service: parsed.recommended_service,
+            service_pitch: parsed.service_pitch,
           };
         }
       }
@@ -458,15 +490,12 @@ Scraped Audit Data: ${JSON.stringify(flaggedOnly)}`;
     }
   }
 
-  // 6. Structured Static Fallback (1-Sentence Formula)
-  const fallbackBody = `I noticed your site has a few missing security and performance configurations that are likely losing you conversions, so I ran a complete diagnostic audit on your business for free—take a look at the attached dashboard.`;
-
+  // 6. Structured Static Fallback
   return {
-    email_subject: `Diagnostic for ${companyName}`,
-    audit_summary: `1-Sentence SDR Pitch for ${companyName}`,
-    generated_pitch: fallbackBody,
-    audit_notes: `Target Niche: ${nicheInfo.niche}`,
-    pitch_text: fallbackBody,
+    email_subject: '',
+    audit_summary: '',
+    generated_pitch: '',
+    error: 'The automated audit could not generate a verified finding.'
   };
 }
 
@@ -476,12 +505,26 @@ export async function generateFollowUpPitch(
   companyName: string,
   nicheInput?: string,
   founderName?: string | null,
-  customPrompt?: string
+  customPrompt?: string,
+  auditNotesJson?: string | null
 ): Promise<{ email_subject: string; generated_pitch: string }> {
   const nicheInfo = await getNicheContextAsync(nicheInput);
   
   const founderFirst = founderName ? founderName.split(' ')[0] : null;
   const greeting = founderFirst ? `Hi ${founderFirst},` : 'Hi,';
+
+  let originalService = nicheInfo.solution;
+  let originalFinding = "technical issues";
+  let originalImpact = nicheInfo.pains;
+  
+  if (auditNotesJson) {
+    try {
+      const parsed = JSON.parse(auditNotesJson);
+      if (parsed.service) originalService = parsed.service;
+      if (parsed.finding) originalFinding = parsed.finding;
+      if (parsed.impact) originalImpact = parsed.impact;
+    } catch(e) {}
+  }
 
   let stepGoal = '';
   let stepRules = '';
@@ -490,20 +533,20 @@ export async function generateFollowUpPitch(
     stepGoal = `Follow custom user-defined instructions: ${customPrompt}`;
     stepRules = `Apply custom rules: ${customPrompt}`;
   } else if (followUpStep === 1) {
-    stepGoal = 'Remind them without sounding desperate. Focus on the COST of the problem if it remains unsolved.';
-    stepRules = `Sentence 1 (Reminder): A brief, polite reminder of the previous message. Do NOT just say "Following up."
-Sentence 2 (The Cost): Explain what happens if they don't solve ${nicheInfo.pains} (e.g., lost projects, lost leads, wasted hours).
-Sentence 3 (The Solution): Reiterate how MR² Labs solves this outcome.
+    stepGoal = `Follow up on the ${originalService} pitch related to ${originalFinding}.`;
+    stepRules = `Sentence 1 (Reminder): A brief, polite reminder about the ${originalFinding} finding. Do NOT just say "Following up."
+Sentence 2 (The Cost): Explain what happens if they don't fix the issue (e.g., ${originalImpact}).
+Sentence 3 (The Solution): Reiterate how MR² Labs can handle the ${originalService} for them so their team doesn't have to.
 Sentence 4 (The CTA): A low-friction ask for a 10-minute conversation.`;
   } else if (followUpStep === 2) {
-    stepGoal = 'Change the angle. Introduce a new perspective (Revenue, Cost, Capacity, Speed, or Missed Opportunities).';
-    stepRules = `Sentence 1 (New Angle): "One more thought on this: [Introduce a new insight/opportunity related to their niche]."
-Sentence 2 (Alternative Perspective): "Rather than adding more work to your existing team or hiring internally, we can [specific outcome]."
+    stepGoal = `Change the angle. Introduce a broader perspective around ${originalService}.`;
+    stepRules = `Sentence 1 (New Angle): "One more thought: beyond the initial finding, we could address this as part of a broader technical cleanup rather than treating it as a separate project."
+Sentence 2 (Alternative Perspective): "Rather than adding more work to your existing team, MR² Labs can take this entirely off your plate."
 Sentence 3 (The CTA): "If this is something you're considering, would you be open to a quick 10-minute chat?"`;
   } else {
     stepGoal = 'Close the loop, preserve the relationship, zero guilt-tripping. Do not ask for a meeting.';
     stepRules = `Sentence 1: "I'll close the loop here so I don't keep filling your inbox."
-Sentence 2: "If solving ${nicheInfo.pains} becomes a priority in the future, I'd be happy to reconnect."
+Sentence 2: "If ${originalService} or improving the website becomes a priority in the future, I'd be happy to reconnect."
 Sentence 3: "I'll keep your details on file. Wishing you and the team continued success."`;
   }
 
@@ -710,11 +753,11 @@ Generate Follow-Up #${followUpStep} based on the strict formula.`;
   // 6. Static Fallback
   let fallbackBody = '';
   if (followUpStep === 1) {
-    fallbackBody = `${greeting}\n\nJust following up on my previous message. One thing we've seen with ${nicheInfo.niche} businesses is that ${nicheInfo.pains} becomes increasingly expensive as the business grows.\n\nThat's exactly where we help by delivering systems that ${nicheInfo.solution}.\n\nWould a quick 10-minute conversation this week be worth exploring?`;
+    fallbackBody = `${greeting}\n\nJust following up on my previous message. One thing we've seen is that ${originalImpact} becomes increasingly expensive as a business grows.\n\nThat's exactly where we help by delivering ${originalService}.\n\nWould a quick 10-minute conversation this week be worth exploring?`;
   } else if (followUpStep === 2) {
-    fallbackBody = `${greeting}\n\nOne more thought on this: you may already have the infrastructure in place, the challenge is often the operational friction behind it.\n\nRather than adding more manual work to your existing team, we can ${nicheInfo.solution}.\n\nIf this is something you're considering, would you be open to a quick 10-minute chat?`;
+    fallbackBody = `${greeting}\n\nOne more thought on this: you may already have the infrastructure in place, the challenge is often the operational friction behind it.\n\nRather than adding more manual work to your existing team, we can take this entirely off your plate with our ${originalService}.\n\nIf this is something you're considering, would you be open to a quick 10-minute chat?`;
   } else {
-    fallbackBody = `${greeting}\n\nI'll close the loop here so I don't keep filling your inbox.\n\nIf overcoming issues with ${nicheInfo.pains} becomes a priority in the future, I'd be happy to reconnect and explore what we could build around it.\n\nI'll keep your details on file. Wishing you and the team continued success.`;
+    fallbackBody = `${greeting}\n\nI'll close the loop here so I don't keep filling your inbox.\n\nIf ${originalService} becomes a priority in the future, I'd be happy to reconnect and explore what we could build around it.\n\nI'll keep your details on file. Wishing you and the team continued success.`;
   }
 
   return {

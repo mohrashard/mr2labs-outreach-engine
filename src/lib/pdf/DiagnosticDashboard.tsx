@@ -230,6 +230,7 @@ interface AuditCheck {
   id: string;
   label: string;
   description: string;
+  description_pass: string;
   status: 'pass' | 'fail';
   severity: SeverityLevel;
   value: string;
@@ -250,7 +251,7 @@ const AuditRow = ({ check, isLast = false }: { check: AuditCheck; isLast?: boole
         <View style={styles.rowHeader}>
           <Text style={styles.rowLabel}>{check.label}</Text>
         </View>
-        <Text style={styles.rowDescription}>{check.description}</Text>
+        <Text style={styles.rowDescription}>{check.status === 'pass' ? check.description_pass : check.description}</Text>
         {check.status === 'fail' && check.labUrl && (
           <View style={styles.rowLinkWrap}>
             <Link src={check.labUrl} style={styles.rowLink}>
@@ -306,7 +307,8 @@ export const DiagnosticDashboard = ({
       {
         section: 'Security & Deliverability', id: 'dmarc',
         label: 'DMARC Policy Enforcement',
-        description: 'No DMARC record detected. Any attacker can send email impersonating your domain to clients, partners, and prospects, with zero authentication failure reported to you.',
+        description: 'No DMARC record detected. This can increase exposure to email spoofing attacks.',
+        description_pass: 'DMARC policy is configured and passing the check.',
         status: auditData.dmarc_missing ? 'fail' : 'pass',
         severity: auditData.dmarc_missing ? 'CRITICAL' : 'PASS',
         value: auditData.dmarc_missing ? 'Missing' : 'Configured',
@@ -315,7 +317,8 @@ export const DiagnosticDashboard = ({
       {
         section: 'Security & Deliverability', id: 'spf',
         label: 'SPF Record Validation',
-        description: 'SPF authorises which mail servers can send on your behalf. Without it, spoofed emails from your domain pass basic MX checks at recipient servers.',
+        description: 'SPF is missing. This can allow unauthorized servers to send emails on your behalf.',
+        description_pass: 'SPF record is correctly configured and valid.',
         status: auditData.spf_missing ? 'fail' : 'pass',
         severity: auditData.spf_missing ? 'CRITICAL' : 'PASS',
         value: auditData.spf_missing ? 'Missing' : 'Valid',
@@ -324,7 +327,8 @@ export const DiagnosticDashboard = ({
       {
         section: 'Security & Deliverability', id: 'hsts',
         label: 'HSTS Enforcement Header',
-        description: 'HTTP Strict Transport Security forces all connections to HTTPS. Without it, clients on public Wi-Fi are vulnerable to SSL stripping and downgrade attacks.',
+        description: 'HTTP Strict Transport Security is not enforced. This can leave connections vulnerable to downgrade attacks.',
+        description_pass: 'HSTS is enforced, ensuring secure HTTPS connections.',
         status: auditData.hsts_missing ? 'fail' : 'pass',
         severity: auditData.hsts_missing ? 'HIGH' : 'PASS',
         value: auditData.hsts_missing ? 'Not Set' : 'Enforced',
@@ -333,7 +337,8 @@ export const DiagnosticDashboard = ({
       {
         section: 'Security & Deliverability', id: 'clickjack',
         label: 'Clickjacking Protection (X-Frame-Options)',
-        description: 'No X-Frame-Options or frame-ancestors CSP directive detected. Your site can be embedded in a malicious iframe to hijack user interactions.',
+        description: 'X-Frame-Options is not configured. This can increase exposure to clickjacking attacks.',
+        description_pass: 'Anti-framing policy is configured and active.',
         status: auditData.clickjacking_vulnerable ? 'fail' : 'pass',
         severity: auditData.clickjacking_vulnerable ? 'HIGH' : 'PASS',
         value: auditData.clickjacking_vulnerable ? 'Vulnerable' : 'Protected',
@@ -342,7 +347,8 @@ export const DiagnosticDashboard = ({
       {
         section: 'Edge Performance & Architecture', id: 'hydration',
         label: 'Client-Side Hydration Payload',
-        description: `__NEXT_DATA__ payload detected${auditData.hydration_bloat_kb ? ` at ${auditData.hydration_bloat_kb}KB` : ''}. Oversized hydration blocks Time-to-Interactive on low-bandwidth connections and inflates egress costs at scale.`,
+        description: `__NEXT_DATA__ payload detected${auditData.hydration_bloat_kb ? ` at ${auditData.hydration_bloat_kb}KB` : ''}. Large payloads can block Time-to-Interactive on low-bandwidth connections.`,
+        description_pass: 'Hydration payload is within optimal limits.',
         status: auditData.hydration_bloat_kb > 150 ? 'fail' : 'pass',
         severity: auditData.hydration_bloat_kb > 150 ? 'HIGH' : 'PASS',
         value: auditData.hydration_bloat_kb ? `${auditData.hydration_bloat_kb} KB` : 'Optimal',
@@ -351,7 +357,8 @@ export const DiagnosticDashboard = ({
       {
         section: 'Edge Performance & Architecture', id: 'html',
         label: 'Initial DOM Payload Size',
-        description: `Raw HTML document${auditData.html_size_kb ? ` measured at ${auditData.html_size_kb}KB` : ''}. Excessive DOM payloads block the parser, delay First Contentful Paint, and are disproportionately penalised by Google Core Web Vitals.`,
+        description: `Raw HTML document${auditData.html_size_kb ? ` measured at ${auditData.html_size_kb}KB` : ''}. Large payloads can delay First Contentful Paint.`,
+        description_pass: 'Initial DOM payload size is optimal.',
         status: auditData.html_size_kb > 250 ? 'fail' : 'pass',
         severity: auditData.html_size_kb > 250 ? 'HIGH' : 'PASS',
         value: auditData.html_size_kb ? `${auditData.html_size_kb} KB` : 'Optimal',
@@ -360,7 +367,8 @@ export const DiagnosticDashboard = ({
       {
         section: 'Edge Performance & Architecture', id: 'cache',
         label: 'Immutable Cache-Control Headers',
-        description: 'Static assets (JS, CSS, images) are not served with Cache-Control: immutable. Every repeat visitor re-downloads unchanged assets, degrading performance and increasing CDN costs.',
+        description: 'Static assets are not served with Cache-Control: immutable, potentially degrading performance for repeat visitors.',
+        description_pass: 'Cache-Control headers are properly optimized.',
         status: auditData.missing_cache_headers ? 'fail' : 'pass',
         severity: auditData.missing_cache_headers ? 'HIGH' : 'PASS',
         value: auditData.missing_cache_headers ? 'Not Set' : 'Optimised',
@@ -372,7 +380,8 @@ export const DiagnosticDashboard = ({
       {
         section: 'Security & Deliverability', id: 'dmarc',
         label: 'Email Domain Protection',
-        description: 'Your domain has no email authentication record. A competitor or scammer can send emails that appear to come from your business directly to your clients, with no way for you to detect or block it.',
+        description: 'Your domain appears to be missing DMARC configuration, which can allow unauthorized parties to send emails using your domain.',
+        description_pass: 'DMARC policy is configured and passing the check.',
         status: auditData.dmarc_missing ? 'fail' : 'pass',
         severity: auditData.dmarc_missing ? 'CRITICAL' : 'PASS',
         value: auditData.dmarc_missing ? 'Unprotected' : 'Protected',
@@ -381,7 +390,8 @@ export const DiagnosticDashboard = ({
       {
         section: 'Conversion & UX Friction', id: 'autocomplete',
         label: 'Mobile Form Completion Rate',
-        description: 'Your contact forms are missing autocomplete attributes. On mobile, this forces visitors to manually type their full name, email, and phone number, causing approximately 30% of mobile users to abandon before submitting.',
+        description: 'Contact forms are missing autocomplete attributes, adding friction that can cause mobile users to abandon forms.',
+        description_pass: 'Forms are optimized for mobile completion.',
         status: auditData.missing_mobile_autocomplete ? 'fail' : 'pass',
         severity: auditData.missing_mobile_autocomplete ? 'HIGH' : 'PASS',
         value: auditData.missing_mobile_autocomplete ? 'Losing Leads' : 'Optimised',
@@ -390,7 +400,8 @@ export const DiagnosticDashboard = ({
       {
         section: 'Conversion & UX Friction', id: 'mailto',
         label: 'Contact Form vs. Mailto Trap',
-        description: 'Your primary contact link opens a mail app instead of a form on your site. This ejects the user out of the browser, breaks the conversion flow, and captures zero lead data if they bounce.',
+        description: 'Primary contact link uses a mailto trap instead of an on-site form, which can break the conversion flow.',
+        description_pass: 'Contact flow uses standard forms effectively.',
         status: auditData.has_mailto_trap ? 'fail' : 'pass',
         severity: auditData.has_mailto_trap ? 'CRITICAL' : 'PASS',
         value: auditData.has_mailto_trap ? 'Leaking Leads' : 'Form In Place',
@@ -399,7 +410,8 @@ export const DiagnosticDashboard = ({
       {
         section: 'Conversion & UX Friction', id: 'scheduler',
         label: 'Automated Booking System',
-        description: 'No self-booking widget detected. High-intent visitors who arrive outside business hours have no way to schedule themselves in. They leave and book a competitor who has 24/7 availability.',
+        description: 'No self-booking widget detected, meaning visitors cannot schedule consultations after hours.',
+        description_pass: 'Automated booking system is active.',
         status: !auditData.has_scheduler ? 'fail' : 'pass',
         severity: !auditData.has_scheduler ? 'CRITICAL' : 'PASS',
         value: !auditData.has_scheduler ? 'Not Installed' : 'Active',
@@ -408,7 +420,8 @@ export const DiagnosticDashboard = ({
       {
         section: 'Edge Performance & Architecture', id: 'html',
         label: 'Mobile Page Load Speed',
-        description: `Your site${auditData.html_size_kb ? ` is sending ${auditData.html_size_kb}KB of data on every load` : ' is sending excessive data on every load'}. On a mobile connection, every extra 100KB adds load time. Studies show a 1-second delay reduces conversions by 7%.`,
+        description: `Your site${auditData.html_size_kb ? ` is sending ${auditData.html_size_kb}KB of data on every load` : ' is sending large data payloads'}, which can increase mobile load times.`,
+        description_pass: 'Page load payload sizes are within optimal limits.',
         status: auditData.html_size_kb > 250 ? 'fail' : 'pass',
         severity: auditData.html_size_kb > 250 ? 'HIGH' : 'PASS',
         value: auditData.html_size_kb ? `${auditData.html_size_kb} KB` : 'Optimal',
@@ -451,9 +464,9 @@ export const DiagnosticDashboard = ({
         {/* HEADER */}
         <View style={styles.header}>
           <View style={styles.headerLeft}>
-            <Text style={styles.reportTitle}>Site Forensics</Text>
+            <Text style={styles.reportTitle}>WEBSITE TECHNICAL AUDIT</Text>
             <Text style={styles.reportSubtitle}>
-              {failCount} critical {failCount === 1 ? 'issue' : 'issues'} detected on {domain}
+              {failCount === 1 ? '1 issue' : `${failCount} issues`} detected on {domain}
             </Text>
           </View>
           <View style={styles.headerRight}>
@@ -465,20 +478,19 @@ export const DiagnosticDashboard = ({
         {/* SCORE SUMMARY */}
         <View style={styles.scoreSection}>
           <View style={styles.scoreLeft}>
-            <Text style={styles.scoreNumber}>{riskScore}</Text>
-            <Text style={styles.scoreLabel}>Risk Exposure</Text>
+            <Text style={styles.scoreNumber}>{failCount}</Text>
+            <Text style={styles.scoreLabel}>{failCount === 1 ? 'ISSUE DETECTED' : 'ISSUES DETECTED'}</Text>
           </View>
           <View style={styles.scoreRight}>
             <Text style={styles.scoreHeadline}>
-              {riskScore >= 80
-                ? 'Critical infrastructure exposure detected.'
-                : riskScore >= 50
-                  ? 'Significant vulnerabilities requiring remediation.'
-                  : 'Issues detected, remediation recommended.'}
+              {failCount > 0
+                ? 'Immediate review recommended.'
+                : 'No major issues detected.'}
             </Text>
             <Text style={styles.scoreBody}>
-              Our automated systems found {failCount} critical issues on your domain.
-              These items represent quantifiable risks to your conversion rate, security, and client trust.
+              {failCount > 0 
+                ? `${failCount === 1 ? '1 issue requiring attention was' : `${failCount} issues requiring attention were`} identified during our automated scan. We recommend a technical review to address these findings.`
+                : 'Our automated scan did not identify any critical security or performance issues. Your infrastructure appears to be correctly configured.'}
             </Text>
           </View>
         </View>
@@ -491,10 +503,12 @@ export const DiagnosticDashboard = ({
         {/* CTA BLOCK */}
         <View style={styles.ctaBlock}>
           <Text style={styles.ctaHeadline}>
-            Remediation Plan
+            Recommended Next Steps
           </Text>
           <Text style={styles.ctaBody}>
-            We can resolve all {failCount} of these issues within 72 hours without disrupting your existing site. Reply to the email this report was attached to, or contact us directly.
+            {failCount > 0 
+              ? `We can assist in resolving these ${failCount} issues without disrupting your existing site. Reply to the email this report was attached to, or contact us directly.`
+              : 'While no major issues were found, we can help optimize and scale your technical infrastructure.'}
           </Text>
           <Link src="mailto:growth@mr2labs.com" style={styles.ctaEmail}>
             growth@mr2labs.com

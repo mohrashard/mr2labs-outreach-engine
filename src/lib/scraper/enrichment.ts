@@ -518,7 +518,10 @@ async function fetchEmailFromApollo(domain: string): Promise<string | null> {
       }),
     });
 
-    if (!res.ok) return null;
+    if (!res.ok) {
+      if (res.status === 401 || res.status === 403) console.warn(`[Waterfall Apollo] API Key blocked or exhausted (HTTP ${res.status})`);
+      return null;
+    }
     const data = await res.json();
     const people = data.people;
     if (Array.isArray(people)) {
@@ -539,8 +542,9 @@ async function fetchEmailFromApollo(domain: string): Promise<string | null> {
  * Tier 4 Waterfall: Prospeo API (50/day Free Tier)
  */
 async function fetchEmailFromProspeo(domain: string, companyName?: string): Promise<string | null> {
-  const apiKey = process.env.PROSPEO_API || process.env.PROSPEO_API_KEY;
-  if (!apiKey) return null;
+  const apiKeys = (process.env.PROSPEO_API || process.env.PROSPEO_API_KEY || '').split(',').map(k => k.trim()).filter(Boolean);
+  if (apiKeys.length === 0) return null;
+  const apiKey = apiKeys[Math.floor(Math.random() * apiKeys.length)];
 
   try {
     const res = await fetch('https://api.prospeo.io/domain-search', {
@@ -552,7 +556,10 @@ async function fetchEmailFromProspeo(domain: string, companyName?: string): Prom
       body: JSON.stringify({ domain })
     });
 
-    if (!res.ok) return null;
+    if (!res.ok) {
+      if (res.status === 401 || res.status === 403) console.warn(`[Waterfall Prospeo] API Key blocked or exhausted (HTTP ${res.status})`);
+      return null;
+    }
     const data = await res.json();
 
     if (data.error) return null;
@@ -583,12 +590,16 @@ async function fetchEmailFromProspeo(domain: string, companyName?: string): Prom
  * Tier 5 Waterfall: Hunter.io Domain Search (Strict Reserve)
  */
 async function fetchEmailFromHunter(domain: string): Promise<string | null> {
-  const apiKey = process.env.HUNTER_API_KEY;
-  if (!apiKey) return null;
+  const apiKeys = (process.env.HUNTER_API_KEY || '').split(',').map(k => k.trim()).filter(Boolean);
+  if (apiKeys.length === 0) return null;
+  const apiKey = apiKeys[Math.floor(Math.random() * apiKeys.length)];
   
   try {
     const res = await fetch(`https://api.hunter.io/v2/domain-search?domain=${encodeURIComponent(domain)}&api_key=${apiKey}`);
-    if (!res.ok) return null;
+    if (!res.ok) {
+      if (res.status === 401 || res.status === 403) console.warn(`[Waterfall Hunter] API Key blocked or exhausted (HTTP ${res.status})`);
+      return null;
+    }
     const data = await res.json();
     const emails = data.data?.emails;
     if (Array.isArray(emails) && emails.length > 0) {
@@ -608,12 +619,21 @@ async function fetchEmailFromHunter(domain: string): Promise<string | null> {
  * Tier 5 Waterfall Alternative: Snov.io API (Strict Reserve)
  */
 async function fetchEmailFromSnov(domain: string): Promise<string | null> {
-  const snovKey = process.env.SNOV_API || process.env.SNOV_SECRET;
-  if (!snovKey) return null;
+  const userIds = (process.env.SNOV_USER_ID || '').split(',').map(k => k.trim()).filter(Boolean);
+  const secrets = (process.env.SNOV_API || process.env.SNOV_API_SECRET || '').split(',').map(k => k.trim()).filter(Boolean);
+  if (userIds.length === 0 || secrets.length === 0) return null;
+  
+  // Pick a random index to distribute load across multiple stacked free accounts
+  const idx = Math.floor(Math.random() * Math.min(userIds.length, secrets.length));
+  const userId = userIds[idx];
+  const secret = secrets[idx];
 
   try {
     const res = await fetch(`https://api.snov.io/v1/get-domain-emails-with-info?domain=${encodeURIComponent(domain)}`, {
-      headers: { Authorization: `Bearer ${snovKey}` }
+      headers: { 
+        'Authorization': `Bearer ${secret}`,
+        'X-User-Id': userId
+      }
     });
     if (!res.ok) return null;
     const data = await res.json();

@@ -207,32 +207,73 @@ export function LeadDetailDrawer({
                 />
               </div>
 
-              {/* Site Audit Notes */}
-              <div>
-                <label className="block text-xs font-medium text-rose-300/90 mb-2 tracking-normal">
-                  AI Technical Audit Findings
-                </label>
-                <div className="p-4 bg-rose-500/[0.05] ring-1 ring-rose-500/20 rounded-2xl">
-                  <textarea
-                    rows={2}
-                    value={auditNotes}
-                    onChange={(e) => setAuditNotes(e.target.value)}
-                    className="w-full bg-transparent text-xs text-rose-200 focus:outline-none resize-none"
-                  />
-                </div>
-              </div>
+              {/* Service Mapping System */}
+              {(() => {
+                try {
+                  const parsedNotes = JSON.parse(auditNotes);
+                  if (parsedNotes && parsedNotes.finding) {
+                    return (
+                      <div className="space-y-4 p-4 bg-white/[0.02] rounded-2xl ring-1 ring-white/[0.06]">
+                        <h3 className="text-xs font-medium text-slate-300 mb-2">Service Mapping System</h3>
+                        <div className="space-y-1">
+                          <label className="block text-[10px] font-bold text-rose-400 uppercase tracking-wider">1. Audit Finding</label>
+                          <div className="p-3 bg-black/20 ring-1 ring-white/[0.04] rounded-xl text-xs text-slate-200 font-medium">
+                            {parsedNotes.finding}
+                          </div>
+                        </div>
+                        <div className="space-y-1">
+                          <label className="block text-[10px] font-bold text-amber-400 uppercase tracking-wider">2. Business Impact</label>
+                          <div className="p-3 bg-black/20 ring-1 ring-white/[0.04] rounded-xl text-xs text-slate-300">
+                            {parsedNotes.impact}
+                          </div>
+                        </div>
+                        <div className="space-y-1">
+                          <label className="block text-[10px] font-bold text-emerald-400 uppercase tracking-wider">3. Recommended MR² Service</label>
+                          <div className="p-3 bg-emerald-500/10 ring-1 ring-emerald-500/20 rounded-xl text-xs font-semibold text-emerald-300">
+                            {parsedNotes.service}
+                          </div>
+                        </div>
+                        <div className="space-y-1">
+                          <label className="block text-[10px] font-bold text-indigo-400 uppercase tracking-wider">4. Service Pitch</label>
+                          <div className="p-3 bg-indigo-500/10 ring-1 ring-indigo-500/20 rounded-xl text-xs text-indigo-200">
+                            {parsedNotes.pitch}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  }
+                } catch (e) {
+                  // Fallback for old plain-text records
+                }
+                
+                return (
+                  <div>
+                    <label className="block text-xs font-medium text-rose-300/90 mb-2 tracking-normal">
+                      AI Technical Audit Findings
+                    </label>
+                    <div className="p-4 bg-rose-500/[0.05] ring-1 ring-rose-500/20 rounded-2xl">
+                      <textarea
+                        rows={2}
+                        value={auditNotes}
+                        onChange={(e) => setAuditNotes(e.target.value)}
+                        className="w-full bg-transparent text-xs text-rose-200 focus:outline-none resize-none"
+                      />
+                    </div>
+                  </div>
+                );
+              })()}
 
               {/* Custom Pitch Generator */}
               <div>
-                <label className="block text-xs font-medium text-indigo-300/90 mb-2 tracking-normal">
-                  Tailored Pitch Proposal
+                <label className="block text-[10px] font-bold text-purple-400 uppercase tracking-wider mb-2">
+                  5. Generated Email
                 </label>
                 <textarea
-                  rows={4}
+                  rows={8}
                   value={pitchText}
                   onChange={(e) => setPitchText(e.target.value)}
                   placeholder="Enter customized sales pitch..."
-                  className="w-full bg-white/[0.025] hover:bg-white/[0.04] ring-1 ring-white/[0.08] focus:ring-1 focus:ring-indigo-400/40 rounded-xl p-4 text-xs text-slate-200 placeholder-slate-500 focus:outline-none leading-relaxed transition-all duration-200"
+                  className="w-full bg-white/[0.025] hover:bg-white/[0.04] ring-1 ring-white/[0.08] focus:ring-1 focus:ring-purple-400/40 rounded-xl p-4 text-xs text-slate-200 placeholder-slate-500 focus:outline-none leading-relaxed transition-all duration-200 font-serif"
                 />
               </div>
             </div>

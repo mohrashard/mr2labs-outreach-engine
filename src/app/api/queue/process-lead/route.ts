@@ -138,6 +138,19 @@ export async function POST(request: Request) {
 
     const screenshotUrl = `https://api.microlink.io?url=${encodeURIComponent(target.websiteUrl)}&screenshot=true`;
 
+    if (aiResult.error) {
+      console.log(`[Background Worker] Rejected: ${target.websiteUrl} - ${aiResult.error}`);
+      await supabaseAdmin.from('outreach_leads').insert({
+        campaign_id: campaignId || null,
+        company_name: target.companyName,
+        website_url: target.websiteUrl,
+        status: 'REJECTED',
+        audit_notes: aiResult.error
+      });
+      await logEvent('NO_FINDING', `Skipped ${target.websiteUrl} - ${aiResult.error}`, { url: target.websiteUrl });
+      return NextResponse.json({ skipped: true, reason: 'NO_VERIFIED_FINDING' });
+    }
+
     // 4. Persist to Supabase
     const { data: insertedLead, error: insertError } = await supabaseAdmin
       .from('outreach_leads')
@@ -151,7 +164,7 @@ export async function POST(request: Request) {
         instagram_url: contactData.instagram_url,
         linkedin_url: contactData.linkedin_url,
         email_subject: aiResult.email_subject,
-        audit_notes: aiResult.audit_summary,
+        audit_notes: aiResult.audit_notes,
         pitch_text: aiResult.generated_pitch,
         status: 'NEW',
         screenshot_url: screenshotUrl,

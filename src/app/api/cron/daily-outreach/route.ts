@@ -218,40 +218,43 @@ export async function GET(req: Request) {
         const cutoff2 = new Date(Date.now() - s2Days * 24 * 60 * 60 * 1000).toISOString();
         const cutoff3 = new Date(Date.now() - s3Days * 24 * 60 * 60 * 1000).toISOString();
 
-        // 1. Fetch NEW leads for this campaign
-        const { data: newLeads } = await supabaseAdmin
+        // 1. First, fetch eligible follow-up leads (Prioritize bottom of funnel)
+        const { data: sentLeads } = await supabaseAdmin
           .from('outreach_leads')
-          .select('id, email, status, follow_up_step')
+          .select('id, email, status, follow_up_step, last_contacted_at')
           .eq('campaign_id', campaign.id)
-          .eq('status', 'NEW')
+          .eq('status', 'SENT')
           .not('email', 'is', null)
-          .limit(remainingLimit);
+          .limit(100);
 
-        let leads = newLeads || [];
+        let followUps: any[] = [];
+        if (sentLeads && sentLeads.length > 0) {
+          followUps = sentLeads.filter(l => {
+            if (!l.last_contacted_at) return false;
+            const lastContact = new Date(l.last_contacted_at).getTime();
+            const step = l.follow_up_step || 0;
+            if (step === 0 && lastContact < new Date(cutoff1).getTime()) return true;
+            if (step === 1 && lastContact < new Date(cutoff2).getTime()) return true;
+            if (step === 2 && lastContact < new Date(cutoff3).getTime()) return true;
+            return false;
+          }).slice(0, remainingLimit);
+        }
 
-        // 2. If remaining capacity exists, add eligible follow-up leads
+        let leads = [...followUps];
+
+        // 2. If remaining capacity exists, fill with NEW leads
         if (leads.length < remainingLimit) {
-          const followUpLimit = remainingLimit - leads.length;
-          const { data: sentLeads } = await supabaseAdmin
+          const newLimit = remainingLimit - leads.length;
+          const { data: newLeads } = await supabaseAdmin
             .from('outreach_leads')
-            .select('id, email, status, follow_up_step, last_contacted_at')
+            .select('id, email, status, follow_up_step')
             .eq('campaign_id', campaign.id)
-            .eq('status', 'SENT')
+            .eq('status', 'NEW')
             .not('email', 'is', null)
-            .limit(50);
+            .limit(newLimit);
 
-          if (sentLeads && sentLeads.length > 0) {
-            const dueFollowUps = sentLeads.filter(l => {
-              if (!l.last_contacted_at) return false;
-              const lastContact = new Date(l.last_contacted_at).getTime();
-              const step = l.follow_up_step || 0;
-              if (step === 0 && lastContact < new Date(cutoff1).getTime()) return true;
-              if (step === 1 && lastContact < new Date(cutoff2).getTime()) return true;
-              if (step === 2 && lastContact < new Date(cutoff3).getTime()) return true;
-              return false;
-            }).slice(0, followUpLimit);
-
-            leads = [...leads, ...dueFollowUps];
+          if (newLeads && newLeads.length > 0) {
+            leads = [...leads, ...newLeads];
           }
         }
         

@@ -49,7 +49,7 @@ export async function POST(request: Request) {
     // Fetch lead details
     const { data: lead, error: leadError } = await supabaseAdmin
       .from('outreach_leads')
-      .select('id, email, email_subject, pitch_text, company_name, campaigns(niche)')
+      .select('id, email, email_subject, pitch_text, audit_notes, company_name, campaigns(niche)')
       .eq('id', leadId)
       .single();
 
@@ -87,7 +87,10 @@ export async function POST(request: Request) {
          lead.pitch_text || '',
          followUpStep,
          lead.company_name,
-         Array.isArray(lead.campaigns) ? lead.campaigns[0]?.niche : (lead.campaigns as any)?.niche
+         Array.isArray(lead.campaigns) ? lead.campaigns[0]?.niche : (lead.campaigns as any)?.niche,
+         null,
+         undefined,
+         lead.audit_notes
        );
        subject = aiFollowUp.email_subject || subject;
        pitchText = aiFollowUp.generated_pitch;

@@ -30,7 +30,7 @@ export async function POST(request: Request) {
       .from('outreach_leads')
       .select(`
         *,
-        campaigns ( name )
+        campaigns ( name, niche )
       `)
       .in('status', ['NEW', 'QUEUED'])
       .or(`scheduled_for.lte.${new Date().toISOString()},scheduled_for.is.null`)
@@ -86,7 +86,8 @@ export async function POST(request: Request) {
       company_name,
       cleanDomain,
       raw_scraped_data || {},
-      isTechnical
+      isTechnical,
+      lead.campaigns?.niche
     );
 
     // Convert to Base64 for Brevo Attachment

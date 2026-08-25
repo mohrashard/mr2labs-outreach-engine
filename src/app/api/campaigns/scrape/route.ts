@@ -40,11 +40,17 @@ export async function POST(req: Request) {
     // 1. Phase 1: Fast Discovery Sweep (Executes in ~3-5 seconds)
     console.log('[Scrape Pipeline] Phase 1: Aggregating raw leads from Google...');
     const rawCandidates = [];
-    for (let p = 1; p <= 4; p++) {
-      const pageLeads = await discoverTargetDomains(niche, location, p);
-      if (pageLeads.length > 0) {
-        rawCandidates.push(...pageLeads);
-      }
+    
+    // Fetch DIY leads first (Pages 1-2)
+    for (let p = 1; p <= 2; p++) {
+      const pageLeads = await discoverTargetDomains(niche, location, p, 'diy');
+      if (pageLeads.length > 0) rawCandidates.push(...pageLeads);
+    }
+    
+    // Fetch Legacy leads next (Pages 1-2)
+    for (let p = 1; p <= 2; p++) {
+      const pageLeads = await discoverTargetDomains(niche, location, p, 'legacy');
+      if (pageLeads.length > 0) rawCandidates.push(...pageLeads);
       if (rawCandidates.length >= enqueueLimit) break;
     }
     console.log(`[Scrape Pipeline] Phase 1 Complete: Found ${rawCandidates.length} raw candidates.`);

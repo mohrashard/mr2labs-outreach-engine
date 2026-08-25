@@ -59,9 +59,9 @@ export async function GET(req: Request) {
         }
 
         const campaignLimit = campaign.daily_lead_limit || 20;
-        const remainingLimit = Math.min(campaignLimit, GLOBAL_DAILY_LIMIT - totalEnqueued);
+        const globalRemaining = GLOBAL_DAILY_LIMIT - totalEnqueued;
         
-        if (remainingLimit <= 0) break;
+        if (globalRemaining <= 0) break;
 
         const s1Days = campaign.step_1_days || 3;
         const s2Days = campaign.step_2_days || 5;
@@ -71,14 +71,14 @@ export async function GET(req: Request) {
         const cutoff2 = new Date(Date.now() - s2Days * 24 * 60 * 60 * 1000).toISOString();
         const cutoff3 = new Date(Date.now() - s3Days * 24 * 60 * 60 * 1000).toISOString();
 
-        // 1. First, fetch eligible follow-up leads (Prioritize bottom of funnel)
+        // 1. First, fetch eligible follow-up leads (No limit other than global daily 290)
         const { data: sentLeads } = await supabaseAdmin
           .from('outreach_leads')
           .select('id, email, status, follow_up_step, last_contacted_at')
           .eq('campaign_id', campaign.id)
           .eq('status', 'SENT')
           .not('email', 'is', null)
-          .limit(100);
+          .limit(200);
 
         let followUps: any[] = [];
         if (sentLeads && sentLeads.length > 0) {
@@ -90,21 +90,31 @@ export async function GET(req: Request) {
             if (step === 1 && lastContact < new Date(cutoff2).getTime()) return true;
             if (step === 2 && lastContact < new Date(cutoff3).getTime()) return true;
             return false;
-          }).slice(0, remainingLimit);
+          }).slice(0, globalRemaining);
         }
 
         let leads = [...followUps];
 
-        // 2. If remaining capacity exists, fill with NEW leads
-        if (leads.length < remainingLimit) {
-          const newLimit = remainingLimit - leads.length;
+        // 2. Enforce the strict 20-lead limit for NEW Step 0 emails only
+        const { count: step0SentToday } = await supabaseAdmin
+          .from('outreach_leads')
+          .select('id', { count: 'exact', head: true })
+          .eq('campaign_id', campaign.id)
+          .in('status', ['QUEUED', 'SENT'])
+          .eq('follow_up_step', 0)
+          .gte('updated_at', startOfDay.toISOString());
+
+        const remainingNewLeadLimit = Math.max(0, Math.min(campaignLimit - (step0SentToday || 0), globalRemaining - followUps.length));
+
+        // 3. Fill remaining queue space with new leads
+        if (remainingNewLeadLimit > 0) {
           const { data: newLeads } = await supabaseAdmin
             .from('outreach_leads')
             .select('id, email, status, follow_up_step')
             .eq('campaign_id', campaign.id)
             .eq('status', 'NEW')
             .not('email', 'is', null)
-            .limit(newLimit);
+            .limit(remainingNewLeadLimit);
 
           if (newLeads && newLeads.length > 0) {
             leads = [...leads, ...newLeads];
@@ -202,10 +212,12 @@ export async function GET(req: Request) {
         const leadsNeeded = dailyLimit - availableLeadsCount;
         console.log(`[Cron] Campaign "${campaign.name}" (${campaign.location}) needs ${leadsNeeded} leads.`);
 
-        // 3. Run Discovery (Deep SERP sweep)
+        // 3. Run Discovery (Deep SERP sweep) - Dual Track (DIY + Legacy)
         const discovered = [];
-        for (let p = 1; p <= 10; p++) {
-          // 45-second killswitch during discovery
+        let isTimedOut = false;
+
+        // Track 1: DIY Sites
+        for (let p = 1; p <= 5; p++) {
           if (Date.now() - startTime > 45000) {
             console.log(`[Cron] 45s execution limit reached during discovery. Pausing to avoid Vercel timeout.`);
             if (qstash) {
@@ -215,12 +227,34 @@ export async function GET(req: Request) {
                 body: {}
               }).catch((e: any) => console.error('[Cron] QStash continuation failed:', e));
             }
+            isTimedOut = true;
             break;
           }
 
-          const pageLeads = await discoverTargetDomains(campaign.niche || 'General B2B', campaign.location, p);
+          const pageLeads = await discoverTargetDomains(campaign.niche || 'General B2B', campaign.location, p, 'diy');
           if (pageLeads.length > 0) discovered.push(...pageLeads);
-          if (discovered.length >= leadsNeeded * 15) break;
+          if (discovered.length >= leadsNeeded * 7) break; 
+        }
+
+        // Track 2: Legacy Sites
+        if (!isTimedOut) {
+          for (let p = 1; p <= 5; p++) {
+            if (Date.now() - startTime > 45000) {
+              console.log(`[Cron] 45s execution limit reached during discovery. Pausing to avoid Vercel timeout.`);
+              if (qstash) {
+                await qstash.publishJSON({
+                  url: `${baseUrl}/api/cron/daily-outreach?action=scrape`,
+                  delay: 60,
+                  body: {}
+                }).catch((e: any) => console.error('[Cron] QStash continuation failed:', e));
+              }
+              break;
+            }
+
+            const pageLeads = await discoverTargetDomains(campaign.niche || 'General B2B', campaign.location, p, 'legacy');
+            if (pageLeads.length > 0) discovered.push(...pageLeads);
+            if (discovered.length >= leadsNeeded * 15) break;
+          }
         }
 
         // 4. Auto-Pivot if city is exhausted

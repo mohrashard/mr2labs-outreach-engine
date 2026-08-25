@@ -6,7 +6,8 @@ export async function generateAuditPdf(
   companyName: string,
   domain: string,
   auditData: Record<string, any>,
-  isTechnical: boolean = false
+  isTechnical: boolean = false,
+  nicheInput?: string
 ): Promise<Buffer> {
   // Use React.createElement directly since this is a .ts file
   const pdfElement = React.createElement(DiagnosticDashboard, {
@@ -14,6 +15,7 @@ export async function generateAuditPdf(
     domain,
     auditData,
     isTechnical,
+    nicheInput,
   });
   
   // Cast to any to bypass the strict DocumentProps type requirement in renderToBuffer

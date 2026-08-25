@@ -90,7 +90,8 @@ function getDorkProfile(niche: string, context: string): DorkProfile {
 export async function discoverTargetDomains(
   niche: string,
   location: string,
-  page: number = 1
+  page: number = 1,
+  mode: 'legacy' | 'diy' = 'legacy'
 ): Promise<DiscoveredLead[]> {
   // Sanitize location to fix spacing issues like "Miami , Florida" -> "Miami, Florida"
   const cleanLocation = location
@@ -143,9 +144,14 @@ export async function discoverTargetDomains(
   // DYNAMIC DORK BUILDER: Adapt search query intent based on live Database Template & Niche
   const combinedContext = `${niche} ${painPoints} ${solution}`;
   const dorkProfile = getDorkProfile(niche, combinedContext);
-  const query = dorkProfile.queryTemplate(niche, cleanLocation);
+  let query = dorkProfile.queryTemplate(niche, cleanLocation);
+  
+  // Inject DIY Trap if requested
+  if (mode === 'diy') {
+    query = `(site:*.wixsite.com OR site:*.carrd.co OR site:*.weebly.com OR site:*.squarespace.com OR "powered by wordpress") "${niche}" ${cleanLocation}`;
+  }
 
-  console.log(`[Discovery] Using Dork Query: ${query}`);
+  console.log(`[Discovery] Using Dork Query [${mode.toUpperCase()}]: ${query}`);
 
   // 1. Primary Provider: Serper.dev
   if (process.env.SERPER_API_KEY) {

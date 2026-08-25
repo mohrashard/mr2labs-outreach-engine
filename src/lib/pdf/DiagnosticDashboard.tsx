@@ -286,6 +286,7 @@ interface DiagnosticDashboardProps {
   domain: string;
   auditData: Record<string, any>;
   isTechnical?: boolean;
+  nicheInput?: string;
 }
 
 // ─── MAIN COMPONENT ──────────────────────────────────────────────────────────
@@ -294,6 +295,7 @@ export const DiagnosticDashboard = ({
   domain,
   auditData,
   isTechnical = false,
+  nicheInput,
 }: DiagnosticDashboardProps) => {
   const dateStr = new Date().toLocaleDateString('en-US', {
     month: 'short', day: 'numeric', year: 'numeric',
@@ -574,6 +576,11 @@ export const DiagnosticDashboard = ({
                 ? `${failCount === 1 ? '1 issue requiring attention was' : `${failCount} issues requiring attention were`} identified during our automated scan. We recommend a technical review to address these findings.`
                 : 'Our automated scan did not identify any critical security or performance issues. Your infrastructure appears to be correctly configured.'}
             </Text>
+            {failCount > 0 && (
+              <Text style={{ fontSize: 9, color: T.amber, marginTop: 6, fontFamily: 'Helvetica-Bold' }}>
+                Based on average conversion rates, an unoptimized architecture costs a business of your size an estimated 3–5 leads per week.
+              </Text>
+            )}
           </View>
         </View>
 
@@ -590,12 +597,19 @@ export const DiagnosticDashboard = ({
             Recommended Next Steps
           </Text>
           <Text style={styles.ctaBody}>
-            {failCount > 0 
-              ? `We can assist in resolving these ${failCount} issues without disrupting your existing site. Reply to the email this report was attached to, or contact us directly.`
+            {nicheInput?.toLowerCase().includes('dental') 
+              ? "We help clinics like yours automate patient bookings and WhatsApp follow-ups so your front desk handles 60% fewer calls."
+              : nicheInput?.toLowerCase().includes('real estate')
+              ? "We help agencies capture and qualify property enquiries 24/7 without adding headcount."
+              : failCount > 0 
+              ? `We can assist in resolving these ${failCount} issues without disrupting your existing operations. Schedule a brief discovery call to discuss implementation.`
               : 'While no major issues were found, we can help optimize and scale your technical infrastructure.'}
           </Text>
-          <Link src="mailto:growth@mr2labs.com" style={styles.ctaEmail}>
-            growth@mr2labs.com
+          <Text style={{ fontSize: 10, color: T.textPrimary, fontStyle: 'italic', marginBottom: 16 }}>
+            "We recently built a full booking + WhatsApp automation system for a service business that reduced their manual admin by 80%."
+          </Text>
+          <Link src="https://calendly.com/mohrashard/30min" style={styles.ctaEmail}>
+            Book a free 15-minute call → mr2labs.com/call
           </Link>
         </View>
 

@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { ArrowLeft, Clock, Calendar, Mail, Settings, RefreshCw, BarChart } from 'lucide-react';
+import { ArrowLeft, Clock, Calendar, Mail, Settings, RefreshCw, BarChart, Play } from 'lucide-react';
 import Image from 'next/image';
 
 import { LeadDetailDrawer } from '@/components/leads/LeadDetailDrawer';
@@ -12,8 +12,18 @@ export default function FollowUpsDashboard() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [selectedLead, setSelectedLead] = useState<any>(null);
+  const [isFlushing, setIsFlushing] = useState(false);
+  const [nextCronTime, setNextCronTime] = useState('Calculating...');
 
   useEffect(() => {
+    // Dynamically calculate next 09:00 UTC cron run in local timezone
+    const date = new Date();
+    date.setUTCHours(9, 0, 0, 0);
+    if (date.getTime() < Date.now()) {
+      date.setDate(date.getDate() + 1);
+    }
+    setNextCronTime(date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', timeZoneName: 'short' }));
+    
     fetchData();
   }, []);
 
@@ -46,6 +56,26 @@ export default function FollowUpsDashboard() {
     }
   };
 
+  const handleFlushQueue = async () => {
+    setIsFlushing(true);
+    try {
+      const res = await fetch('/api/cron/daily-outreach?action=dispatch', { 
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${process.env.NEXT_PUBLIC_CRON_SECRET || 'mr2labs_cron_secret_key_2026'}`
+        }
+      });
+      const resData = await res.json();
+      if (resData.error) throw new Error(resData.error);
+      alert(`Queue flushed! Enqueued ${resData.enqueuedJobs} emails to Brevo.`);
+      fetchData();
+    } catch (err: any) {
+      alert(`Error: ${err.message}`);
+    } finally {
+      setIsFlushing(false);
+    }
+  };
+
   const handleUpdateLead = async (updated: any) => {
     // Basic stub, just close for now
     setSelectedLead(null);
@@ -69,22 +99,41 @@ export default function FollowUpsDashboard() {
       <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full max-w-7xl h-[380px] bg-gradient-to-b from-indigo-950/[0.04] via-slate-900/[0.015] to-transparent blur-3xl pointer-events-none" />
 
       <header className="border-b border-white/[0.04] bg-[#0a0a0c]/80 backdrop-blur-2xl sticky top-0 z-40">
-        <div className="max-w-7xl mx-auto px-6 py-3.5 flex items-center justify-between">
+        <div className="max-w-7xl mx-auto px-6 py-3.5 flex flex-col md:flex-row justify-between items-center gap-4">
           <div className="flex items-center gap-4">
             <Link href="/" className="p-2 bg-white/[0.02] hover:bg-white/[0.05] rounded-xl transition-colors">
               <ArrowLeft className="w-4 h-4 text-slate-400" />
             </Link>
             <div className="flex items-center gap-3">
               <Image src="/mr-squared-logo.png" alt="Logo" width={30} height={30} className="rounded-lg ring-1 ring-white/10" />
-              <h1 className="text-sm font-medium text-slate-200 flex items-center gap-2">
-                Follow-up Operations
-                <span className="text-[10px] px-2 py-0.5 bg-purple-500/10 text-purple-300/90 rounded-full">Pipeline View</span>
-              </h1>
+              <div>
+                <h1 className="text-sm font-medium text-slate-200 flex items-center gap-2">
+                  Follow-up Operations
+                  <span className="text-[10px] px-2 py-0.5 bg-purple-500/10 text-purple-300/90 rounded-full">Pipeline View</span>
+                </h1>
+                <p className="text-[11px] text-slate-500 mt-0.5 font-normal">Manage automated email sequences</p>
+              </div>
             </div>
           </div>
-          <button onClick={fetchData} className="p-2 text-slate-400 hover:text-slate-200">
-            <RefreshCw className="w-4 h-4" />
-          </button>
+          
+          <div className="flex items-center gap-3">
+            <div className="flex flex-col items-end mr-3">
+              <span className="text-[10px] text-slate-400 font-medium">Next Queue Start</span>
+              <span className="text-[10px] text-indigo-400 font-semibold">{nextCronTime}</span>
+            </div>
+            
+            <button 
+              onClick={handleFlushQueue}
+              disabled={isFlushing}
+              className="px-3.5 py-2 bg-white/[0.02] hover:bg-white/[0.04] disabled:opacity-40 text-slate-400 hover:text-slate-200 rounded-full font-normal text-xs transition-colors duration-200 flex items-center gap-2"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 ${isFlushing ? 'animate-spin text-indigo-400' : ''}`} />
+              {isFlushing ? 'Flushing...' : 'Flush Daily Queue'}
+            </button>
+            <button onClick={fetchData} className="p-2 bg-white/[0.02] hover:bg-white/[0.05] rounded-full text-slate-400 hover:text-slate-200 transition-colors" title="Refresh Data">
+              <RefreshCw className="w-4 h-4" />
+            </button>
+          </div>
         </div>
       </header>
 

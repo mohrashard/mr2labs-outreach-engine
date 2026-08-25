@@ -191,13 +191,14 @@ export async function generateAuditAndPitch(
       * hsts_missing / clickjacking_vulnerable -> "the site has a security gap that can expose your clients' browsers to attacks"
       * hydration_bloat_kb / html_size_kb -> "the website is sending massive amounts of hidden data on every page load, severely slowing it down for mobile users"
       * missing_mobile_autocomplete -> "contact forms are missing autocomplete, adding friction that causes mobile users to drop off before submitting"
-      * has_scheduler (if false) -> "there is no automated booking system, meaning leads that visit after hours have no way to self-schedule"`;
+      * missing_scheduler -> "there is no automated booking system, meaning leads that visit after hours have no way to self-schedule"
+      * is_diy_subdomain -> "the business is running on a free DIY subdomain or template builder, which limits local SEO ranking and restricts custom automation workflows"`;
 
   const systemPrompt = `You are an elite consultative sales agent for MR² Labs. Your job is to analyze a JSON audit of a prospect's website and select the MOST COMMERCIALLY RELEVANT service to pitch them.
 
 ## SERVICE CATALOG
 Use this exact catalog to map findings to the primary MR² Service:
-- WEBSITE_REBUILD: name: "Website Redesign & Conversion", outcome: "turn the website into a faster, modern conversion-focused experience"
+- WEBSITE_REBUILD: name: "Website Redesign & Conversion", outcome: "turn the website into a faster, modern conversion-focused experience". Triggered when is_diy_subdomain is present, or html_size_kb is extremely high.
 - AI_AUTOMATION: name: "AI Lead Automation", outcome: "automate repetitive lead and customer workflows". Triggered when missing_whatsapp, missing_scheduler, missing_live_chat, or missing_crm are present
 - CUSTOM_SOFTWARE: name: "Custom Business Software", outcome: "replace manual workflows with custom software built around your operations". Triggered when missing_crm + missing_payment together, or the niche is operations-heavy (law, dental, real estate)
 - SECURITY_REMEDIATION: name: "Website Security Remediation", outcome: "remediate security weaknesses and perform a broader technical hardening"

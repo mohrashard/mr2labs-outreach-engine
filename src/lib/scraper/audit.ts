@@ -17,6 +17,7 @@ export interface AuditResult {
   missing_crm: boolean;
   missing_scheduler: boolean;
   missing_email_automation: boolean;
+  is_diy_subdomain: boolean;
 
   // Security & Infrastructure
   dmarc_missing: boolean;
@@ -229,6 +230,7 @@ export async function runTechnicalAudit(url: string, html: string, headers: Head
     missing_crm: !has_crm,
     missing_scheduler: !has_scheduler,
     missing_email_automation: !has_email_auto,
+    is_diy_subdomain: domain.includes('wixsite.com') || domain.includes('carrd.co') || domain.includes('weebly.com') || domain.includes('squarespace.com') || lowerPayload.includes('powered by wordpress'),
     ...dnsChecks,
     hsts_missing,
     clickjacking_vulnerable,

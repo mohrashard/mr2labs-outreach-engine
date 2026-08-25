@@ -19,7 +19,54 @@ export async function POST(request: Request) {
 
     const payload = await request.json();
 
-    // Flexible extraction across Brevo inbound webhook schema variants
+    // Check if it's a Brevo Transactional Event (has an "event" property)
+    if (payload.event && typeof payload.event === 'string') {
+      const email = payload.email?.toLowerCase()?.trim();
+      if (!email) {
+        return NextResponse.json({ message: 'No email found in transactional payload' }, { status: 200 });
+      }
+
+      const haltingEvents = ['hard_bounce', 'blocked', 'spam', 'unsubscribed', 'invalid_email'];
+      
+      if (haltingEvents.includes(payload.event)) {
+        // Mark lead as BOUNCED (or UNSUBSCRIBED based on event)
+        const newStatus = (payload.event === 'spam' || payload.event === 'unsubscribed') ? 'UNSUBSCRIBED' : 'BOUNCED';
+        
+        const { data: updatedLeads, error: updateError } = await supabaseAdmin
+          .from('outreach_leads')
+          .update({ status: newStatus })
+          .ilike('email', email)
+          .select('id, company_name, status');
+
+        if (updateError) {
+          console.error('[Brevo Webhook] Lead status atomic update error for transactional event:', updateError);
+          return NextResponse.json({ error: updateError.message }, { status: 200 });
+        }
+
+        if (updatedLeads && updatedLeads.length > 0) {
+          const lead = updatedLeads[0];
+          
+          // Log event in activity_logs
+          await supabaseAdmin
+            .from('activity_logs')
+            .insert({
+              lead_id: lead.id,
+              event_type: 'DELIVERY_FAILURE',
+              payload: {
+                event: payload.event,
+                email: email,
+                raw_payload: payload,
+                received_at: new Date().toISOString(),
+              }
+            });
+
+          console.log(`[Brevo Webhook] Lead ${lead.id} (${lead.company_name}) marked as ${newStatus} due to event: ${payload.event}`);
+        }
+      }
+      return NextResponse.json({ success: true, event: payload.event });
+    }
+
+    // Flexible extraction across Brevo inbound webhook schema variants (fallback for legacy or manual inbound tests)
     const senderEmail = (
       payload.sender_email || 
       payload.sender?.email || 

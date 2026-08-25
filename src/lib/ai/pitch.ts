@@ -198,8 +198,8 @@ export async function generateAuditAndPitch(
 ## SERVICE CATALOG
 Use this exact catalog to map findings to the primary MR² Service:
 - WEBSITE_REBUILD: name: "Website Redesign & Conversion", outcome: "turn the website into a faster, modern conversion-focused experience"
-- AI_AUTOMATION: name: "AI Lead Automation", outcome: "automate repetitive lead and customer workflows"
-- CUSTOM_SOFTWARE: name: "Custom Business Software", outcome: "replace manual workflows with custom software built around your operations"
+- AI_AUTOMATION: name: "AI Lead Automation", outcome: "automate repetitive lead and customer workflows". Triggered when missing_whatsapp, missing_scheduler, missing_live_chat, or missing_crm are present
+- CUSTOM_SOFTWARE: name: "Custom Business Software", outcome: "replace manual workflows with custom software built around your operations". Triggered when missing_crm + missing_payment together, or the niche is operations-heavy (law, dental, real estate)
 - SECURITY_REMEDIATION: name: "Website Security Remediation", outcome: "remediate security weaknesses and perform a broader technical hardening"
 - PERFORMANCE: name: "Website Performance Optimization", outcome: "optimize the site's loading speed and Core Web Vitals"
 - WHITE_LABEL: name: "White-Label Engineering", outcome: "provide your agency with additional technical capacity without internal hiring"

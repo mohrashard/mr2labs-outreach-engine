@@ -2,6 +2,7 @@ import * as cheerio from 'cheerio';
 import OpenAI from 'openai';
 import { verifyEmailHttpBridge } from '@/lib/email/validator';
 import { runTechnicalAudit, AuditResult } from '@/lib/scraper/audit';
+import { fetchGooglePageSpeed } from '@/lib/scraper/pagespeed';
 
 export interface EnrichedContactData {
   email: string | null;
@@ -12,7 +13,7 @@ export interface EnrichedContactData {
   dom_snippet: string;
   enrichment_source?: 'DOM' | 'SERPER_DORK' | 'SERPAPI_DORK' | 'APOLLO' | 'PROSPEO' | 'HUNTER' | 'SNOV' | 'NONE';
   is_rejected?: boolean;
-  raw_scraped_data?: AuditResult;
+  raw_scraped_data?: AuditResult | Record<string, any>;
 }
 
 export interface DisambiguatedFounder {
@@ -1113,10 +1114,22 @@ export async function deepEnrichDomain(
   }
 
   // Phase 2: Autonomous Node.js Audit execution
-  let raw_scraped_data: AuditResult | undefined = undefined;
+  let raw_scraped_data: Record<string, any> | undefined = undefined;
   if (primaryHtml && primaryHeaders) {
     try {
-      raw_scraped_data = await runTechnicalAudit(primaryUrl, primaryHtml, primaryHeaders);
+      // Run DOM Audit & PageSpeed concurrently to save time
+      const [auditData, psiResult] = await Promise.all([
+        runTechnicalAudit(primaryUrl, primaryHtml, primaryHeaders),
+        fetchGooglePageSpeed(primaryUrl)
+      ]);
+      
+      raw_scraped_data = { ...auditData };
+      if (psiResult) {
+        raw_scraped_data.psi_score = psiResult.score;
+        raw_scraped_data.psi_lcp = psiResult.lcp;
+        raw_scraped_data.psi_tbt = psiResult.tbt;
+        raw_scraped_data.psi_cls = psiResult.cls;
+      }
     } catch (err) {
       console.warn(`[Audit Error] Failed to run technical audit for ${primaryUrl}:`, err);
     }

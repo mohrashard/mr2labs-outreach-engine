@@ -15,6 +15,7 @@ const qstash = process.env.QSTASH_TOKEN ? new Client({ token: process.env.QSTASH
 
 export async function GET(req: Request) {
   try {
+    const startTime = Date.now();
     const url = new URL(req.url);
     const action = url.searchParams.get('action'); // 'dispatch' or 'scrape'
     const now = new Date();
@@ -204,6 +205,19 @@ export async function GET(req: Request) {
         // 3. Run Discovery (Deep SERP sweep)
         const discovered = [];
         for (let p = 1; p <= 10; p++) {
+          // 45-second killswitch during discovery
+          if (Date.now() - startTime > 45000) {
+            console.log(`[Cron] 45s execution limit reached during discovery. Pausing to avoid Vercel timeout.`);
+            if (qstash) {
+              await qstash.publishJSON({
+                url: `${baseUrl}/api/cron/daily-outreach?action=scrape`,
+                delay: 60,
+                body: {}
+              }).catch((e: any) => console.error('[Cron] QStash continuation failed:', e));
+            }
+            break;
+          }
+
           const pageLeads = await discoverTargetDomains(campaign.niche || 'General B2B', campaign.location, p);
           if (pageLeads.length > 0) discovered.push(...pageLeads);
           if (discovered.length >= leadsNeeded * 15) break;
@@ -260,6 +274,13 @@ export async function GET(req: Request) {
           let successCount = 0;
           for (const lead of discovered) {
             if (successCount >= leadsNeeded) break;
+
+            // 48-second killswitch during synchronous enrichment
+            if (Date.now() - startTime > 48000) {
+              console.log(`[Cron] 48s execution limit reached during enrichment. Pausing to avoid Vercel timeout.`);
+              console.warn(`[Cron] No QStash configured. Please configure QStash to enable auto-resume functionality. The scraper will wait for the next cron interval to resume.`);
+              break;
+            }
 
             const { data: existing } = await supabaseAdmin
               .from('outreach_leads')

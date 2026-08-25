@@ -222,7 +222,7 @@ const styles = StyleSheet.create({
 });
 
 // ─── TYPES ───────────────────────────────────────────────────────────────────
-type SectionType = 'Security & Deliverability' | 'Edge Performance & Architecture' | 'Conversion & UX Friction';
+type SectionType = 'Security & Deliverability' | 'Edge Performance & Architecture' | 'Conversion & UX Friction' | 'Google Core Web Vitals' | 'Operational Architecture & Automation';
 type SeverityLevel = 'CRITICAL' | 'HIGH' | 'PASS';
 
 interface AuditCheck {
@@ -430,6 +430,79 @@ export const DiagnosticDashboard = ({
     );
   }
 
+  if (auditData.psi_score !== undefined && auditData.psi_score !== null) {
+    const isFailing = auditData.psi_score < 50;
+    checks.push(
+      {
+        section: 'Google Core Web Vitals', id: 'psi_score',
+        label: 'Google Mobile Performance Score',
+        description: `Lighthouse evaluated the mobile experience at ${auditData.psi_score}/100. Scores below 50 indicate severe performance bottlenecks that penalize search rankings.`,
+        description_pass: `Lighthouse evaluated the mobile experience at ${auditData.psi_score}/100. Performance is optimized.`,
+        status: isFailing ? 'fail' : 'pass',
+        severity: isFailing ? 'CRITICAL' : 'PASS',
+        value: `${auditData.psi_score}/100`,
+        labUrl: `https://mr2labs.com/labs/performance?domain=${domain}`, weight: 95,
+      },
+      {
+        section: 'Google Core Web Vitals', id: 'psi_lcp',
+        label: 'Largest Contentful Paint (LCP)',
+        description: `LCP measured at ${auditData.psi_lcp || 'N/A'}. Google flags LCP over 2.5s as a failure, actively harming user retention and SEO.`,
+        description_pass: `LCP measured at ${auditData.psi_lcp || 'N/A'}. Passes Google's threshold.`,
+        status: isFailing ? 'fail' : 'pass',
+        severity: isFailing ? 'HIGH' : 'PASS',
+        value: auditData.psi_lcp || 'N/A',
+        labUrl: `https://mr2labs.com/labs/performance?domain=${domain}`, weight: 85,
+      },
+      {
+        section: 'Google Core Web Vitals', id: 'psi_tbt',
+        label: 'Total Blocking Time (TBT)',
+        description: `Main-thread blocked for ${auditData.psi_tbt || 'N/A'}. High TBT causes the mobile screen to freeze when users tap or scroll.`,
+        description_pass: `TBT is ${auditData.psi_tbt || 'N/A'}. Main-thread is responsive.`,
+        status: isFailing ? 'fail' : 'pass',
+        severity: isFailing ? 'HIGH' : 'PASS',
+        value: auditData.psi_tbt || 'N/A',
+        labUrl: `https://mr2labs.com/labs/performance?domain=${domain}`, weight: 75,
+      }
+    );
+  }
+
+  // ── OPERATIONAL ARCHITECTURE & AUTOMATION ──
+  const opsSection = 'Operational Architecture & Automation';
+  if (auditData.has_scheduler && auditData.has_crm) {
+    checks.push({
+      section: opsSection, id: 'ops_fragmented',
+      label: 'Fragmented Operations Detected',
+      description: 'You are routing scheduling into a third-party CRM, which often leads to data silos and manual data entry. MR² Labs replaces these subscriptions with a unified, custom-built AI pipeline.',
+      description_pass: '',
+      status: 'fail',
+      severity: 'CRITICAL',
+      value: 'Siloed Tools',
+      labUrl: `https://mr2labs.com`, weight: 99,
+    });
+  } else if (auditData.has_live_chat) {
+    checks.push({
+      section: opsSection, id: 'ops_legacy_chat',
+      label: 'Legacy Chat Widget Detected',
+      description: 'You are using reactive, manual chat tools. We deploy autonomous AI agents trained on your proprietary data to handle level-1 support and lead qualification instantly.',
+      description_pass: '',
+      status: 'fail',
+      severity: 'HIGH',
+      value: 'Manual Support',
+      labUrl: `https://mr2labs.com`, weight: 89,
+    });
+  } else if (!auditData.has_scheduler && !auditData.has_crm && !auditData.has_live_chat && !auditData.has_email_auto && !auditData.has_analytics) {
+    checks.push({
+      section: opsSection, id: 'ops_zero_automation',
+      label: 'Zero Digital Automation Detected',
+      description: 'Your digital infrastructure is entirely manual. This limits scalability. We architect full-stack custom solutions to automate your client intake and operations.',
+      description_pass: '',
+      status: 'fail',
+      severity: 'CRITICAL',
+      value: 'Manual Ops',
+      labUrl: `https://mr2labs.com`, weight: 100,
+    });
+  }
+
   // ── SCORING LOGIC ─────────────────────────────────────────────────────────
   let fails = checks.filter(c => c.status === 'fail');
   const passes = checks.filter(c => c.status === 'pass');
@@ -448,10 +521,19 @@ export const DiagnosticDashboard = ({
     });
   }
 
-  // Render: Top 3 fails by weight, then exactly 1 pass
-  const displayChecks: AuditCheck[] = [...fails, ...(passes.length > 0 ? [passes[0]] : [])];
+  // Render: Top 3 fails by weight, ALL passing Google Web Vitals, then exactly 1 other pass
+  const psiPasses = passes.filter(c => c.section === 'Google Core Web Vitals');
+  const otherPasses = passes.filter(c => c.section !== 'Google Core Web Vitals');
+  
+  const displayChecks: AuditCheck[] = [
+    ...fails, 
+    ...psiPasses,
+    ...(otherPasses.length > 0 ? [otherPasses[0]] : [])
+  ];
 
   const securityChecks = displayChecks.filter(c => c.section === 'Security & Deliverability');
+  const opsChecks = displayChecks.filter(c => c.section === 'Operational Architecture & Automation');
+  const vitalsChecks = displayChecks.filter(c => c.section === 'Google Core Web Vitals');
   const performanceChecks = displayChecks.filter(c => c.section === 'Edge Performance & Architecture');
   const conversionChecks = displayChecks.filter(c => c.section === 'Conversion & UX Friction');
 
@@ -497,6 +579,8 @@ export const DiagnosticDashboard = ({
 
         {/* SECTIONS */}
         <AuditSection title="Security & Deliverability" checks={securityChecks} />
+        <AuditSection title="Operational Architecture & Automation" checks={opsChecks} />
+        <AuditSection title="Google Core Web Vitals" checks={vitalsChecks} />
         <AuditSection title="Edge Performance & Architecture" checks={performanceChecks} />
         <AuditSection title="Conversion & UX Friction" checks={conversionChecks} />
 

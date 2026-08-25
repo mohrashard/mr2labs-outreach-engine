@@ -7,6 +7,16 @@ export interface AuditResult {
   has_mailto_trap: boolean;
   has_pdf_downloads: boolean;
   has_live_chat: boolean;
+  has_crm: boolean;
+  has_email_auto: boolean;
+  has_analytics: boolean;
+  has_payment: boolean;
+  has_whatsapp_stack: boolean;
+  missing_whatsapp: boolean;
+  missing_live_chat: boolean;
+  missing_crm: boolean;
+  missing_scheduler: boolean;
+  missing_email_automation: boolean;
 
   // Security & Infrastructure
   dmarc_missing: boolean;
@@ -110,13 +120,41 @@ async function checkDnsRecords(domain: string) {
 export async function runTechnicalAudit(url: string, html: string, headers: Headers): Promise<AuditResult> {
   const $ = cheerio.load(html);
   const domain = getBaseDomain(url);
-  const lowerHtml = html.toLowerCase();
   
-  // 1. Business Workflow Detection
-  const has_scheduler = lowerHtml.includes('calendly.com') || lowerHtml.includes('cal.com') || lowerHtml.includes('acuityscheduling.com') || $('iframe[src*="calendly"], iframe[src*="acuity"]').length > 0;
+  let payload = html;
+  
+  // The GTM Buster: Look for Google Tag Manager and fetch its payload
+  const gtmMatch = payload.match(/GTM-[A-Z0-9]+/i);
+  if (gtmMatch) {
+    try {
+      const gtmRes = await fetch(`https://www.googletagmanager.com/gtm.js?id=${gtmMatch[0]}`, {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
+          'Accept-Language': 'en-US,en;q=0.5',
+        },
+        signal: AbortSignal.timeout(5000)
+      });
+      if (gtmRes.ok) {
+        const gtmScript = await gtmRes.text();
+        payload += `\n${gtmScript}`;
+      }
+    } catch (e) {
+      console.warn(`[GTM Buster] Failed to fetch GTM payload for ${domain}`);
+    }
+  }
+
+  // 1. Business Workflow Detection (HTML + GTM Payload)
+  const has_whatsapp_stack = /wa\.me|whatsapp\.com\/send|wati\.io/i.test(payload);
+  const has_live_chat = /tidio|crisp\.chat|intercom|tawk\.to|freshchat|zendesk|drift/i.test(payload);
+  const has_crm = /hs-scripts\.com|zohocrm|pipedrive|salesforce/i.test(payload);
+  const has_email_auto = /list-manage\.com|activecampaign|klaviyo|mailerlite/i.test(payload);
+  const has_analytics = /gtag|fbq\(|google-analytics|clarity\.ms/i.test(payload);
+  const has_scheduler = /calendly|cal\.com|acuityscheduling|tidycal/i.test(payload) || $('iframe[src*="calendly"], iframe[src*="acuity"]').length > 0;
+  const has_payment = /stripe\.com|paypal\.com|paddle\.com/i.test(payload);
+
   const has_mailto_trap = $('a[href^="mailto:"]').length > 0;
   const has_pdf_downloads = $('a[href$=".pdf"]').length > 0;
-  const has_live_chat = lowerHtml.includes('intercom') || lowerHtml.includes('zendesk') || lowerHtml.includes('drift');
 
   // 2. DNS Checks
   const dnsChecks = await checkDnsRecords(domain);
@@ -132,7 +170,8 @@ export async function runTechnicalAudit(url: string, html: string, headers: Head
 
   // 4. Legacy CMS & Bloat
   const script_count = $('script').length;
-  const has_wp_plugins = lowerHtml.includes('wp-content/plugins/');
+  const lowerPayload = payload.toLowerCase();
+  const has_wp_plugins = lowerPayload.includes('wp-content/plugins/');
   
   const html_size_kb = Math.round(Buffer.byteLength(html, 'utf8') / 1024);
   let hydration_bloat_kb = 0;
@@ -141,7 +180,7 @@ export async function runTechnicalAudit(url: string, html: string, headers: Head
     hydration_bloat_kb = Math.round(Buffer.byteLength(nextData.html() || '', 'utf8') / 1024);
   }
 
-  const has_tracker_bloat = lowerHtml.includes('fbevents.js') || lowerHtml.includes('googletagmanager.com') || lowerHtml.includes('hotjar.com') || lowerHtml.includes('tiktok.com');
+  const has_tracker_bloat = lowerPayload.includes('fbevents.js') || lowerPayload.includes('googletagmanager.com') || lowerPayload.includes('hotjar.com') || lowerPayload.includes('tiktok.com');
 
   // 5. Assets & Media
   const has_unoptimized_images = $('img[src$=".png"], img[src$=".jpg"]').length > 0;
@@ -180,6 +219,16 @@ export async function runTechnicalAudit(url: string, html: string, headers: Head
     has_mailto_trap,
     has_pdf_downloads,
     has_live_chat,
+    has_crm,
+    has_email_auto,
+    has_analytics,
+    has_payment,
+    has_whatsapp_stack,
+    missing_whatsapp: !has_whatsapp_stack,
+    missing_live_chat: !has_live_chat,
+    missing_crm: !has_crm,
+    missing_scheduler: !has_scheduler,
+    missing_email_automation: !has_email_auto,
     ...dnsChecks,
     hsts_missing,
     clickjacking_vulnerable,

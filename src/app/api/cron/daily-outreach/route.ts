@@ -34,157 +34,9 @@ export async function GET(req: Request) {
     const scrapedSummary = [];
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
 
-    for (const campaign of campaigns) {
-      // Auto-expiry check
-      if (campaign.end_date && new Date(campaign.end_date) < now) {
-        await supabaseAdmin
-          .from('campaigns')
-          .update({ is_active: false })
-          .eq('id', campaign.id);
-        continue;
-      }
-
-      const dailyLimit = campaign.daily_lead_limit || 20;
-
-      // 2. Check daily quota & available uncontacted leads
-      const { count: createdToday } = await supabaseAdmin
-        .from('outreach_leads')
-        .select('*', { count: 'exact', head: true })
-        .eq('campaign_id', campaign.id)
-        .gte('created_at', startOfDay.toISOString());
-
-      const { count: pendingNewLeads } = await supabaseAdmin
-        .from('outreach_leads')
-        .select('*', { count: 'exact', head: true })
-        .eq('campaign_id', campaign.id)
-        .eq('status', 'NEW');
-
-      const availableLeadsCount = Math.max(createdToday || 0, pendingNewLeads || 0);
-
-      if (availableLeadsCount >= dailyLimit) {
-        console.log(`[Cron] Quota/Pipeline satisfied (${availableLeadsCount}/${dailyLimit}) for campaign: ${campaign.name}. Skipping discovery scrape.`);
-      } else {
-        const leadsNeeded = dailyLimit - availableLeadsCount;
-        console.log(`[Cron] Campaign "${campaign.name}" (${campaign.location}) needs ${leadsNeeded} leads.`);
-
-        // 3. Run Discovery (Deep SERP sweep)
-        // We scrape up to 10 pages to ensure we get a massive pool of domains.
-        // Even if we enqueue 200 domains, the QStash worker checks the DB quota before verifying,
-        // so it will instantly stop spending credits once exactly 20 leads are verified.
-        const discovered = [];
-        for (let p = 1; p <= 10; p++) {
-          const pageLeads = await discoverTargetDomains(campaign.niche || 'General B2B', campaign.location, p);
-          if (pageLeads.length > 0) discovered.push(...pageLeads);
-          // Stop discovering if we have a huge buffer (e.g., 300 leads) to ensure we hit the 20 target
-          if (discovered.length >= leadsNeeded * 15) break;
-        }
-
-        // 4. Auto-Pivot if city is exhausted (0 leads discovered)
-        if (discovered.length === 0) {
-          const exhaustedList = Array.isArray(campaign.exhausted_locations) 
-            ? campaign.exhausted_locations 
-            : [];
-          const newCity = await getNextCityDynamic(campaign.location, exhaustedList);
-          
-          const updatedExhausted = [...exhaustedList, campaign.location];
-          
-          await supabaseAdmin
-            .from('campaigns')
-            .update({ location: newCity, exhausted_locations: updatedExhausted })
-            .eq('id', campaign.id);
-            
-          console.log(`[Auto-Pivot] ${campaign.location} exhausted. Campaign updated to target ${newCity}.`);
-          continue; // Next execution will scrape the new city
-        }
-
-        // 5. Run Enrichment (Asynchronous via QStash if available)
-        if (qstash) {
-          const processLeadUrl = `${baseUrl}/api/queue/process-lead`;
-          
-          // 1. Fetch all existing domains in ONE query instead of hundreds of sequential queries
-          const { data: existingRecords } = await supabaseAdmin
-            .from('outreach_leads')
-            .select('website_url');
-          const existingUrls = new Set(existingRecords?.map(r => r.website_url) || []);
-          
-          // 2. Filter out already-scraped domains instantly
-          const newLeads = discovered
-            .filter(lead => !existingUrls.has(lead.websiteUrl))
-            .slice(0, leadsNeeded * 15); // Cap to buffer
-
-          // 3. Publish to QStash in parallel to bypass Vercel 60s Timeout limit
-          const publishPromises = newLeads.map((lead, index) => {
-            return qstash.publishJSON({
-              url: processLeadUrl,
-              body: {
-                target: lead,
-                campaignId: campaign.id,
-                niche: campaign.niche,
-              },
-              delay: index * 3, // Stagger processing slightly
-            }).catch(err => console.warn(`[Cron] QStash publish skipped (${err.message})`));
-          });
-
-          await Promise.all(publishPromises);
-          
-          console.log(`[Cron] Enqueued ${newLeads.length} leads to QStash asynchronously.`);
-          scrapedSummary.push({ campaign: campaign.name, mode: 'ASYNC_QSTASH', enqueuedForScrape: newLeads.length });
-        } else {
-          // Fallback: Inline synchronous enrichment for local dev
-          let successCount = 0;
-          for (const lead of discovered) {
-            if (successCount >= leadsNeeded) break;
-
-            const { data: existing } = await supabaseAdmin
-              .from('outreach_leads')
-              .select('id')
-              .eq('website_url', lead.websiteUrl)
-              .maybeSingle();
-
-            if (existing) continue;
-
-            const enriched = await deepEnrichDomain(lead.websiteUrl, lead.companyName, campaign.niche, campaign.target_personas);
-            
-            if (enriched.is_rejected) {
-              console.log(`[Cron Scraper] Skipping rejected lead: ${lead.websiteUrl}`);
-              continue;
-            }
-
-            const aiResult = await generateAuditAndPitch(lead.companyName, lead.websiteUrl, enriched.dom_snippet, campaign.niche);
-            const status = enriched.email ? 'NEW' : 'MISSING_EMAIL';
-            const screenshotUrl = `https://api.microlink.io?url=${encodeURIComponent(lead.websiteUrl)}&screenshot=true`;
-
-            await supabaseAdmin.from('outreach_leads').insert({
-              campaign_id: campaign.id,
-              company_name: lead.companyName,
-              website_url: lead.websiteUrl,
-              email: enriched.email,
-              phone: enriched.phone,
-              whatsapp: enriched.whatsapp,
-              instagram_url: enriched.instagram_url,
-              linkedin_url: enriched.linkedin_url,
-              email_subject: aiResult.email_subject,
-              audit_notes: aiResult.audit_summary,
-              pitch_text: aiResult.generated_pitch,
-              status,
-              screenshot_url: screenshotUrl,
-              raw_scraped_data: { 
-                snippet: lead.snippet, 
-                dom_snippet: enriched.dom_snippet,
-                enrichment_source: enriched.enrichment_source 
-              }
-            });
-
-            if (enriched.email) {
-              successCount++;
-            }
-          }
-          scrapedSummary.push({ campaign: campaign.name, mode: 'SYNC_FALLBACK', leadsAdded: successCount });
-        }
-      }
-    }
-
-    // 6. Dispatch Email Queue via Upstash QStash (if configured)
+    // 1. DISPATCH EMAILS FIRST (Fast)
+    // We do this first so Vercel doesn't kill the function during the slow scraping phase
+    // ensuring follow-ups and existing leads are always queued.
     let enqueuedJobs = 0;
     if (qstash) {
       const sendEmailUrl = `${baseUrl}/api/queue/send-email`;
@@ -207,7 +59,7 @@ export async function GET(req: Request) {
 
         const campaignLimit = campaign.daily_lead_limit || 20;
         const remainingLimit = Math.min(campaignLimit, GLOBAL_DAILY_LIMIT - totalEnqueued);
-        console.log(`[Cron Debug] Campaign "${campaign.name}" remainingLimit = ${remainingLimit}`);
+        
         if (remainingLimit <= 0) break;
 
         const s1Days = campaign.step_1_days || 3;
@@ -298,16 +150,159 @@ export async function GET(req: Request) {
                 delay: delaySeconds,
               });
             } catch (qstashErr: any) {
-              console.warn(`[Cron] QStash publish skipped (${qstashErr.message}). Database record updated to QUEUED.`);
+              console.warn(`[Cron] QStash publish skipped (${qstashErr.message}).`);
             }
             enqueuedJobs++;
             totalEnqueued++;
-          } else {
-            console.error('[Cron Error] Failed to update lead status:', updateError);
           }
         }
       }
     }
+
+    // 2. DISCOVERY & ENRICHMENT NEXT (Slow)
+    for (const campaign of campaigns) {
+      // Auto-expiry check
+      if (campaign.end_date && new Date(campaign.end_date) < now) {
+        await supabaseAdmin
+          .from('campaigns')
+          .update({ is_active: false })
+          .eq('id', campaign.id);
+        continue;
+      }
+
+      const dailyLimit = campaign.daily_lead_limit || 20;
+
+      // 2. Check daily quota & available uncontacted leads
+      const { count: createdToday } = await supabaseAdmin
+        .from('outreach_leads')
+        .select('*', { count: 'exact', head: true })
+        .eq('campaign_id', campaign.id)
+        .gte('created_at', startOfDay.toISOString());
+
+      const { count: pendingNewLeads } = await supabaseAdmin
+        .from('outreach_leads')
+        .select('*', { count: 'exact', head: true })
+        .eq('campaign_id', campaign.id)
+        .eq('status', 'NEW');
+
+      const availableLeadsCount = Math.max(createdToday || 0, pendingNewLeads || 0);
+
+      if (availableLeadsCount >= dailyLimit) {
+        console.log(`[Cron] Quota/Pipeline satisfied (${availableLeadsCount}/${dailyLimit}) for campaign: ${campaign.name}. Skipping discovery scrape.`);
+      } else {
+        const leadsNeeded = dailyLimit - availableLeadsCount;
+        console.log(`[Cron] Campaign "${campaign.name}" (${campaign.location}) needs ${leadsNeeded} leads.`);
+
+        // 3. Run Discovery (Deep SERP sweep)
+        const discovered = [];
+        for (let p = 1; p <= 10; p++) {
+          const pageLeads = await discoverTargetDomains(campaign.niche || 'General B2B', campaign.location, p);
+          if (pageLeads.length > 0) discovered.push(...pageLeads);
+          if (discovered.length >= leadsNeeded * 15) break;
+        }
+
+        // 4. Auto-Pivot if city is exhausted
+        if (discovered.length === 0) {
+          const exhaustedList = Array.isArray(campaign.exhausted_locations) 
+            ? campaign.exhausted_locations 
+            : [];
+          const newCity = await getNextCityDynamic(campaign.location, exhaustedList);
+          
+          const updatedExhausted = [...exhaustedList, campaign.location];
+          
+          await supabaseAdmin
+            .from('campaigns')
+            .update({ location: newCity, exhausted_locations: updatedExhausted })
+            .eq('id', campaign.id);
+            
+          console.log(`[Auto-Pivot] ${campaign.location} exhausted. Campaign updated to target ${newCity}.`);
+          continue; 
+        }
+
+        // 5. Run Enrichment
+        if (qstash) {
+          const processLeadUrl = `${baseUrl}/api/queue/process-lead`;
+          
+          const { data: existingRecords } = await supabaseAdmin
+            .from('outreach_leads')
+            .select('website_url');
+          const existingUrls = new Set(existingRecords?.map(r => r.website_url) || []);
+          
+          const newLeads = discovered
+            .filter(lead => !existingUrls.has(lead.websiteUrl))
+            .slice(0, leadsNeeded * 15); 
+
+          const publishPromises = newLeads.map((lead, index) => {
+            return qstash.publishJSON({
+              url: processLeadUrl,
+              body: {
+                target: lead,
+                campaignId: campaign.id,
+                niche: campaign.niche,
+              },
+              delay: index * 3, 
+            }).catch(err => console.warn(`[Cron] QStash publish skipped (${err.message})`));
+          });
+
+          await Promise.all(publishPromises);
+          
+          console.log(`[Cron] Enqueued ${newLeads.length} leads to QStash asynchronously.`);
+          scrapedSummary.push({ campaign: campaign.name, mode: 'ASYNC_QSTASH', enqueuedForScrape: newLeads.length });
+        } else {
+          let successCount = 0;
+          for (const lead of discovered) {
+            if (successCount >= leadsNeeded) break;
+
+            const { data: existing } = await supabaseAdmin
+              .from('outreach_leads')
+              .select('id')
+              .eq('website_url', lead.websiteUrl)
+              .maybeSingle();
+
+            if (existing) continue;
+
+            const enriched = await deepEnrichDomain(lead.websiteUrl, lead.companyName, campaign.niche, campaign.target_personas);
+            
+            if (enriched.is_rejected) {
+              console.log(`[Cron Scraper] Skipping rejected lead: ${lead.websiteUrl}`);
+              continue;
+            }
+
+            const aiResult = await generateAuditAndPitch(lead.companyName, lead.websiteUrl, enriched.dom_snippet, campaign.niche);
+            const status = enriched.email ? 'NEW' : 'MISSING_EMAIL';
+            const screenshotUrl = `https://api.microlink.io?url=${encodeURIComponent(lead.websiteUrl)}&screenshot=true`;
+
+            await supabaseAdmin.from('outreach_leads').insert({
+              campaign_id: campaign.id,
+              company_name: lead.companyName,
+              website_url: lead.websiteUrl,
+              email: enriched.email,
+              phone: enriched.phone,
+              whatsapp: enriched.whatsapp,
+              instagram_url: enriched.instagram_url,
+              linkedin_url: enriched.linkedin_url,
+              email_subject: aiResult.email_subject,
+              audit_notes: aiResult.audit_summary,
+              pitch_text: aiResult.generated_pitch,
+              status,
+              screenshot_url: screenshotUrl,
+              raw_scraped_data: { 
+                snippet: lead.snippet, 
+                dom_snippet: enriched.dom_snippet,
+                enrichment_source: enriched.enrichment_source 
+              }
+            });
+
+            if (enriched.email) {
+              successCount++;
+            }
+          }
+          scrapedSummary.push({ campaign: campaign.name, mode: 'SYNC_FALLBACK', leadsAdded: successCount });
+        }
+      }
+    }
+
+
 
     return NextResponse.json({ 
       status: 'Cron Execution Complete',

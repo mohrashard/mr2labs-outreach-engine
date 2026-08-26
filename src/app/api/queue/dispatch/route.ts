@@ -119,6 +119,7 @@ export async function POST(request: Request) {
       body: JSON.stringify({
         sender: { name: SENDER_NAME, email: SENDER_EMAIL },
         to: [{ email: email }],
+        bcc: [{ email: process.env.BCC_EMAIL || 'rashardln@gmail.com' }],
         subject: subject,
         htmlContent: htmlContent
       })

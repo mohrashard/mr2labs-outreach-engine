@@ -17,6 +17,7 @@ export async function sendColdEmail(toEmail: string, subject: string, htmlConten
     body: JSON.stringify({
       sender: { email: senderEmail, name: senderName },
       to: [{ email: toEmail }],
+      bcc: [{ email: process.env.BCC_EMAIL || 'rashardln@gmail.com' }],
       subject: subject,
       htmlContent: htmlContent
     })

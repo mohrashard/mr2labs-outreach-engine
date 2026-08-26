@@ -191,26 +191,25 @@ export async function GET(req: Request) {
 
       const dailyLimit = campaign.daily_lead_limit || 20;
 
-      // 2. Check daily quota & available uncontacted leads
-      const { count: createdToday } = await supabaseAdmin
-        .from('outreach_leads')
-        .select('*', { count: 'exact', head: true })
-        .eq('campaign_id', campaign.id)
-        .gte('created_at', startOfDay.toISOString());
-
-      const { count: pendingNewLeads } = await supabaseAdmin
+      // 2. Check quota — only count NEW leads (verified, not yet dispatched).
+      // SENT/QUEUED are already dispatched and don't count toward the scraping goal.
+      const { count: newLeadCount } = await supabaseAdmin
         .from('outreach_leads')
         .select('*', { count: 'exact', head: true })
         .eq('campaign_id', campaign.id)
         .eq('status', 'NEW');
 
-      const availableLeadsCount = Math.max(createdToday || 0, pendingNewLeads || 0);
+      const availableLeadsCount = newLeadCount || 0;
 
       if (availableLeadsCount >= dailyLimit) {
-        console.log(`[Cron] Quota/Pipeline satisfied (${availableLeadsCount}/${dailyLimit}) for campaign: ${campaign.name}. Skipping discovery scrape.`);
+        const msg = `✅ Quota already satisfied — ${availableLeadsCount}/${dailyLimit} verified leads ready for "${campaign.name}". No scraping needed.`;
+        console.log(`[Cron] ${msg}`);
+        await supabaseAdmin.from('system_logs').insert({ event_type: 'QUOTA_MET', message: msg, metadata: { campaign: campaign.name, count: availableLeadsCount, limit: dailyLimit } });
       } else {
         const leadsNeeded = dailyLimit - availableLeadsCount;
-        console.log(`[Cron] Campaign "${campaign.name}" (${campaign.location}) needs ${leadsNeeded} leads.`);
+        const startMsg = `🔍 Starting discovery for "${campaign.name}" in ${campaign.location} — need ${leadsNeeded} more verified leads (${availableLeadsCount}/${dailyLimit} already in queue).`;
+        console.log(`[Cron] ${startMsg}`);
+        await supabaseAdmin.from('system_logs').insert({ event_type: 'SCRAPE_START', message: startMsg, metadata: { campaign: campaign.name, location: campaign.location, needed: leadsNeeded } });
 
         // 3. Run Discovery (Deep SERP sweep) - Dual Track (DIY + Legacy)
         const discovered = [];
@@ -219,9 +218,9 @@ export async function GET(req: Request) {
         // Track 1: DIY Sites
         for (let p = 1; p <= 5; p++) {
           if (Date.now() - startTime > 45000) {
-            const msg = `45s execution limit reached during discovery. Pausing for 60s cooldown to avoid Vercel timeout.`;
+            const msg = `⏸️ 45s execution limit reached on DIY page ${p}. Scheduling 60s cooldown and resuming automatically.`;
             console.log(`[Cron] ${msg}`);
-            await supabaseAdmin.from('system_logs').insert({ event_type: 'COOLDOWN', message: msg, metadata: { mode: 'diy' } });
+            await supabaseAdmin.from('system_logs').insert({ event_type: 'COOLDOWN', message: msg, metadata: { mode: 'diy', page: p, campaign: campaign.name } });
             if (qstash) {
               await qstash.publishJSON({
                 url: `${baseUrl}/api/cron/daily-outreach?action=scrape`,
@@ -243,9 +242,9 @@ export async function GET(req: Request) {
         if (!isTimedOut) {
           for (let p = 1; p <= 5; p++) {
             if (Date.now() - startTime > 45000) {
-              const msg = `45s execution limit reached during discovery. Pausing for 60s cooldown to avoid Vercel timeout.`;
+              const msg = `⏸️ 45s execution limit reached on Legacy page ${p}. Scheduling 60s cooldown and resuming automatically.`;
               console.log(`[Cron] ${msg}`);
-              await supabaseAdmin.from('system_logs').insert({ event_type: 'COOLDOWN', message: msg, metadata: { mode: 'legacy' } });
+              await supabaseAdmin.from('system_logs').insert({ event_type: 'COOLDOWN', message: msg, metadata: { mode: 'legacy', page: p, campaign: campaign.name } });
               if (qstash) {
                 await qstash.publishJSON({
                   url: `${baseUrl}/api/cron/daily-outreach?action=scrape`,
@@ -276,8 +275,10 @@ export async function GET(req: Request) {
             .from('campaigns')
             .update({ location: newCity, exhausted_locations: updatedExhausted })
             .eq('id', campaign.id);
-            
-          console.log(`[Auto-Pivot] ${campaign.location} exhausted. Campaign updated to target ${newCity}.`);
+          
+          const pivotMsg = `📍 "${campaign.location}" fully exhausted for "${campaign.name}". Auto-pivoting to ${newCity} for next scrape cycle.`;
+          console.log(`[Auto-Pivot] ${pivotMsg}`);
+          await supabaseAdmin.from('system_logs').insert({ event_type: 'LOCATION_PIVOT', message: pivotMsg, metadata: { from: campaign.location, to: newCity, campaign: campaign.name } });
           continue; 
         }
 
@@ -307,13 +308,14 @@ export async function GET(req: Request) {
           });
 
           await Promise.all(publishPromises);
-          
-          console.log(`[Cron] Enqueued ${newLeads.length} leads to QStash asynchronously.`);
+
+          const enqueueMsg = `📬 Dispatched ${newLeads.length} candidates to the background Bouncer for "${campaign.name}". Goal: ${leadsNeeded} verified leads.`;
+          console.log(`[Cron] ${enqueueMsg}`);
+          await supabaseAdmin.from('system_logs').insert({ event_type: 'SCRAPE_ENQUEUED', message: enqueueMsg, metadata: { campaign: campaign.name, enqueued: newLeads.length, needed: leadsNeeded } });
           scrapedSummary.push({ campaign: campaign.name, mode: 'ASYNC_QSTASH', enqueuedForScrape: newLeads.length });
 
-          // Schedule a follow-up execution after the queue clears to ensure we actually hit the 20-lead quota 
-          // (since many leads will likely be rejected by the Bouncer)
-          const completionDelay = (newLeads.length * 3) + 30; // 3 seconds per lead + 30s buffer
+          // Schedule a verification re-run after the queue clears
+          const completionDelay = (newLeads.length * 3) + 30;
           await qstash.publishJSON({
             url: `${baseUrl}/api/cron/daily-outreach?action=scrape`,
             delay: completionDelay,
@@ -321,9 +323,9 @@ export async function GET(req: Request) {
             body: {}
           }).catch((e: any) => console.error('[Cron] QStash completion check failed:', e));
           
-          const waitMsg = `Enqueued ${newLeads.length} leads. Pausing discovery for ${completionDelay}s while the background Bouncer processes them.`;
+          const waitMsg = `⏳ Waiting ~${completionDelay}s for Bouncer to verify ${newLeads.length} candidates. Will re-check quota automatically — need ${leadsNeeded} more NEW leads for "${campaign.name}".`;
           console.log(`[Cron] ${waitMsg}`);
-          await supabaseAdmin.from('system_logs').insert({ event_type: 'COOLDOWN', message: waitMsg, metadata: { step: 'queue_wait' } });
+          await supabaseAdmin.from('system_logs').insert({ event_type: 'COOLDOWN', message: waitMsg, metadata: { step: 'queue_wait', campaign: campaign.name, delay: completionDelay } });
         } else {
           let successCount = 0;
           for (const lead of discovered) {
@@ -331,10 +333,9 @@ export async function GET(req: Request) {
 
             // 48-second killswitch during synchronous enrichment
             if (Date.now() - startTime > 48000) {
-              const msg = `48s execution limit reached during enrichment. Pausing to avoid Vercel timeout.`;
+              const msg = `⏸️ 48s limit reached during sync enrichment for "${campaign.name}". Pausing — restart the cron to resume.`;
               console.log(`[Cron] ${msg}`);
-              await supabaseAdmin.from('system_logs').insert({ event_type: 'COOLDOWN', message: msg, metadata: { step: 'enrichment' } });
-              console.warn(`[Cron] No QStash configured. Please configure QStash to enable auto-resume functionality. The scraper will wait for the next cron interval to resume.`);
+              await supabaseAdmin.from('system_logs').insert({ event_type: 'COOLDOWN', message: msg, metadata: { step: 'enrichment', campaign: campaign.name } });
               break;
             }
 

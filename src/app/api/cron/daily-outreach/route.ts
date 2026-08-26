@@ -197,15 +197,15 @@ export async function GET(req: Request) {
 
         const dailyLimit = campaign.daily_lead_limit || 20;
 
-        // Check quota — only count NEW leads (verified, not yet dispatched).
-        // SENT/QUEUED are already dispatched and don't count toward the scraping goal.
-        const { count: newLeadCount } = await supabaseAdmin
+        // Check quota — count all verified leads created today (NEW, QUEUED, SENT)
+        const { count: verifiedToday } = await supabaseAdmin
           .from('outreach_leads')
-          .select('*', { count: 'exact', head: true })
+          .select('id', { count: 'exact', head: true })
           .eq('campaign_id', campaign.id)
-          .eq('status', 'NEW');
+          .in('status', ['NEW', 'QUEUED', 'SENT'])
+          .gte('created_at', startOfDay.toISOString());
 
-        const availableLeadsCount = newLeadCount || 0;
+        const availableLeadsCount = verifiedToday || 0;
 
         if (availableLeadsCount >= dailyLimit) {
           const msg = `✅ Quota already satisfied — ${availableLeadsCount}/${dailyLimit} verified leads ready for "${campaign.name}". No scraping needed.`;

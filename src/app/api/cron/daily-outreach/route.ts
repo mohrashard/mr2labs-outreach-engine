@@ -320,7 +320,10 @@ export async function GET(req: Request) {
             headers: { Authorization: `Bearer ${process.env.CRON_SECRET || 'mr2labs_cron_secret_key_2026'}` },
             body: {}
           }).catch((e: any) => console.error('[Cron] QStash completion check failed:', e));
-          console.log(`[Cron] Scheduled verification check in ${completionDelay}s to guarantee quota fulfillment.`);
+          
+          const waitMsg = `Enqueued ${newLeads.length} leads. Pausing discovery for ${completionDelay}s while the background Bouncer processes them.`;
+          console.log(`[Cron] ${waitMsg}`);
+          await supabaseAdmin.from('system_logs').insert({ event_type: 'COOLDOWN', message: waitMsg, metadata: { step: 'queue_wait' } });
         } else {
           let successCount = 0;
           for (const lead of discovered) {

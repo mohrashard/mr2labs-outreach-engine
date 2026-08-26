@@ -310,6 +310,17 @@ export async function GET(req: Request) {
           
           console.log(`[Cron] Enqueued ${newLeads.length} leads to QStash asynchronously.`);
           scrapedSummary.push({ campaign: campaign.name, mode: 'ASYNC_QSTASH', enqueuedForScrape: newLeads.length });
+
+          // Schedule a follow-up execution after the queue clears to ensure we actually hit the 20-lead quota 
+          // (since many leads will likely be rejected by the Bouncer)
+          const completionDelay = (newLeads.length * 3) + 30; // 3 seconds per lead + 30s buffer
+          await qstash.publishJSON({
+            url: `${baseUrl}/api/cron/daily-outreach?action=scrape`,
+            delay: completionDelay,
+            headers: { Authorization: `Bearer ${process.env.CRON_SECRET || 'mr2labs_cron_secret_key_2026'}` },
+            body: {}
+          }).catch((e: any) => console.error('[Cron] QStash completion check failed:', e));
+          console.log(`[Cron] Scheduled verification check in ${completionDelay}s to guarantee quota fulfillment.`);
         } else {
           let successCount = 0;
           for (const lead of discovered) {

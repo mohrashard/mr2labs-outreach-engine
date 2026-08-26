@@ -971,7 +971,7 @@ export async function deepEnrichDomain(
 
       // Tier 1 Email Extraction
       if (!email) {
-        const emailMatches = pageHtml.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g) || [];
+        const emailMatches = pageHtml.match(/[a-zA-Z0-9][a-zA-Z0-9._%+-]*@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g) || [];
         const rootDomain = extractCleanHostname(domainUrl);
         
         // Find the first valid email that belongs directly to the target company's domain
@@ -1027,7 +1027,7 @@ export async function deepEnrichDomain(
         }
 
         if (!email) {
-          const emailMatches = renderedHtml.toLowerCase().match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g) || [];
+          const emailMatches = renderedHtml.toLowerCase().match(/[a-zA-Z0-9][a-zA-Z0-9._%+-]*@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g) || [];
           const rootDomain = extractCleanHostname(domainUrl);
           
           const matchingDomainEmail = emailMatches.find(e => {

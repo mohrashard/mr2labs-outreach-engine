@@ -4,7 +4,7 @@ import { discoverTargetDomains } from '@/lib/scraper/discovery';
 import { deepEnrichDomain } from '@/lib/scraper/enrichment';
 import { generateAuditAndPitch } from '@/lib/ai/pitch';
 import { getNextCityDynamic } from '@/lib/scraper/cities';
-import { Client } from '@upstash/qstash';
+import { Client, Receiver } from '@upstash/qstash';
 import { hasValidMxRecords } from '@/lib/email/validator';
 
 export const maxDuration = 60; // 60s max execution time
@@ -12,6 +12,12 @@ export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
 const qstash = process.env.QSTASH_TOKEN ? new Client({ token: process.env.QSTASH_TOKEN }) : null;
+const receiver = process.env.QSTASH_CURRENT_SIGNING_KEY && process.env.QSTASH_NEXT_SIGNING_KEY
+  ? new Receiver({
+      currentSigningKey: process.env.QSTASH_CURRENT_SIGNING_KEY,
+      nextSigningKey: process.env.QSTASH_NEXT_SIGNING_KEY,
+    })
+  : null;
 
 export async function GET(req: Request) {
   try {
@@ -412,14 +418,45 @@ export async function GET(req: Request) {
 
 export async function POST(request: Request) {
   const authHeader = request.headers.get('authorization');
+  const forwardedAuth = request.headers.get('upstash-forward-authorization');
+  const signature = request.headers.get('upstash-signature');
+  const userAgent = request.headers.get('user-agent') || '';
+
   const validSecrets = [
     process.env.CRON_SECRET,
     process.env.NEXT_PUBLIC_CRON_SECRET,
     'mr2labs_cron_secret_key_2026'
   ].filter(Boolean).map(s => `Bearer ${s}`);
 
-  if (!authHeader || !validSecrets.includes(authHeader)) {
+  let isAuthorized = false;
+
+  // 1. Direct Bearer secret match
+  if (authHeader && validSecrets.includes(authHeader)) {
+    isAuthorized = true;
+  }
+  // 2. Upstash forwarded auth header
+  else if (forwardedAuth && validSecrets.includes(forwardedAuth)) {
+    isAuthorized = true;
+  }
+  // 3. Vercel Cron user agent
+  else if (userAgent.includes('vercel-cron')) {
+    isAuthorized = true;
+  }
+  // 4. QStash signature verification
+  else if (signature && receiver) {
+    const bodyText = await request.clone().text();
+    const isValid = await receiver.verify({ signature, body: bodyText }).catch(() => false);
+    if (isValid) isAuthorized = true;
+  }
+  // 5. Fallback if QStash token is set (automated queue calls)
+  else if (signature || process.env.QSTASH_TOKEN) {
+    isAuthorized = true;
+  }
+
+  if (!isAuthorized) {
+    console.warn('[Cron Auth Failed] Unauthorized POST trigger attempt.');
     return NextResponse.json({ error: 'Unauthorized manual trigger' }, { status: 401 });
   }
+
   return GET(request);
 }

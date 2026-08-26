@@ -110,7 +110,7 @@ export async function POST(request: Request) {
     // Prepare email
     const htmlContent = `
       <div style="font-family: sans-serif; font-size: 14px; color: #333; line-height: 1.6; max-width: 600px;">
-        ${pitchText.split('\n').map((line: string) => `<p>${line}</p>`).join('')}
+        ${(pitchText || '').split('\n').map((line: string) => `<p>${line}</p>`).join('')}
         
         <div style="margin: 30px 0;">
           <a href="${appUrl}/api/audit/${lead.id}" target="_blank" style="text-decoration: none;">

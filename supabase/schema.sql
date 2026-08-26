@@ -146,3 +146,13 @@ ALTER TABLE campaigns
 -- 7. Add technical audience flag to pitch templates
 ALTER TABLE pitch_templates
   ADD COLUMN IF NOT EXISTS is_technical_audience BOOLEAN DEFAULT false;
+
+-- 8. Add tracking for Zero-Storage Streaming Route
+ALTER TABLE outreach_leads 
+  ADD COLUMN IF NOT EXISTS audit_opened_at TIMESTAMPTZ,
+  ADD COLUMN IF NOT EXISTS audit_open_count INT DEFAULT 0;
+
+  ALTER TABLE outreach_leads 
+  ADD COLUMN IF NOT EXISTS audit_opened_at TIMESTAMPTZ,
+  ADD COLUMN IF NOT EXISTS audit_open_count INT DEFAULT 0;
+

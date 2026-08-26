@@ -49,7 +49,7 @@ export async function POST(request: Request) {
     // Fetch lead details
     const { data: lead, error: leadError } = await supabaseAdmin
       .from('outreach_leads')
-      .select('id, email, email_subject, pitch_text, audit_notes, company_name, campaigns(niche)')
+      .select('id, email, email_subject, pitch_text, audit_notes, company_name, website_url, campaigns(niche)')
       .eq('id', leadId)
       .single();
 
@@ -96,12 +96,39 @@ export async function POST(request: Request) {
        pitchText = aiFollowUp.generated_pitch;
     }
 
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://outreach.mr2labs.com';
+    let cleanDomain = lead.website_url;
+    try {
+      if (cleanDomain) {
+        const urlObj = new URL(cleanDomain.startsWith('http') ? cleanDomain : `https://${cleanDomain}`);
+        cleanDomain = urlObj.hostname.replace('www.', '');
+      }
+    } catch (e) {
+      console.warn(`Could not parse URL ${lead.website_url}`);
+    }
+
     // Prepare email
     const htmlContent = `
-      <div style="font-family: sans-serif; font-size: 14px; color: #333; line-height: 1.6;">
-        <p>Hi there,</p>
-        <p>${pitchText}</p>
-        <p>Best regards,<br/>MR² Labs Team</p>
+      <div style="font-family: sans-serif; font-size: 14px; color: #333; line-height: 1.6; max-width: 600px;">
+        ${pitchText.split('\n').map((line: string) => `<p>${line}</p>`).join('')}
+        
+        <div style="margin: 30px 0;">
+          <a href="${appUrl}/api/audit/${lead.id}" target="_blank" style="text-decoration: none;">
+            <img src="${appUrl}/api/thumbnail?domain=${cleanDomain}" alt="Diagnostic Audit for ${cleanDomain}" style="width: 100%; max-width: 600px; border-radius: 8px; border: 1px solid #E4E4E7;" />
+          </a>
+          <p style="text-align: center; margin-top: 12px;">
+            <a href="${appUrl}/api/audit/${lead.id}" style="color: #2563EB; text-decoration: none; font-size: 14px; font-weight: 600;">View your forensic security report here &rarr;</a>
+          </p>
+        </div>
+        
+        <div style="margin-top: 40px; border-top: 1px solid #E4E4E7; padding-top: 20px;">
+          <p style="font-size: 13px; font-weight: bold; color: #52525B;">How do you want to handle these vulnerabilities?</p>
+          <div style="margin-top: 12px;">
+            <p style="margin: 8px 0;"><a href="${appUrl}/api/response?id=${lead.id}&intent=fix" style="color: #2563EB; text-decoration: none; font-size: 13px; font-weight: 500;">🟢 I want MR² Labs to fix this</a></p>
+            <p style="margin: 8px 0;"><a href="${appUrl}/api/response?id=${lead.id}&intent=nurture" style="color: #2563EB; text-decoration: none; font-size: 13px; font-weight: 500;">🟡 Send over a Loom breakdown so my team can fix it</a></p>
+            <p style="margin: 8px 0;"><a href="${appUrl}/api/response?id=${lead.id}&intent=pass" style="color: #52525B; text-decoration: none; font-size: 13px;">🔴 Not a priority right now</a></p>
+          </div>
+        </div>
       </div>
     `;
 

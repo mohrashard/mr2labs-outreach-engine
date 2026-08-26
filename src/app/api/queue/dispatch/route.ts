@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-import { generateAuditPdf } from '@/lib/pdf/generate';
 
 // Configure Supabase client (Server-side only)
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
@@ -67,10 +66,6 @@ export async function POST(request: Request) {
 
     console.log(`[DISPATCH] Processing lead: ${company_name} (${email})`);
 
-    // 3. Determine Persona
-    // For now, we default to non-technical, but you can extend this to pull from a joined pitch_template
-    const isTechnical = false; 
-
     // Extract raw domain from URL for the PDF
     let cleanDomain = website_url;
     try {
@@ -79,19 +74,6 @@ export async function POST(request: Request) {
     } catch (e) {
       console.warn(`Could not parse URL ${website_url}`);
     }
-
-    // 4. Generate PDF In-Memory
-    console.log(`[DISPATCH] Generating PDF for ${cleanDomain}...`);
-    const pdfBuffer = await generateAuditPdf(
-      company_name,
-      cleanDomain,
-      raw_scraped_data || {},
-      isTechnical,
-      lead.campaigns?.niche
-    );
-
-    // Convert to Base64 for Brevo Attachment
-    const pdfBase64 = pdfBuffer.toString('base64');
 
     const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://outreach.mr2labs.com';
 
@@ -102,9 +84,12 @@ export async function POST(request: Request) {
         ${pitch_text.split('\n').map((line: string) => `<p>${line}</p>`).join('')}
         
         <div style="margin: 30px 0;">
-          <a href="https://mr2labs.com" target="_blank" style="text-decoration: none;">
+          <a href="${appUrl}/api/audit/${id}" target="_blank" style="text-decoration: none;">
             <img src="${appUrl}/api/thumbnail?domain=${cleanDomain}" alt="Diagnostic Audit for ${cleanDomain}" style="width: 100%; max-width: 600px; border-radius: 8px; border: 1px solid #E4E4E7;" />
           </a>
+          <p style="text-align: center; margin-top: 12px;">
+            <a href="${appUrl}/api/audit/${id}" style="color: #2563EB; text-decoration: none; font-size: 14px; font-weight: 600;">View your forensic security report here &rarr;</a>
+          </p>
         </div>
         
         <div style="margin-top: 40px; border-top: 1px solid #E4E4E7; padding-top: 20px;">
@@ -135,13 +120,7 @@ export async function POST(request: Request) {
         sender: { name: SENDER_NAME, email: SENDER_EMAIL },
         to: [{ email: email }],
         subject: subject,
-        htmlContent: htmlContent,
-        attachment: [
-          {
-            name: filename,
-            content: pdfBase64
-          }
-        ]
+        htmlContent: htmlContent
       })
     });
 

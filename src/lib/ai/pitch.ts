@@ -348,7 +348,7 @@ Scraped Audit Data: ${JSON.stringify(flaggedOnly)}`;
         baseURL: 'https://api.mistral.ai/v1',
       });
       const completion = await mistral.chat.completions.create({
-        model: 'mistral-small-latest',
+        model: 'mistral-small-2506',
         messages: [
           { role: 'system', content: systemPrompt },
           { role: 'user', content: userPrompt },
@@ -397,7 +397,7 @@ Scraped Audit Data: ${JSON.stringify(flaggedOnly)}`;
         baseURL: 'https://api.deepseek.com',
       });
       const completion = await deepseek.chat.completions.create({
-        model: 'deepseek-v4-flash',
+        model: 'deepseek-chat',
         messages: [
           { role: 'system', content: systemPrompt },
           { role: 'user', content: userPrompt },
@@ -451,7 +451,7 @@ Scraped Audit Data: ${JSON.stringify(flaggedOnly)}`;
       });
 
       const completion = await openrouter.chat.completions.create({
-        model: 'auto:free',
+        model: 'meta-llama/llama-3.3-70b-instruct:free',
         messages: [
           { role: 'system', content: systemPrompt },
           { role: 'user', content: userPrompt },
@@ -656,7 +656,7 @@ Generate Follow-Up #${followUpStep} based on the strict formula.`;
         baseURL: 'https://api.mistral.ai/v1',
       });
       const completion = await mistral.chat.completions.create({
-        model: 'mistral-small-latest',
+        model: 'mistral-small-2506',
         messages: [
           { role: 'system', content: systemPrompt },
           { role: 'user', content: userPrompt },
@@ -689,7 +689,7 @@ Generate Follow-Up #${followUpStep} based on the strict formula.`;
         baseURL: 'https://api.deepseek.com',
       });
       const completion = await deepseek.chat.completions.create({
-        model: 'deepseek-v4-flash',
+        model: 'deepseek-chat',
         messages: [
           { role: 'system', content: systemPrompt },
           { role: 'user', content: userPrompt },
@@ -727,7 +727,7 @@ Generate Follow-Up #${followUpStep} based on the strict formula.`;
       });
 
       const completion = await openrouter.chat.completions.create({
-        model: 'auto:free',
+        model: 'meta-llama/llama-3.3-70b-instruct:free',
         messages: [
           { role: 'system', content: systemPrompt },
           { role: 'user', content: userPrompt },

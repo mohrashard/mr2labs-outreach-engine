@@ -251,7 +251,7 @@ CRITICAL INSTRUCTION: Do NOT generate or attempt to invoke any tool calls or fun
       });
 
       const response = await mistral.chat.completions.create({
-        model: 'mistral-small-latest',
+        model: 'mistral-small-2506',
         messages: [
           { role: 'system', content: systemPrompt },
           { role: 'user', content: userPrompt },
@@ -286,7 +286,7 @@ CRITICAL INSTRUCTION: Do NOT generate or attempt to invoke any tool calls or fun
       });
 
       const response = await deepseek.chat.completions.create({
-        model: 'deepseek-v4-flash',
+        model: 'deepseek-chat',
         messages: [
           { role: 'system', content: systemPrompt },
           { role: 'user', content: userPrompt },
@@ -325,7 +325,7 @@ CRITICAL INSTRUCTION: Do NOT generate or attempt to invoke any tool calls or fun
       });
 
       const response = await openrouter.chat.completions.create({
-        model: 'auto:free',
+        model: 'meta-llama/llama-3.3-70b-instruct:free',
         messages: [
           { role: 'system', content: systemPrompt },
           { role: 'user', content: userPrompt },
@@ -767,7 +767,7 @@ CRITICAL INSTRUCTION: Do NOT generate or attempt to invoke any tool calls or fun
       });
 
       const response = await mistral.chat.completions.create({
-        model: 'mistral-small-latest',
+        model: 'mistral-small-2506',
         messages: [
           { role: 'system', content: systemPrompt },
           { role: 'user', content: userPrompt },
@@ -802,7 +802,7 @@ CRITICAL INSTRUCTION: Do NOT generate or attempt to invoke any tool calls or fun
       });
 
       const response = await deepseek.chat.completions.create({
-        model: 'deepseek-v4-flash',
+        model: 'deepseek-chat',
         messages: [
           { role: 'system', content: systemPrompt },
           { role: 'user', content: userPrompt },
@@ -841,7 +841,7 @@ CRITICAL INSTRUCTION: Do NOT generate or attempt to invoke any tool calls or fun
       });
 
       const response = await openrouter.chat.completions.create({
-        model: 'auto:free',
+        model: 'meta-llama/llama-3.3-70b-instruct:free',
         messages: [
           { role: 'system', content: systemPrompt },
           { role: 'user', content: userPrompt },

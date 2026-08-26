@@ -101,7 +101,7 @@ async function callAIWithFallback(
         baseURL: 'https://api.mistral.ai/v1',
       });
       const response = await mistral.chat.completions.create({
-        model: 'mistral-small-latest',
+        model: 'mistral-small-2506',
         messages: [
           { role: 'system', content: `${systemPrompt}\n\nCRITICAL INSTRUCTION: Do NOT generate or attempt to invoke any tool calls or function calls. Return RAW JSON ONLY.` },
           { role: 'user', content: userPrompt },
@@ -125,7 +125,7 @@ async function callAIWithFallback(
         baseURL: 'https://api.deepseek.com',
       });
       const response = await deepseek.chat.completions.create({
-        model: 'deepseek-v4-flash',
+        model: 'deepseek-chat',
         messages: [
           { role: 'system', content: `${systemPrompt}\n\nCRITICAL INSTRUCTION: Do NOT generate or attempt to invoke any tool calls or function calls. Return RAW JSON ONLY.` },
           { role: 'user', content: userPrompt },
@@ -145,7 +145,7 @@ async function callAIWithFallback(
   if (openrouter) {
     try {
       const response = await openrouter.chat.completions.create({
-        model: 'auto:free',
+        model: 'meta-llama/llama-3.3-70b-instruct:free',
         messages: [
           { role: 'system', content: `${systemPrompt}\n\nCRITICAL INSTRUCTION: Do NOT generate or attempt to invoke any tool calls or function calls. Return RAW JSON ONLY.` },
           { role: 'user', content: userPrompt },

@@ -1,4 +1,5 @@
 import { supabaseAdmin } from '@/lib/supabase/admin';
+import OpenAI from 'openai';
 
 export interface DiscoveredLead {
   companyName: string;
@@ -59,31 +60,95 @@ export interface DorkProfile {
   negativeKeywords: string[];
 }
 
-function getDorkProfile(niche: string, context: string): DorkProfile {
-  const normalizedNiche = niche.toLowerCase();
-  const normalizedContext = context.toLowerCase();
+const dorkQueryCache = new Map<string, DorkProfile>();
 
-  // 1. Real Estate Profile (HARDENED)
-  if (normalizedNiche.includes('real estate') || normalizedNiche.includes('realty')) {
-    return {
-      queryTemplate: (n, l) => `(realtor OR broker OR "real estate agency") ${l} -intitle:software -intitle:marketing -site:ziprecruiter.com -site:indeed.com -site:clutch.co`,
-      negativeKeywords: [
-        'software development', 'crm', 'saas', 'outsourcing', 'white label', 
-        'marketing agency', 'digital agency', 'consulting', 'dev shop', 'cloud services'
-      ]
-    };
+async function generateDorkQueryFromLLM(
+  niche: string,
+  painPoints: string,
+  solution: string,
+  location: string
+): Promise<DorkProfile> {
+  const systemPrompt = `You are a B2B lead generation expert specializing in Google search operators.
+Your job is to generate a precise Google search query string to find ideal small/mid-size independent businesses that match the given ICP profile.
+
+Rules:
+- Target ONLY independent, owner-operated businesses (not franchises, not directories, not aggregators, not media sites)
+- Use Google operators: intitle:, inurl:, site: exclusions, OR groups, quotes for exact phrases
+- The query must surface actual company websites, not listicles or review sites
+- Negative keywords must block: directories, job boards, news sites, franchises, aggregators
+- Keep the query under 200 characters so Google doesn't truncate it
+- Return ONLY valid JSON, no markdown, no explanation
+
+Return format:
+{
+  "query": "the full google search string including location",
+  "negative_keywords": ["keyword1", "keyword2"]
+}`;
+
+  const userPrompt = `Generate a Google dork query for this ICP:
+
+Niche: ${niche}
+Location: ${location}
+Pain Points (what they struggle with): ${painPoints}
+Our Solution (what we sell): ${solution}
+
+The query should find businesses that HAVE these pain points — meaning they are small, independent, likely using outdated tech or manual processes.`;
+
+  const fallbackProfile: DorkProfile = {
+    queryTemplate: (n, l) => `"${n}" ${l} -site:yelp.com -site:clutch.co -intitle:"top" -intitle:"best"`,
+    negativeKeywords: ['directory', 'top 10', 'best of', 'jobs', 'hiring']
+  };
+
+  // Try Groq first, then cascade through your existing LLM waterfall
+  const providers = [
+    { key: process.env.GROQ_API_KEY, baseURL: 'https://api.groq.com/openai/v1', model: 'openai/gpt-oss-120b' },
+    { key: process.env.GEMINI_API_KEY, baseURL: 'https://generativelanguage.googleapis.com/v1beta/openai/', model: 'gemini-3.7-flash' },
+    { key: process.env.OPEN_ROUTER_API_KEY || process.env.OPENROUTER_API_KEY, baseURL: 'https://openrouter.ai/api/v1', model: 'meta-llama/llama-3.3-70b-instruct:free' },
+    { key: process.env.MISTRAL_API_KEY, baseURL: 'https://api.mistral.ai/v1', model: 'mistral-small-2506' },
+  ];
+
+  for (const provider of providers) {
+    if (!provider.key) continue;
+    try {
+      const client = new OpenAI({ apiKey: provider.key, baseURL: provider.baseURL });
+      const response = await client.chat.completions.create({
+        model: provider.model,
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: userPrompt },
+        ],
+        response_format: { type: 'json_object' },
+        temperature: 0.2,
+      });
+
+      const content = response.choices[0]?.message?.content;
+      if (!content) continue;
+
+      const parsed = JSON.parse(content.replace(/^```json\s*/i, '').replace(/\s*```$/, '').trim());
+
+      if (parsed.query && typeof parsed.query === 'string') {
+        const trimmedQuery = parsed.query.trim();
+        
+        // Reject if LLM hallucinated an empty or absurdly long query
+        if (trimmedQuery.length < 10 || trimmedQuery.length > 250) {
+          console.warn(`[LLM Dork Generator] Query length out of bounds (${trimmedQuery.length} chars), using fallback`);
+          continue;
+        }
+
+        console.log(`[LLM Dork Generator] Generated query: ${trimmedQuery}`);
+        return {
+          queryTemplate: () => trimmedQuery, // location already baked in by LLM
+          negativeKeywords: Array.isArray(parsed.negative_keywords) ? parsed.negative_keywords : fallbackProfile.negativeKeywords
+        };
+      }
+    } catch (err: any) {
+      console.warn(`[LLM Dork Generator] Provider failed:`, err?.message);
+      continue;
+    }
   }
 
-  // 2. Dynamic Template-Aware Profile
-  const isWhiteLabel = normalizedNiche.includes('white label') || normalizedContext.includes('agency');
-  const intentDork = isWhiteLabel 
-    ? `("${niche}" OR "agency partnership" OR "white label development")`
-    : `("${niche}" OR "custom software" OR "client portal") -inurl:directory`;
-
-  return {
-    queryTemplate: (n, l) => `${intentDork} ${l} -intitle:list -intitle:top -intitle:best -site:zillow.com -site:yelp.com -site:clutch.co`,
-    negativeKeywords: ['directory', 'top 10', 'best of', 'jobs', 'hiring', 'clutch', 'upcity']
-  };
+  console.warn('[LLM Dork Generator] All providers failed. Using fallback dork profile.');
+  return fallbackProfile;
 }
 // ----------------------------------------
 
@@ -142,13 +207,22 @@ export async function discoverTargetDomains(
   }
 
   // DYNAMIC DORK BUILDER: Adapt search query intent based on live Database Template & Niche
-  const combinedContext = `${niche} ${painPoints} ${solution}`;
-  const dorkProfile = getDorkProfile(niche, combinedContext);
-  let query = dorkProfile.queryTemplate(niche, cleanLocation);
-  
-  // Inject DIY Trap if requested
+  const cacheKey = `${niche}:${cleanLocation}`;
+  let dorkProfile: DorkProfile;
+  let query: string;
+
   if (mode === 'diy') {
     query = `(site:*.wixsite.com OR site:*.carrd.co OR site:*.weebly.com OR site:*.squarespace.com OR "powered by wordpress") "${niche}" ${cleanLocation}`;
+    dorkProfile = { queryTemplate: () => query, negativeKeywords: ['directory', 'top 10', 'best of', 'jobs', 'hiring'] };
+  } else {
+    if (dorkQueryCache.has(cacheKey)) {
+      dorkProfile = dorkQueryCache.get(cacheKey)!;
+      console.log(`[LLM Dork Generator] Cache hit for "${cacheKey}"`);
+    } else {
+      dorkProfile = await generateDorkQueryFromLLM(niche, painPoints, solution, cleanLocation);
+      dorkQueryCache.set(cacheKey, dorkProfile);
+    }
+    query = dorkProfile.queryTemplate(niche, cleanLocation);
   }
 
   console.log(`[Discovery] Using Dork Query [${mode.toUpperCase()}]: ${query}`);

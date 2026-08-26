@@ -212,7 +212,7 @@ export async function discoverTargetDomains(
   let query: string;
 
   if (mode === 'diy') {
-    query = `(site:*.wixsite.com OR site:*.carrd.co OR site:*.weebly.com OR site:*.squarespace.com OR "powered by wordpress") "${niche}" ${cleanLocation}`;
+    query = `(site:*.wixsite.com OR site:*.carrd.co OR site:*.weebly.com OR site:*.squarespace.com OR site:*.vercel.app OR site:*.lovable.app OR site:*.framer.app OR site:*.webflow.io OR "powered by wordpress" OR "built with webflow") "${niche}" ${cleanLocation}`;
     dorkProfile = { queryTemplate: () => query, negativeKeywords: ['directory', 'top 10', 'best of', 'jobs', 'hiring'] };
   } else {
     if (dorkQueryCache.has(cacheKey)) {

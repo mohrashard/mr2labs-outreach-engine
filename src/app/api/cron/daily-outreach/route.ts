@@ -219,11 +219,14 @@ export async function GET(req: Request) {
         // Track 1: DIY Sites
         for (let p = 1; p <= 5; p++) {
           if (Date.now() - startTime > 45000) {
-            console.log(`[Cron] 45s execution limit reached during discovery. Pausing to avoid Vercel timeout.`);
+            const msg = `45s execution limit reached during discovery. Pausing for 60s cooldown to avoid Vercel timeout.`;
+            console.log(`[Cron] ${msg}`);
+            await supabaseAdmin.from('system_logs').insert({ event_type: 'COOLDOWN', message: msg, metadata: { mode: 'diy' } });
             if (qstash) {
               await qstash.publishJSON({
                 url: `${baseUrl}/api/cron/daily-outreach?action=scrape`,
                 delay: 60,
+                headers: { Authorization: `Bearer ${process.env.CRON_SECRET || 'mr2labs_cron_secret_key_2026'}` },
                 body: {}
               }).catch((e: any) => console.error('[Cron] QStash continuation failed:', e));
             }
@@ -240,11 +243,14 @@ export async function GET(req: Request) {
         if (!isTimedOut) {
           for (let p = 1; p <= 5; p++) {
             if (Date.now() - startTime > 45000) {
-              console.log(`[Cron] 45s execution limit reached during discovery. Pausing to avoid Vercel timeout.`);
+              const msg = `45s execution limit reached during discovery. Pausing for 60s cooldown to avoid Vercel timeout.`;
+              console.log(`[Cron] ${msg}`);
+              await supabaseAdmin.from('system_logs').insert({ event_type: 'COOLDOWN', message: msg, metadata: { mode: 'legacy' } });
               if (qstash) {
                 await qstash.publishJSON({
                   url: `${baseUrl}/api/cron/daily-outreach?action=scrape`,
                   delay: 60,
+                  headers: { Authorization: `Bearer ${process.env.CRON_SECRET || 'mr2labs_cron_secret_key_2026'}` },
                   body: {}
                 }).catch((e: any) => console.error('[Cron] QStash continuation failed:', e));
               }
@@ -311,7 +317,9 @@ export async function GET(req: Request) {
 
             // 48-second killswitch during synchronous enrichment
             if (Date.now() - startTime > 48000) {
-              console.log(`[Cron] 48s execution limit reached during enrichment. Pausing to avoid Vercel timeout.`);
+              const msg = `48s execution limit reached during enrichment. Pausing to avoid Vercel timeout.`;
+              console.log(`[Cron] ${msg}`);
+              await supabaseAdmin.from('system_logs').insert({ event_type: 'COOLDOWN', message: msg, metadata: { step: 'enrichment' } });
               console.warn(`[Cron] No QStash configured. Please configure QStash to enable auto-resume functionality. The scraper will wait for the next cron interval to resume.`);
               break;
             }

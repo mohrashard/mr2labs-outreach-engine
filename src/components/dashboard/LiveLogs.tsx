@@ -43,6 +43,7 @@ export function LiveLogs() {
       case 'QUOTA_MET': return 'text-cyan-400 font-bold';
       case 'COOLDOWN': return 'text-purple-400 font-bold';
       case 'SCRAPE_START': return 'text-blue-400 font-bold';
+      case 'DORK_GENERATED': return 'text-sky-400 font-bold';
       case 'SCRAPE_ENQUEUED': return 'text-indigo-400 font-semibold';
       case 'LOCATION_PIVOT': return 'text-fuchsia-400 font-bold';
       case 'ERROR': return 'text-red-500 font-bold';
@@ -50,13 +51,13 @@ export function LiveLogs() {
     }
   };
 
-  // Find the latest priority system state event (COOLDOWN, SCRAPE_START, LOCATION_PIVOT, QUOTA_MET)
+  // Find the latest priority system state event (COOLDOWN, SCRAPE_START, DORK_GENERATED, LOCATION_PIVOT, QUOTA_MET)
   const priorityEvent = logs.find(l => 
-    ['COOLDOWN', 'SCRAPE_START', 'LOCATION_PIVOT', 'QUOTA_MET', 'SCRAPE_ENQUEUED'].includes(l.event_type)
+    ['COOLDOWN', 'SCRAPE_START', 'DORK_GENERATED', 'LOCATION_PIVOT', 'QUOTA_MET', 'SCRAPE_ENQUEUED'].includes(l.event_type)
   );
 
   const filteredLogs = logs.filter(l => {
-    if (filter === 'SYSTEM') return ['COOLDOWN', 'SCRAPE_START', 'LOCATION_PIVOT', 'QUOTA_MET', 'SCRAPE_ENQUEUED', 'ERROR'].includes(l.event_type);
+    if (filter === 'SYSTEM') return ['COOLDOWN', 'SCRAPE_START', 'DORK_GENERATED', 'LOCATION_PIVOT', 'QUOTA_MET', 'SCRAPE_ENQUEUED', 'ERROR'].includes(l.event_type);
     if (filter === 'SUCCESS') return l.event_type === 'SUCCESS';
     if (filter === 'REJECTED') return ['BOUNCER_REJECTED', 'NO_EMAIL', 'NO_FINDING'].includes(l.event_type);
     return true;

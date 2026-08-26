@@ -227,6 +227,16 @@ export async function discoverTargetDomains(
 
   console.log(`[Discovery] Using Dork Query [${mode.toUpperCase()}]: ${query}`);
 
+  try {
+    await supabaseAdmin.from('system_logs').insert({
+      event_type: 'DORK_GENERATED',
+      message: `🤖 [AI DORK - ${mode.toUpperCase()}] Executing SERP Query: ${query}`,
+      metadata: { query, mode, niche, location: cleanLocation, page }
+    });
+  } catch (e) {
+    // Non-blocking log insert
+  }
+
   // 1. Primary Provider: Serper.dev
   if (process.env.SERPER_API_KEY) {
     try {

@@ -26,6 +26,12 @@ export async function GET(req: Request) {
     const action = url.searchParams.get('action'); // 'dispatch' or 'scrape'
     const now = new Date();
 
+    // Graceful 7-day log cleanup (only cleans system_logs; preserves outreach_leads deduplication permanently)
+    try {
+      const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+      await supabaseAdmin.from('system_logs').delete().lt('created_at', sevenDaysAgo);
+    } catch (e) {}
+
     // 1. Fetch active campaigns
     const { data: campaigns, error: campaignError } = await supabaseAdmin
       .from('campaigns')

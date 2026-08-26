@@ -5,7 +5,7 @@ export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
 // Event types that must always be visible regardless of volume
-const PRIORITY_EVENTS = ['COOLDOWN', 'SCRAPE_START', 'SCRAPE_ENQUEUED', 'QUOTA_MET', 'LOCATION_PIVOT', 'CRON_ERROR'];
+const PRIORITY_EVENTS = ['COOLDOWN', 'SCRAPE_START', 'DORK_GENERATED', 'SCRAPE_ENQUEUED', 'QUOTA_MET', 'LOCATION_PIVOT', 'CRON_ERROR'];
 
 export async function GET() {
   try {

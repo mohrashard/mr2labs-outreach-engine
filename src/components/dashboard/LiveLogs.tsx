@@ -36,10 +36,14 @@ export function LiveLogs() {
 
   const getLogColor = (type: string) => {
     switch (type) {
-      case 'SUCCESS': return 'text-emerald-400';
+      case 'SUCCESS': return 'text-emerald-400 font-bold';
       case 'BOUNCER_REJECTED': return 'text-rose-400';
       case 'NO_EMAIL': return 'text-amber-400';
-      case 'QUOTA_MET': return 'text-cyan-400';
+      case 'QUOTA_MET': return 'text-cyan-400 font-bold';
+      case 'COOLDOWN': return 'text-purple-400 font-semibold';
+      case 'SCRAPE_START': return 'text-blue-400 font-semibold';
+      case 'SCRAPE_ENQUEUED': return 'text-indigo-400 font-semibold';
+      case 'LOCATION_PIVOT': return 'text-fuchsia-400 font-bold';
       case 'ERROR': return 'text-red-500 font-bold';
       default: return 'text-slate-300';
     }

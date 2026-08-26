@@ -262,8 +262,18 @@ export async function GET(req: Request) {
             }
           }
 
-          // 4. Auto-Pivot if city is exhausted
-          if (discovered.length === 0) {
+          // 4. Filter out already-scraped domains
+          const { data: existingRecords } = await supabaseAdmin
+            .from('outreach_leads')
+            .select('website_url');
+          const existingUrls = new Set(existingRecords?.map(r => r.website_url) || []);
+
+          const newLeads = discovered
+            .filter(lead => !existingUrls.has(lead.websiteUrl))
+            .slice(0, leadsNeeded * 15);
+
+          // Auto-Pivot if no unseen candidate leads were found in this city
+          if (newLeads.length === 0) {
             const exhaustedList = Array.isArray(campaign.exhausted_locations)
               ? campaign.exhausted_locations
               : [];
@@ -275,24 +285,25 @@ export async function GET(req: Request) {
               .update({ location: newCity, exhausted_locations: updatedExhausted })
               .eq('id', campaign.id);
 
-            const pivotMsg = `📍 "${campaign.location}" fully exhausted for "${campaign.name}". Auto-pivoting to ${newCity} for next scrape cycle.`;
+            const pivotMsg = `📍 "${campaign.location}" fully exhausted for "${campaign.name}" (${discovered.length} scraped/seen). Auto-pivoting to ${newCity}...`;
             console.log(`[Auto-Pivot] ${pivotMsg}`);
             await supabaseAdmin.from('system_logs').insert({ event_type: 'LOCATION_PIVOT', message: pivotMsg, metadata: { from: campaign.location, to: newCity, campaign: campaign.name } });
+
+            // Re-trigger scrape immediately for the new city
+            if (qstash) {
+              await qstash.publishJSON({
+                url: `${baseUrl}/api/cron/daily-outreach?action=scrape`,
+                delay: 2,
+                headers: { Authorization: `Bearer ${process.env.CRON_SECRET || 'mr2labs_cron_secret_key_2026'}` },
+                body: {}
+              }).catch((e: any) => console.error('[Cron] QStash auto-pivot trigger failed:', e));
+            }
             continue;
           }
 
           // 5. Run Enrichment
           if (qstash) {
             const processLeadUrl = `${baseUrl}/api/queue/process-lead`;
-
-            const { data: existingRecords } = await supabaseAdmin
-              .from('outreach_leads')
-              .select('website_url');
-            const existingUrls = new Set(existingRecords?.map(r => r.website_url) || []);
-
-            const newLeads = discovered
-              .filter(lead => !existingUrls.has(lead.websiteUrl))
-              .slice(0, leadsNeeded * 15);
 
             const publishPromises = newLeads.map((lead, index) => {
               return qstash.publishJSON({

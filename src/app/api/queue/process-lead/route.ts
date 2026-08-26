@@ -78,6 +78,7 @@ export async function POST(request: Request) {
       .from('outreach_leads')
       .select('*', { count: 'exact', head: true })
       .eq('campaign_id', campaignId)
+      .eq('status', 'NEW')
       .gte('created_at', startOfDay.toISOString());
 
     async function logEvent(type: string, msg: string, meta: any = {}) {

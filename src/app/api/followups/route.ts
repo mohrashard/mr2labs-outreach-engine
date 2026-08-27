@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase/admin';
-import { processSingleQueuedLead } from '@/app/api/queue/send-email/route';
+import { autoDispatchPastDueLeads } from '@/lib/queue/auto-dispatcher';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -31,23 +31,7 @@ export async function GET() {
     }
 
     // 0.5. Self-Healing Auto-Dispatch: Immediately process any QUEUED leads whose scheduled_for time has passed!
-    const { data: pastDueQueued } = await supabaseAdmin
-      .from('outreach_leads')
-      .select('id, follow_up_step, company_name')
-      .eq('status', 'QUEUED')
-      .lte('scheduled_for', now.toISOString());
-
-    if (pastDueQueued && pastDueQueued.length > 0) {
-      console.log(`[Auto-Dispatch] Found ${pastDueQueued.length} past-due queued leads ready for execution.`);
-      for (const item of pastDueQueued) {
-        try {
-          await processSingleQueuedLead(item.id, item.follow_up_step || 0);
-          console.log(`[Auto-Dispatch] Successfully dispatched past-due queued lead ${item.company_name} (${item.id})`);
-        } catch (dispatchErr: any) {
-          console.error(`[Auto-Dispatch Error] Failed to process ${item.id}:`, dispatchErr.message);
-        }
-      }
-    }
+    await autoDispatchPastDueLeads();
 
     // 1. Funnel Metrics
     const { data: leads, error } = await supabaseAdmin

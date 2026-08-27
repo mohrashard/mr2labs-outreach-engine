@@ -1,11 +1,15 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase/admin';
+import { autoDispatchPastDueLeads } from '@/lib/queue/auto-dispatcher';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
 export async function GET() {
   try {
+    // 0. Auto-dispatch any past-due queued emails immediately
+    await autoDispatchPastDueLeads();
+
     // Determine start of today in UTC
     const now = new Date();
     const startOfToday = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 0, 0, 0, 0)).toISOString();

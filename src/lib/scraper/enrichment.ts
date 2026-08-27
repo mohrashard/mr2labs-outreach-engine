@@ -1,6 +1,6 @@
 import * as cheerio from 'cheerio';
 import OpenAI from 'openai';
-import { verifyEmailHttpBridge, verifyEmailWithDetails } from '@/lib/email/validator';
+import { verifyEmailHttpBridge, verifyEmailWithDetails, scoreEmailConfidence } from '@/lib/email/validator';
 import { runTechnicalAudit, AuditResult } from '@/lib/scraper/audit';
 import { fetchGooglePageSpeed } from '@/lib/scraper/pagespeed';
 import { BLACKLISTED_DOMAINS } from '@/lib/scraper/discovery';
@@ -12,7 +12,7 @@ export interface EnrichedContactData {
   instagram_url: string | null;
   linkedin_url: string | null;
   dom_snippet: string;
-  enrichment_source?: 'DOM' | 'SERPER_DORK' | 'SERPAPI_DORK' | 'APOLLO' | 'PROSPEO' | 'HUNTER' | 'SNOV' | 'NONE';
+  enrichment_source?: 'DOM' | 'SERPER_DORK' | 'SERPAPI_DORK' | 'APOLLO' | 'PROSPEO' | 'HUNTER' | 'SNOV' | 'ANY_MAIL_FINDER' | 'NONE';
   verifier_used?: string;
   is_rejected?: boolean;
   raw_scraped_data?: AuditResult | Record<string, any>;
@@ -907,6 +907,23 @@ CRITICAL INSTRUCTION: Do NOT generate or attempt to invoke any tool calls or fun
   return true;
 }
 
+type EmailSource = 'DOM' | 'GUESSED';
+
+async function verifyWithSourceAwareness(
+  email: string,
+  source: EmailSource,
+  firstName?: string,
+  lastName?: string
+): Promise<{ valid: boolean; verifier: string }> {
+  const confRes = await scoreEmailConfidence(email, source, firstName, lastName);
+  
+  if (confRes.decision === 'SEND') {
+    return { valid: true, verifier: `${confRes.verifier}[Score:${confRes.score}]` };
+  }
+  
+  return { valid: false, verifier: confRes.verifier };
+}
+
 /**
  * Deep Enrichment Waterfall Pipeline
  * Cascades: Tier 1 (DOM Regex) -> Dynamic Bouncer Gate -> Tier 2 (Smart Serper/SerpApi Dorking + Groq LLM Disambiguation) -> Tier 3 (Apollo API) -> Tier 4 (Prospeo API) -> Tier 5 (Hunter/Snov)
@@ -986,7 +1003,7 @@ export async function deepEnrichDomain(
   let instagram_url: string | null = null;
   let linkedin_url: string | null = null;
   let textSnippets: string[] = [];
-  let enrichment_source: 'DOM' | 'SERPER_DORK' | 'SERPAPI_DORK' | 'APOLLO' | 'PROSPEO' | 'HUNTER' | 'SNOV' | 'NONE' = 'NONE';
+  let enrichment_source: 'DOM' | 'SERPER_DORK' | 'SERPAPI_DORK' | 'APOLLO' | 'PROSPEO' | 'HUNTER' | 'SNOV' | 'ANY_MAIL_FINDER' | 'NONE' = 'NONE';
   
   let primaryHtml = '';
   let primaryHeaders: Headers | null = null;
@@ -997,14 +1014,15 @@ export async function deepEnrichDomain(
   // Tier 1: Fast DOM Regex Scraping (Cost: $0)
   for (const url of targetUrls) {
     try {
-      const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 6000);
-      
       const res = await fetch(url, {
-        headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/120.0.0.0' },
-        signal: controller.signal
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+          'Accept-Language': 'en-US,en;q=0.5'
+        },
+        signal: AbortSignal.timeout(5000),
+        redirect: 'follow'
       });
-      clearTimeout(timeout);
 
       if (!res.ok) continue;
 
@@ -1036,8 +1054,8 @@ export async function deepEnrichDomain(
         });
 
         if (matchingDomainEmail) {
-          const vRes = await verifyEmailWithDetails(matchingDomainEmail);
-          if (vRes.isValid) {
+          const vRes = await verifyWithSourceAwareness(matchingDomainEmail, 'DOM');
+          if (vRes.valid) {
             email = matchingDomainEmail.toLowerCase();
             enrichment_source = 'DOM';
             verifier_used = vRes.verifier;
@@ -1092,8 +1110,8 @@ export async function deepEnrichDomain(
           });
 
           if (matchingDomainEmail) {
-            const vRes = await verifyEmailWithDetails(matchingDomainEmail);
-            if (vRes.isValid) {
+            const vRes = await verifyWithSourceAwareness(matchingDomainEmail, 'DOM');
+            if (vRes.valid) {
               email = matchingDomainEmail.toLowerCase();
               enrichment_source = 'DOM';
               verifier_used = vRes.verifier;
@@ -1132,8 +1150,8 @@ export async function deepEnrichDomain(
 
     const dorkResult = await fetchEmailViaDorking(effectiveCompanyName, domainUrl, targetPersonas);
     if (dorkResult) {
-      const vRes = await verifyEmailWithDetails(dorkResult.email);
-      if (vRes.isValid) {
+      const vRes = await verifyWithSourceAwareness(dorkResult.email, 'GUESSED');
+      if (vRes.valid) {
         email = dorkResult.email;
         enrichment_source = dorkResult.source;
         verifier_used = vRes.verifier;
@@ -1144,8 +1162,8 @@ export async function deepEnrichDomain(
     if (!email) {
       const candidate = await fetchEmailFromApollo(rootDomain);
       if (candidate) {
-        const vRes = await verifyEmailWithDetails(candidate);
-        if (vRes.isValid) {
+        const vRes = await verifyWithSourceAwareness(candidate, 'GUESSED');
+        if (vRes.valid) {
           email = candidate;
           enrichment_source = 'APOLLO';
           verifier_used = vRes.verifier;
@@ -1157,8 +1175,8 @@ export async function deepEnrichDomain(
     if (!email) {
       const candidate = await fetchEmailFromProspeo(rootDomain, companyName);
       if (candidate) {
-        const vRes = await verifyEmailWithDetails(candidate);
-        if (vRes.isValid) {
+        const vRes = await verifyWithSourceAwareness(candidate, 'GUESSED');
+        if (vRes.valid) {
           email = candidate;
           enrichment_source = 'PROSPEO';
           verifier_used = vRes.verifier;
@@ -1166,12 +1184,12 @@ export async function deepEnrichDomain(
       }
     }
 
-    // Tier 5: Hunter / Snov (Strict Reserves)
+    // Tier 5: Hunter / Snov / AnyMailFinder (Strict Reserves)
     if (!email) {
       const candidate = await fetchEmailFromHunter(rootDomain);
       if (candidate) {
-        const vRes = await verifyEmailWithDetails(candidate);
-        if (vRes.isValid) {
+        const vRes = await verifyWithSourceAwareness(candidate, 'GUESSED');
+        if (vRes.valid) {
           email = candidate;
           enrichment_source = 'HUNTER';
           verifier_used = vRes.verifier;
@@ -1182,8 +1200,8 @@ export async function deepEnrichDomain(
     if (!email) {
       const candidate = await fetchEmailFromSnov(rootDomain);
       if (candidate) {
-        const vRes = await verifyEmailWithDetails(candidate);
-        if (vRes.isValid) {
+        const vRes = await verifyWithSourceAwareness(candidate, 'GUESSED');
+        if (vRes.valid) {
           email = candidate;
           enrichment_source = 'SNOV';
           verifier_used = vRes.verifier;
@@ -1194,10 +1212,10 @@ export async function deepEnrichDomain(
     if (!email) {
       const candidate = await fetchEmailFromAnyMailFinder(rootDomain);
       if (candidate) {
-        const vRes = await verifyEmailWithDetails(candidate);
-        if (vRes.isValid) {
+        const vRes = await verifyWithSourceAwareness(candidate, 'GUESSED');
+        if (vRes.valid) {
           email = candidate;
-          enrichment_source = 'PROSPEO';
+          enrichment_source = 'ANY_MAIL_FINDER';
           verifier_used = vRes.verifier;
         }
       }

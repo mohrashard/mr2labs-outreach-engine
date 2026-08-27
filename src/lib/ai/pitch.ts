@@ -195,10 +195,10 @@ export async function generateAuditAndPitch(
       * missing_scheduler -> "there is no automated booking system, meaning leads that visit after hours have no way to self-schedule"
       * is_diy_subdomain -> "the business is running on a free DIY subdomain or template builder, which limits local SEO ranking and restricts custom automation workflows"`;
 
-  const systemPrompt = `You are an elite consultative sales agent for MR² Labs. Your job is to analyze a JSON audit of a prospect's website and select the MOST COMMERCIALLY RELEVANT service to pitch them.
+  const systemPrompt = `You are an elite consultative sales agent for Mr² Labs. Your job is to analyze a JSON audit of a prospect's website and select the MOST COMMERCIALLY RELEVANT service to pitch them.
 
 ## SERVICE CATALOG
-Use this exact catalog to map findings to the primary MR² Service:
+Use this exact catalog to map findings to the primary Mr² Service:
 - WEBSITE_REBUILD: name: "Website Redesign & Conversion", outcome: "turn the website into a faster, modern conversion-focused experience". Triggered when is_diy_subdomain is present, or html_size_kb is extremely high.
 - AI_AUTOMATION: name: "AI Lead Automation", outcome: "automate repetitive lead and customer workflows". Triggered when missing_whatsapp, missing_scheduler, missing_live_chat, or missing_crm are present
 - CUSTOM_SOFTWARE: name: "Custom Business Software", outcome: "replace manual workflows with custom software built around your operations". Triggered when missing_crm + missing_payment together, or the niche is operations-heavy (law, dental, real estate)
@@ -218,9 +218,9 @@ Scan the audit JSON. Select exactly ONE primary flaw. Map it to the exact servic
 Write a clean, double-spaced 4-sentence cold email using this exact formula:
 1. Greeting: If Founder First Name is provided, start with "Hi [First Name],". Otherwise start with "Hi,". NEVER use bracket placeholders like [First Name] or corporate names.
 2. Observation & Problem: "I ran a quick technical check on your website and noticed [finding]. This can [business impact]."
-3. Pitch: "I've attached a quick audit highlighting what we found. MR² Labs can [service outcome]."
+3. Pitch: "I've attached a quick audit highlighting what we found. Mr² Labs can [service outcome]."
 4. CTA: "Would you be open to a quick 10-minute conversation?"
-5. Sign-off: "Best,\nMohamed"
+5. Sign-off: "Best,\nRashard"
 
 CRITICAL PARAGRAPH FORMATTING RULE:
 You MUST separate each paragraph with double line breaks (\n\n). Do NOT write a single wall of text.
@@ -232,8 +232,8 @@ Return ONLY this JSON object. No preamble.
   "audit_finding": "The specific technical finding",
   "business_impact": "The business consequence",
   "recommended_service": "The exact service name from the catalog",
-  "service_pitch": "The MR2 Labs can... pitch",
-  "email_body": "Hi [Name],\n\nI ran a quick technical check on your website...\n\nI've attached a quick audit...\n\nWould you be open to a quick 10-minute conversation?\n\nBest,\nMohamed"
+  "service_pitch": "The Mr² Labs can... pitch",
+  "email_body": "Hi [Name],\n\nI ran a quick technical check on your website...\n\nI've attached a quick audit...\n\nWould you be open to a quick 10-minute conversation?\n\nBest,\nRashard"
 }
 
 HARD CONSTRAINTS:
@@ -550,12 +550,12 @@ export async function generateFollowUpPitch(
     stepGoal = `Follow up on the ${originalService} pitch related to ${originalFinding}.`;
     stepRules = `Sentence 1 (Reminder): A brief, polite reminder about the ${originalFinding} finding. Do NOT just say "Following up."
 Sentence 2 (The Cost): Explain what happens if they don't fix the issue (e.g., ${originalImpact}).
-Sentence 3 (The Solution): Reiterate how MR² Labs can handle the ${originalService} for them so their team doesn't have to.
+Sentence 3 (The Solution): Reiterate how Mr² Labs can handle the ${originalService} for them so their team doesn't have to.
 Sentence 4 (The CTA): A low-friction ask for a 10-minute conversation.`;
   } else if (followUpStep === 2) {
     stepGoal = `Change the angle. Introduce a broader perspective around ${originalService}.`;
     stepRules = `Sentence 1 (New Angle): "One more thought: beyond the initial finding, we could address this as part of a broader technical cleanup rather than treating it as a separate project."
-Sentence 2 (Alternative Perspective): "Rather than adding more work to your existing team, MR² Labs can take this entirely off your plate."
+Sentence 2 (Alternative Perspective): "Rather than adding more work to your existing team, Mr² Labs can take this entirely off your plate."
 Sentence 3 (The CTA): "If this is something you're considering, would you be open to a quick 10-minute chat?"`;
   } else {
     stepGoal = 'Close the loop, preserve the relationship, zero guilt-tripping. Do not ask for a meeting.';
@@ -564,7 +564,7 @@ Sentence 2: "If ${originalService} or improving the website becomes a priority i
 Sentence 3: "I'll keep your details on file. Wishing you and the team continued success."`;
   }
 
-  const systemPrompt = `You are an elite B2B Sales Development Rep for MR² Labs. Your goal is to write Follow-Up #${followUpStep} to a ${nicheInfo.niche} business.
+  const systemPrompt = `You are an elite B2B Sales Development Rep for Mr² Labs. Your goal is to write Follow-Up #${followUpStep} to a ${nicheInfo.niche} business.
 Do NOT say "Just checking in" or "Any updates?" or "Did you see my email?". Provide value.
 
 STRICT WRITING RULES:

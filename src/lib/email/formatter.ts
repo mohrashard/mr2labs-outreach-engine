@@ -51,12 +51,14 @@ export function sanitizeGreetingAndBody(
     cleaned = `${targetGreeting}\n\n${cleaned}`;
   }
 
-  // 2. Clean up any remaining bracket placeholders in the body text
+  // 2. Clean up any remaining bracket placeholders and enforce correct company & sender names
   cleaned = cleaned
     .replace(/\[First Name\]/gi, firstName || 'there')
     .replace(/\[Name\]/gi, firstName || 'there')
     .replace(/\[Company Name\]/gi, companyName || 'your company')
-    .replace(/\[Company\]/gi, companyName || 'your company');
+    .replace(/\[Company\]/gi, companyName || 'your company')
+    .replace(/\bMohamed\b/g, 'Rashard')
+    .replace(/\bMR²\b/g, 'Mr²');
 
   return cleaned;
 }

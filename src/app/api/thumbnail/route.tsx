@@ -49,7 +49,7 @@ export async function GET(request: NextRequest) {
               <div style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: '#F59E0B', display: 'flex' }} />
               <div style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: '#10B981', display: 'flex' }} />
               <div style={{ display: 'flex', color: '#A1A1AA', fontSize: '11px', fontWeight: 600, marginLeft: '6px' }}>
-                MR² LABS • DIAGNOSTIC AUDIT
+                Mr² Labs • Diagnostic Audit
               </div>
             </div>
             <div style={{ display: 'flex', color: '#3B82F6', fontSize: '12px', fontWeight: 700 }}>

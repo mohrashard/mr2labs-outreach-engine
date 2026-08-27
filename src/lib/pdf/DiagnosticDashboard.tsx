@@ -22,182 +22,187 @@ const styles = StyleSheet.create({
   page: {
     flexDirection: 'column',
     backgroundColor: T.bg,
-    padding: 48,
+    paddingTop: 28,
+    paddingBottom: 36,
+    paddingHorizontal: 36,
     fontFamily: 'Helvetica',
   },
 
   // ── HEADER ────────────────────────────────────────────────────────────────
   header: {
-    paddingBottom: 24,
+    paddingBottom: 10,
     borderBottomWidth: 1,
     borderBottomColor: T.border,
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'flex-end',
-    marginBottom: 32,
+    alignItems: 'flex-start',
+    marginBottom: 14,
   },
   headerLeft: {
-    flexDirection: 'column',
+    flex: 1,
+    paddingRight: 12,
   },
   reportTitle: {
-    fontSize: 24,
+    fontSize: 18,
     fontFamily: 'Helvetica-Bold',
     color: T.textPrimary,
     letterSpacing: -0.5,
   },
   reportSubtitle: {
-    fontSize: 10,
+    fontSize: 8.5,
     color: T.textSecondary,
-    marginTop: 6,
+    marginTop: 3,
   },
   headerRight: {
     alignItems: 'flex-end',
+    maxWidth: 220,
   },
   companyName: {
-    fontSize: 14,
+    fontSize: 10.5,
     fontFamily: 'Helvetica-Bold',
     color: T.textPrimary,
+    textAlign: 'right',
   },
   reportDate: {
-    fontSize: 9,
+    fontSize: 8,
     color: T.textSecondary,
-    marginTop: 4,
+    marginTop: 2,
   },
 
   // ── SCORE SUMMARY ─────────────────────────────────────────────────────────
   scoreSection: {
     flexDirection: 'row',
-    marginBottom: 40,
+    marginBottom: 14,
     alignItems: 'flex-start',
   },
   scoreLeft: {
-    width: 120,
+    width: 95,
   },
   scoreNumber: {
-    fontSize: 48,
+    fontSize: 34,
     fontFamily: 'Helvetica-Bold',
     color: T.red,
     lineHeight: 1,
     letterSpacing: -1,
   },
   scoreLabel: {
-    fontSize: 9,
+    fontSize: 8,
     color: T.textSecondary,
-    marginTop: 4,
+    marginTop: 2,
     fontFamily: 'Helvetica-Bold',
   },
   scoreRight: {
     flex: 1,
-    paddingLeft: 32,
+    paddingLeft: 16,
     borderLeftWidth: 1,
     borderLeftColor: T.border,
   },
   scoreHeadline: {
-    fontSize: 14,
+    fontSize: 11.5,
     fontFamily: 'Helvetica-Bold',
     color: T.textPrimary,
-    marginBottom: 8,
+    marginBottom: 4,
   },
   scoreBody: {
-    fontSize: 10,
+    fontSize: 8.5,
     color: T.textSecondary,
-    lineHeight: 1.5,
+    lineHeight: 1.35,
   },
 
   // ── SECTIONS ──────────────────────────────────────────────────────────────
   section: {
-    marginBottom: 24,
+    marginBottom: 10,
   },
   sectionTitle: {
-    fontSize: 12,
+    fontSize: 10,
     fontFamily: 'Helvetica-Bold',
     color: T.textPrimary,
     borderBottomWidth: 1,
     borderBottomColor: T.border,
-    paddingBottom: 8,
-    marginBottom: 12,
+    paddingBottom: 4,
+    marginBottom: 4,
   },
 
   // ── AUDIT ROW ─────────────────────────────────────────────────────────────
   row: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    paddingVertical: 12,
+    paddingVertical: 5,
     borderBottomWidth: 1,
     borderBottomColor: T.borderLight,
   },
   rowLast: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    paddingVertical: 12,
+    paddingVertical: 5,
   },
   rowMain: {
     flex: 1,
-    paddingRight: 16,
+    paddingRight: 12,
   },
   rowHeader: {
-    marginBottom: 4,
+    marginBottom: 2,
   },
   rowLabel: {
-    fontSize: 10,
+    fontSize: 9,
     fontFamily: 'Helvetica-Bold',
     color: T.textPrimary,
   },
   rowDescription: {
-    fontSize: 9,
+    fontSize: 8,
     color: T.textSecondary,
-    lineHeight: 1.5,
+    lineHeight: 1.3,
   },
   rowLinkWrap: {
-    marginTop: 6,
+    marginTop: 2,
   },
   rowLink: {
-    fontSize: 9,
+    fontSize: 7.5,
     color: '#2563EB',
     textDecoration: 'none',
   },
   rowStatus: {
-    width: 80,
+    width: 75,
     alignItems: 'flex-end',
   },
   statusTextCritical: {
-    fontSize: 9,
+    fontSize: 8,
     fontFamily: 'Helvetica-Bold',
     color: T.red,
   },
   statusTextHigh: {
-    fontSize: 9,
+    fontSize: 8,
     fontFamily: 'Helvetica-Bold',
     color: T.amber,
   },
   statusTextPass: {
-    fontSize: 9,
+    fontSize: 8,
     fontFamily: 'Helvetica-Bold',
     color: T.green,
   },
 
   // ── CTA BLOCK ─────────────────────────────────────────────────────────────
   ctaBlock: {
-    marginTop: 16,
+    marginTop: 10,
     backgroundColor: T.surface,
-    padding: 24,
+    padding: 12,
     borderLeftWidth: 3,
     borderLeftColor: T.red,
   },
   ctaHeadline: {
-    fontSize: 12,
+    fontSize: 10.5,
     fontFamily: 'Helvetica-Bold',
     color: T.textPrimary,
-    marginBottom: 8,
+    marginBottom: 4,
   },
   ctaBody: {
-    fontSize: 10,
+    fontSize: 8.5,
     color: T.textSecondary,
-    lineHeight: 1.5,
-    marginBottom: 12,
+    lineHeight: 1.3,
+    marginBottom: 6,
   },
   ctaEmail: {
-    fontSize: 10,
+    fontSize: 8.5,
     color: '#2563EB',
     fontFamily: 'Helvetica-Bold',
     textDecoration: 'none',
@@ -206,17 +211,17 @@ const styles = StyleSheet.create({
   // ── FOOTER ────────────────────────────────────────────────────────────────
   footer: {
     position: 'absolute',
-    bottom: 40,
-    left: 48,
-    right: 48,
+    bottom: 16,
+    left: 36,
+    right: 36,
     borderTopWidth: 1,
     borderTopColor: T.border,
-    paddingTop: 16,
+    paddingTop: 6,
     flexDirection: 'row',
     justifyContent: 'space-between',
   },
   footerText: {
-    fontSize: 8,
+    fontSize: 7.5,
     color: T.textMuted,
   },
 });
@@ -543,7 +548,7 @@ export const DiagnosticDashboard = ({
 
   return (
     <Document>
-      <Page size="A4" style={styles.page}>
+      <Page size="A4" style={styles.page} wrap={false}>
 
         {/* HEADER */}
         <View style={styles.header}>

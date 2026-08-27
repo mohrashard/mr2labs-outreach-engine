@@ -211,33 +211,42 @@ If the JSON audit is empty, or all values are false/null/0, you MUST return exac
 { "error": "The automated audit could not generate a verified finding." }
 Do not invent problems.
 
-## STEP 1 — SELECT THE PRIMARY FLAW & SERVICE
-Scan the audit JSON. Select exactly ONE primary flaw. Map it to the exact service name from the catalog above.
+## STEP 1 — SELECT THE PRIMARY FLAWS & RELEVANT SERVICES
+Scan the audit JSON. Select 1 or 2 primary flaws that are present in the data (e.g., dmarc_missing, !has_scheduler, high html_size_kb). Map them to the relevant Mr² Labs services from the catalog above.
 
-## STEP 2 — GENERATE THE EMAIL BODY
-Write a clean, double-spaced 4-sentence cold email using this exact formula:
-1. Greeting: If Founder First Name is provided, start with "Hi [First Name],". Otherwise start with "Hi,". NEVER use bracket placeholders like [First Name] or corporate names.
-2. Observation & Problem: "I ran a quick technical check on your website and noticed [finding]. This can [business impact]."
-3. Pitch: "I've attached a quick audit highlighting what we found. Mr² Labs can [service outcome]."
-4. CTA: "Would you be open to a quick 10-minute conversation?"
+## STEP 2 — GENERATE THE EMAIL SUBJECT LINE
+Write a short, lowercase 2-4 word subject line that feels internal. NO punctuation, NO emojis, NO title case, NO prospect names.
+Examples: "technical audit", "lead conversion", "domain protection", "performance audit"
+
+## STEP 3 — GENERATE THE EMAIL BODY
+Write a conversational, low-friction, peer-to-peer cold email using this exact framework:
+1. Greeting: If Founder First Name is provided, use "Hi [First Name],". Otherwise, use "Hi,". (NEVER output literal brackets, use the actual name or fallback).
+2. Observation: Start with THEIR world and the observation. MUST MATCH the JSON findings (e.g., "Your website currently doesn't appear to have [finding 1], which is one area worth addressing if you're relying on the site for [business impact].")
+3. Pitch the Solution: Explicitly pitch how Mr² Labs can solve those specific problems. Do NOT overpitch. Sound human. (e.g., "We can handle the [service 1 fix] setup and make sure [outcome] is properly handled if that's something you want off your plate.")
+4. Low-friction CTA: "Worth exploring?" or "Open to a quick conversation?"
 5. Sign-off: "Best,\nRashard"
 
-CRITICAL PARAGRAPH FORMATTING RULE:
-You MUST separate each paragraph with double line breaks (\n\n). Do NOT write a single wall of text.
+CRITICAL RULES:
+- Write like a peer. Use contractions. Keep it ruthlessly short.
+- NEVER say "speed diagnostic" if the findings are only about security and automation! The intro MUST accurately match the findings.
+- If the JSON shows "dmarc_missing", call it "domain protection" for non-technical audiences.
+- If the JSON shows "!has_scheduler", call it "automated lead intake".
+- You MUST separate each paragraph with double line breaks (\n\n). Do NOT write a single wall of text.
+- Do NOT use placeholder text like [Company] — use the actual Target Company Name provided.
 
 ## OUTPUT FORMAT
 Return ONLY this JSON object. No preamble.
 {
-  "email_subject": "1 to 4 word subject line",
-  "audit_finding": "The specific technical finding",
-  "business_impact": "The business consequence",
-  "recommended_service": "The exact service name from the catalog",
+  "email_subject": "lowercase subject line",
+  "audit_finding": "The specific technical findings",
+  "business_impact": "The business consequences",
+  "recommended_service": "The exact service names from the catalog",
   "service_pitch": "The Mr² Labs can... pitch",
-  "email_body": "Hi [Name],\n\nI ran a quick technical check on your website...\n\nI've attached a quick audit...\n\nWould you be open to a quick 10-minute conversation?\n\nBest,\nRashard"
+  "email_body": "Hi [Name],\n\nYour website currently doesn't appear to have [finding 1], which is one area worth addressing if you're relying on the site for [business impact].\n\nWe can handle the [solution] setup and make sure it's properly hardened if that's something you want off your plate.\n\nWorth exploring?\n\nBest,\nRashard"
 }
 
 HARD CONSTRAINTS:
-1. Do NOT use placeholder text like [First Name] or [Company Name] — use real names or clean fallbacks like "Hi,".
+1. Do NOT use placeholder text like [First Name] or [Company Name] — use real names.
 2. Only reference a flaw if it is explicitly present in the JSON as true or above threshold.`;
 
   const founderFirstStr = founderFirst ? `Founder First Name: ${founderFirst}` : `Founder Name: None (Use "Hi,")`;
@@ -547,33 +556,35 @@ export async function generateFollowUpPitch(
     stepGoal = `Follow custom user-defined instructions: ${customPrompt}`;
     stepRules = `Apply custom rules: ${customPrompt}`;
   } else if (followUpStep === 1) {
-    stepGoal = `Follow up on the ${originalService} pitch related to ${originalFinding}.`;
-    stepRules = `Sentence 1 (Reminder): A brief, polite reminder about the ${originalFinding} finding. Do NOT just say "Following up."
-Sentence 2 (The Cost): Explain what happens if they don't fix the issue (e.g., ${originalImpact}).
-Sentence 3 (The Solution): Reiterate how Mr² Labs can handle the ${originalService} for them so their team doesn't have to.
-Sentence 4 (The CTA): A low-friction ask for a 10-minute conversation.`;
+    stepGoal = `Follow up on the ${originalService} pitch related to ${originalFinding}. Use a NEW ANGLE (e.g., operational impact). Do NOT say "Following up".`;
+    stepRules = `Sentence 1 (New Angle / Business Implication): "One thing I'd prioritize from the audit is..." or "The bigger issue isn't the finding itself, it's that..." (Focus on the operational impact of ${originalFinding}).
+Sentence 2 (The Pitch): "We can handle the ${originalService} setup for you rather than leaving your team to figure it out." or "Happy to handle the setup if it's something you want off your team's plate."
+Sentence 3 (The CTA): "Worth exploring?" or "Useful to explore?"`;
   } else if (followUpStep === 2) {
-    stepGoal = `Change the angle. Introduce a broader perspective around ${originalService}.`;
-    stepRules = `Sentence 1 (New Angle): "One more thought: beyond the initial finding, we could address this as part of a broader technical cleanup rather than treating it as a separate project."
-Sentence 2 (Alternative Perspective): "Rather than adding more work to your existing team, Mr² Labs can take this entirely off your plate."
-Sentence 3 (The CTA): "If this is something you're considering, would you be open to a quick 10-minute chat?"`;
+    stepGoal = `Introduce a NEW PROOF POINT, RESOURCE, OR INSIGHT about ${originalService}.`;
+    stepRules = `Sentence 1 (New Insight): "Another area I'd look at is..." or provide a relevant industry observation about ${originalFinding}.
+Sentence 2 (The Alternative Perspective): "We can build the ${originalService} layer around your existing setup rather than replacing everything."
+Sentence 3 (The CTA): "Worth a quick look?" or "Relevant to your team?"`;
   } else {
-    stepGoal = 'Close the loop, preserve the relationship, zero guilt-tripping. Do not ask for a meeting.';
-    stepRules = `Sentence 1: "I'll close the loop here so I don't keep filling your inbox."
-Sentence 2: "If ${originalService} or improving the website becomes a priority in the future, I'd be happy to reconnect."
-Sentence 3: "I'll keep your details on file. Wishing you and the team continued success."`;
+    stepGoal = 'Breakup. Close the loop professionally, preserve the relationship, zero guilt-tripping. Do not ask for a meeting.';
+    stepRules = `Sentence 1 (Acknowledge): "I'll close the loop here."
+Sentence 2 (Reminder): "The opportunity I had in mind was tightening the site's ${originalService}."
+Sentence 3 (Door Open): "If it becomes a priority later, happy to pick it back up."
+Sentence 4 (Sign-off): "Best,\nRashard"`;
   }
 
-  const systemPrompt = `You are an elite B2B Sales Development Rep for Mr² Labs. Your goal is to write Follow-Up #${followUpStep} to a ${nicheInfo.niche} business.
-Do NOT say "Just checking in" or "Any updates?" or "Did you see my email?". Provide value.
+  const systemPrompt = `You are the Follow-Up Sequence Controller for MR² Labs. Your goal is to write Follow-Up #${followUpStep} to a ${nicheInfo.niche} business.
+NEVER say "Just checking in" or "Any updates?" or "Following up on my previous email". Provide value.
 
 STRICT WRITING RULES:
-- Subject Line: Exactly 1 to 4 words. Keep it relevant to the follow-up or reply to previous.
+- Subject Line: Exactly 2 to 4 words. lowercase, NO punctuation tricks, NO emojis, NO title case, NO prospect's first name. (e.g., "technical audit", "lead conversion")
+- Voice & Tone: Write like a peer, not a vendor. Use contractions. Conversational but not sloppy. Confident but not pushy. "You/your" should dominate over "I/we".
 - Greeting: "${greeting}"
 - Length: STRICTLY 3 to 4 sentences total. Maximum 120 words.
-- Tone: Professional, authoritative, zero guilt-tripping.
-- Formatting: You MUST use double line breaks (\n\n) to create distinct paragraphs. Separate the greeting, the main body, and the CTA. Do NOT write a single block of text.
+- Tone: Professional, authoritative, zero guilt-tripping. 
+- Formatting: You MUST use double line breaks (\n\n) to create distinct paragraphs. Separate the greeting, Sentence 1, Sentence 2, and the CTA into their own paragraphs. Do NOT write a single block of text.
 - Typography: Use standard keyboard hyphens (-). Absolutely NO em dashes (—), en dashes (–), or non-breaking hyphens (‑).
+- NON-NEGOTIABLE RULE: Never follow up just because you haven't received a reply. Follow up because you have something new worth saying.
 
 GOAL FOR THIS FOLLOW-UP:
 ${stepGoal}
@@ -583,7 +594,7 @@ ${stepRules}
 
 Output valid JSON ONLY in this format:
 {
-  "email_subject": "1 to 4 words",
+  "email_subject": "2-4 words lowercase",
   "generated_email_body": "The complete 3-4 sentence email string"
 }
 

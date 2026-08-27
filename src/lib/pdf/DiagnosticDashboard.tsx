@@ -387,7 +387,7 @@ export const DiagnosticDashboard = ({
       {
         section: 'Security & Deliverability', id: 'dmarc',
         label: 'Email Domain Protection',
-        description: 'Your domain appears to be missing DMARC configuration, which can allow unauthorized parties to send emails using your domain.',
+        description: 'DMARC configuration not detected, which can allow unauthorized parties to send emails using your domain.',
         description_pass: 'DMARC policy is configured and passing the check.',
         status: auditData.dmarc_missing ? 'fail' : 'pass',
         severity: auditData.dmarc_missing ? 'CRITICAL' : 'PASS',
@@ -417,7 +417,7 @@ export const DiagnosticDashboard = ({
       {
         section: 'Conversion & UX Friction', id: 'scheduler',
         label: 'Automated Booking System',
-        description: 'No self-booking widget detected, meaning visitors cannot schedule consultations after hours.',
+        description: 'No automated lead intake/booking flow identified, meaning visitors cannot schedule consultations after hours.',
         description_pass: 'Automated booking system is active.',
         status: !auditData.has_scheduler ? 'fail' : 'pass',
         severity: !auditData.has_scheduler ? 'CRITICAL' : 'PASS',

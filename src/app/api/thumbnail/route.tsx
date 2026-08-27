@@ -97,7 +97,7 @@ export async function GET(request: NextRequest) {
                     🔴 Security
                   </div>
                   <div style={{ display: 'flex', color: '#E4E4E7', fontSize: '12px' }}>
-                    Domain protection incomplete (DMARC missing)
+                    DMARC configuration not detected
                   </div>
                 </div>
                 <div style={{ display: 'flex', color: '#EF4444', fontSize: '11px', fontWeight: 700 }}>
@@ -123,7 +123,7 @@ export async function GET(request: NextRequest) {
                     🟡 Automation
                   </div>
                   <div style={{ display: 'flex', color: '#E4E4E7', fontSize: '12px' }}>
-                    No 24/7 automated booking or lead intake system
+                    No automated lead intake/booking flow identified
                   </div>
                 </div>
                 <div style={{ display: 'flex', color: '#F59E0B', fontSize: '11px', fontWeight: 700 }}>

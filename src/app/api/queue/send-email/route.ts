@@ -81,11 +81,9 @@ export async function processSingleQueuedLead(leadId: string, followUpStep: numb
   );
   const formattedHtmlBody = formatPitchHtml(sanitizedPitch);
 
-  // Prepare email
-  const htmlContent = `
-    <div style="font-family: sans-serif; font-size: 14px; color: #333; line-height: 1.6; max-width: 600px;">
-      ${formattedHtmlBody}
-      
+  let extrasHtml = '';
+  if (followUpStep === 0) {
+    extrasHtml = `
       <div style="margin: 30px 0;">
         <a href="${appUrl}/api/audit/${lead.id}" target="_blank" style="text-decoration: none;">
           <img src="${appUrl}/api/thumbnail?domain=${cleanDomain}&v=${Date.now()}" alt="Diagnostic Audit for ${cleanDomain}" style="width: 100%; max-width: 600px; border-radius: 8px; border: 1px solid #E4E4E7;" />
@@ -103,6 +101,14 @@ export async function processSingleQueuedLead(leadId: string, followUpStep: numb
           <p style="margin: 8px 0;"><a href="${appUrl}/api/response?id=${lead.id}&intent=pass" style="color: #52525B; text-decoration: none; font-size: 13px;">🔴 Not a priority right now</a></p>
         </div>
       </div>
+    `;
+  }
+
+  // Prepare email
+  const htmlContent = `
+    <div style="font-family: sans-serif; font-size: 14px; color: #333; line-height: 1.6; max-width: 600px;">
+      ${formattedHtmlBody}
+      ${extrasHtml}
     </div>
   `;
 

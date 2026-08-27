@@ -58,7 +58,10 @@ export function sanitizeGreetingAndBody(
     .replace(/\[Company Name\]/gi, companyName || 'your company')
     .replace(/\[Company\]/gi, companyName || 'your company')
     .replace(/\bMohamed\b/g, 'Rashard')
-    .replace(/\bMR²\b/g, 'Mr²');
+    .replace(/MR2 LABS/gi, 'Mr² Labs')
+    .replace(/MR² LABS/gi, 'Mr² Labs')
+    .replace(/Mr² Labs/g, 'Mr² Labs')
+    .replace(/MR2 Labs/gi, 'Mr² Labs');
 
   return cleaned;
 }

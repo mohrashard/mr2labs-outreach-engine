@@ -195,10 +195,10 @@ export async function generateAuditAndPitch(
       * missing_scheduler -> "there is no automated booking system, meaning leads that visit after hours have no way to self-schedule"
       * is_diy_subdomain -> "the business is running on a free DIY subdomain or template builder, which limits local SEO ranking and restricts custom automation workflows"`;
 
-  const systemPrompt = `You are an elite consultative sales agent for Mr² Labs. Your job is to analyze a JSON audit of a prospect's website and select the MOST COMMERCIALLY RELEVANT service to pitch them.
+  const systemPrompt = `You are an elite consultative sales agent for Mr² labs. Your job is to analyze a JSON audit of a prospect's website and select the MOST COMMERCIALLY RELEVANT service to pitch them.
 
 ## SERVICE CATALOG
-Use this exact catalog to map findings to the primary Mr² Service:
+Use this exact catalog to map findings to the primary Mr² labs Service:
 - WEBSITE_REBUILD: name: "Website Redesign & Conversion", outcome: "turn the website into a faster, modern conversion-focused experience". Triggered when is_diy_subdomain is present, or html_size_kb is extremely high.
 - AI_AUTOMATION: name: "AI Lead Automation", outcome: "automate repetitive lead and customer workflows". Triggered when missing_whatsapp, missing_scheduler, missing_live_chat, or missing_crm are present
 - CUSTOM_SOFTWARE: name: "Custom Business Software", outcome: "replace manual workflows with custom software built around your operations". Triggered when missing_crm + missing_payment together, or the niche is operations-heavy (law, dental, real estate)
@@ -212,7 +212,7 @@ If the JSON audit is empty, or all values are false/null/0, you MUST return exac
 Do not invent problems.
 
 ## STEP 1 — SELECT THE PRIMARY FLAWS & RELEVANT SERVICES
-Scan the audit JSON. Select 1 or 2 primary flaws that are present in the data (e.g., dmarc_missing, !has_scheduler, high html_size_kb). Map them to the relevant Mr² Labs services from the catalog above.
+Scan the audit JSON. Select 1 or 2 primary flaws that are present in the data (e.g., dmarc_missing, !has_scheduler, high html_size_kb). Map them to the relevant Mr² labs services from the catalog above.
 
 ## STEP 2 — GENERATE THE EMAIL SUBJECT LINE
 Write a short, lowercase 2-4 word subject line that feels internal. NO punctuation, NO emojis, NO title case, NO prospect names.
@@ -222,7 +222,7 @@ Examples: "technical audit", "lead conversion", "domain protection", "performanc
 Write a conversational, low-friction, peer-to-peer cold email using this exact framework:
 1. Greeting: If Founder First Name is provided, use "Hi [First Name],". Otherwise, use "Hi,". (NEVER output literal brackets, use the actual name or fallback).
 2. Observation: Start with THEIR world and the observation. MUST MATCH the JSON findings (e.g., "Your website currently doesn't appear to have [finding 1], which is one area worth addressing if you're relying on the site for [business impact].")
-3. Pitch the Solution: Explicitly pitch how Mr² Labs can solve those specific problems. Do NOT overpitch. Sound human. (e.g., "We can handle the [service 1 fix] setup and make sure [outcome] is properly handled if that's something you want off your plate.")
+3. Pitch the Solution: Explicitly pitch how Mr² labs can solve those specific problems. Do NOT overpitch. Sound human. (e.g., "We can handle the [service 1 fix] setup and make sure [outcome] is properly handled if that's something you want off your plate.")
 4. Low-friction CTA: "Worth exploring?" or "Open to a quick conversation?"
 5. Sign-off: "Best,\nRashard"
 
@@ -241,7 +241,7 @@ Return ONLY this JSON object. No preamble.
   "audit_finding": "The specific technical findings",
   "business_impact": "The business consequences",
   "recommended_service": "The exact service names from the catalog",
-  "service_pitch": "The Mr² Labs can... pitch",
+  "service_pitch": "The Mr² labs can... pitch",
   "email_body": "Hi [Name],\n\nYour website currently doesn't appear to have [finding 1], which is one area worth addressing if you're relying on the site for [business impact].\n\nWe can handle the [solution] setup and make sure it's properly hardened if that's something you want off your plate.\n\nWorth exploring?\n\nBest,\nRashard"
 }
 
@@ -573,7 +573,7 @@ Sentence 3 (Door Open): "If it becomes a priority later, happy to pick it back u
 Sentence 4 (Sign-off): "Best,\nRashard"`;
   }
 
-  const systemPrompt = `You are the Follow-Up Sequence Controller for MR² Labs. Your goal is to write Follow-Up #${followUpStep} to a ${nicheInfo.niche} business.
+  const systemPrompt = `You are the Follow-Up Sequence Controller for Mr² labs. Your goal is to write Follow-Up #${followUpStep} to a ${nicheInfo.niche} business.
 NEVER say "Just checking in" or "Any updates?" or "Following up on my previous email". Provide value.
 
 STRICT WRITING RULES:

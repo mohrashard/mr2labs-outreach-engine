@@ -7,7 +7,6 @@ export async function GET(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams;
     let domain = searchParams.get('domain') || 'target-domain.com';
-    const time = searchParams.get('time') || new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
 
     try {
       domain = domain.replace(/^https?:\/\//, '').replace(/\/.*$/, '');
@@ -23,91 +22,141 @@ export async function GET(request: NextRequest) {
             height: '100%',
             display: 'flex',
             flexDirection: 'column',
-            backgroundColor: '#0E0E0F',
+            backgroundColor: '#09090B',
             border: '1px solid #27272A',
             padding: 0,
             margin: 0,
+            fontFamily: 'sans-serif',
           }}
         >
-          {/* Title Bar */}
+          {/* Header Bar */}
           <div
             style={{
               display: 'flex',
               flexDirection: 'row',
               alignItems: 'center',
-              backgroundColor: '#1C1C1F',
-              height: '36px',
+              justifyContent: 'space-between',
+              backgroundColor: '#18181B',
+              height: '42px',
               paddingLeft: '16px',
               paddingRight: '16px',
               borderBottom: '1px solid #27272A',
               width: '100%',
             }}
           >
-            <div style={{ display: 'flex', flexDirection: 'row', gap: '8px' }}>
-              <div style={{ width: 12, height: 12, borderRadius: 6, backgroundColor: '#FF5F56', display: 'flex' }} />
-              <div style={{ width: 12, height: 12, borderRadius: 6, backgroundColor: '#FFBD2E', display: 'flex' }} />
-              <div style={{ width: 12, height: 12, borderRadius: 6, backgroundColor: '#27C93F', display: 'flex' }} />
+            <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', gap: '8px' }}>
+              <div style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: '#EF4444', display: 'flex' }} />
+              <div style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: '#F59E0B', display: 'flex' }} />
+              <div style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: '#10B981', display: 'flex' }} />
+              <div style={{ display: 'flex', color: '#A1A1AA', fontSize: '11px', fontWeight: 600, marginLeft: '6px' }}>
+                MR² LABS • DIAGNOSTIC AUDIT
+              </div>
             </div>
-            <div
-              style={{
-                flex: 1,
-                display: 'flex',
-                justifyContent: 'center',
-                color: '#71717A',
-                fontFamily: 'monospace',
-                fontSize: '12px',
-              }}
-            >
-              mr2labs-forensic-engine ~ bash
+            <div style={{ display: 'flex', color: '#3B82F6', fontSize: '12px', fontWeight: 700 }}>
+              {domain}
             </div>
           </div>
 
-          {/* Terminal Output */}
+          {/* Body Content */}
           <div
             style={{
               display: 'flex',
               flexDirection: 'column',
-              padding: '24px 30px',
-              gap: '8px',
-              fontFamily: 'monospace',
-              fontSize: '14px',
+              padding: '20px 24px',
+              gap: '12px',
               flex: 1,
             }}
           >
-            <div style={{ display: 'flex', color: '#10B981', fontWeight: 'bold' }}>
-              {`root@mr2labs:~# analyze --target ${domain}`}
-            </div>
-            <div style={{ display: 'flex', color: '#A1A1AA', marginTop: '12px' }}>
-              Initializing forensic sequence...
-            </div>
-            <div style={{ display: 'flex', color: '#A1A1AA' }}>
-              Scanning frontend architecture and DNS configuration...
-            </div>
-            
-            <div style={{ display: 'flex', color: '#EF4444', fontWeight: 'bold', marginTop: '16px' }}>
-              [✖] CRITICAL: Severe Vulnerabilities & Conversion Leaks Detected
-            </div>
-            <div style={{ display: 'flex', color: '#F59E0B', fontWeight: 'bold' }}>
-              [!] WARNING: Immediate Remediation Recommended
+            {/* Title & Summary */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+              <div style={{ display: 'flex', color: '#FAFAFA', fontSize: '17px', fontWeight: 700 }}>
+                {`Audit Findings for ${domain}`}
+              </div>
+              <div style={{ display: 'flex', color: '#A1A1AA', fontSize: '12px' }}>
+                Automated technical scan detected 2 issues affecting security & lead conversion:
+              </div>
             </div>
 
+            {/* Findings List */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '2px' }}>
+              {/* Finding 1 */}
+              <div
+                style={{
+                  display: 'flex',
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  backgroundColor: '#18181B',
+                  border: '1px solid #27272A',
+                  borderRadius: 6,
+                  padding: '8px 12px',
+                  justifyContent: 'space-between',
+                }}
+              >
+                <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', gap: '8px' }}>
+                  <div style={{ display: 'flex', color: '#EF4444', fontSize: '12px', fontWeight: 700 }}>
+                    🔴 Security
+                  </div>
+                  <div style={{ display: 'flex', color: '#E4E4E7', fontSize: '12px' }}>
+                    Domain protection incomplete (DMARC missing)
+                  </div>
+                </div>
+                <div style={{ display: 'flex', color: '#EF4444', fontSize: '11px', fontWeight: 700 }}>
+                  High Risk
+                </div>
+              </div>
+
+              {/* Finding 2 */}
+              <div
+                style={{
+                  display: 'flex',
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  backgroundColor: '#18181B',
+                  border: '1px solid #27272A',
+                  borderRadius: 6,
+                  padding: '8px 12px',
+                  justifyContent: 'space-between',
+                }}
+              >
+                <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', gap: '8px' }}>
+                  <div style={{ display: 'flex', color: '#F59E0B', fontSize: '12px', fontWeight: 700 }}>
+                    🟡 Automation
+                  </div>
+                  <div style={{ display: 'flex', color: '#E4E4E7', fontSize: '12px' }}>
+                    No 24/7 automated booking or lead intake system
+                  </div>
+                </div>
+                <div style={{ display: 'flex', color: '#F59E0B', fontSize: '11px', fontWeight: 700 }}>
+                  Losing Leads
+                </div>
+              </div>
+            </div>
+
+            {/* CTA Button Bar */}
             <div
               style={{
                 display: 'flex',
-                width: '100%',
-                height: '1px',
-                backgroundColor: '#2A2A2E',
-                marginTop: '20px',
-                marginBottom: '16px',
+                flexDirection: 'row',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                marginTop: 'auto',
               }}
-            />
-
-            <div style={{ display: 'flex', flexDirection: 'row', justifyContent: 'space-between', width: '100%', alignItems: 'center' }}>
-              <div style={{ display: 'flex', color: '#F4F4F5', fontWeight: 'bold' }}>
-                {`>> Scan completed at ${time}`}
+            >
+              <div style={{ display: 'flex', color: '#71717A', fontSize: '11px' }}>
+                Full 1-Page PDF Executive Summary Ready
               </div>
-              <div style={{ display: 'flex', color: '#3B82F6', fontWeight: 'bold' }}>
-                CLICK TO VIEW FULL PDF REPORT ➔
+              <div
+                style={{
+                  display: 'flex',
+                  backgroundColor: '#2563EB',
+                  color: '#FFFFFF',
+                  fontSize: '11px',
+                  fontWeight: 700,
+                  padding: '7px 14px',
+                  borderRadius: 5,
+                }}
+              >
+                VIEW FULL PDF REPORT ➔
               </div>
             </div>
           </div>

@@ -114,7 +114,7 @@ export async function POST(request: Request) {
         
         <div style="margin: 30px 0;">
           <a href="${appUrl}/api/audit/${lead.id}" target="_blank" style="text-decoration: none;">
-            <img src="${appUrl}/api/thumbnail?domain=${cleanDomain}" alt="Diagnostic Audit for ${cleanDomain}" style="width: 100%; max-width: 600px; border-radius: 8px; border: 1px solid #E4E4E7;" />
+            <img src="${appUrl}/api/thumbnail?domain=${cleanDomain}&v=${Date.now()}" alt="Diagnostic Audit for ${cleanDomain}" style="width: 100%; max-width: 600px; border-radius: 8px; border: 1px solid #E4E4E7;" />
           </a>
           <p style="text-align: center; margin-top: 12px;">
             <a href="${appUrl}/api/audit/${lead.id}" style="color: #2563EB; text-decoration: none; font-size: 14px; font-weight: 600;">View your forensic security report here &rarr;</a>

@@ -117,7 +117,7 @@ export async function GET(request: NextRequest) {
         width: 600,
         height: 300,
         headers: {
-          'Cache-Control': 'public, max-age=31536000, immutable',
+          'Cache-Control': 'public, max-age=86400, s-maxage=86400, stale-while-revalidate=604800',
         },
       }
     );

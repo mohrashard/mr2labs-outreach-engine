@@ -19,7 +19,7 @@ export async function processSingleQueuedLead(leadId: string, followUpStep: numb
   // Fetch lead details
   const { data: lead, error: leadError } = await supabaseAdmin
     .from('outreach_leads')
-    .select('id, email, email_subject, pitch_text, audit_notes, company_name, founder_name, raw_scraped_data, website_url, campaigns(niche)')
+    .select('id, email, email_subject, pitch_text, audit_notes, company_name, raw_scraped_data, website_url, campaigns(niche)')
     .eq('id', leadId)
     .single();
 
@@ -54,7 +54,7 @@ export async function processSingleQueuedLead(leadId: string, followUpStep: numb
       followUpStep,
       lead.company_name,
       Array.isArray(lead.campaigns) ? lead.campaigns[0]?.niche : (lead.campaigns as any)?.niche,
-      lead.founder_name || (lead.raw_scraped_data as any)?.founder_name || null,
+      (lead.raw_scraped_data as any)?.founder_name || null,
       undefined,
       lead.audit_notes
     );
@@ -76,7 +76,7 @@ export async function processSingleQueuedLead(leadId: string, followUpStep: numb
   // Sanitize greeting and format pitch HTML cleanly
   const sanitizedPitch = sanitizeGreetingAndBody(
     pitchText || '',
-    lead.founder_name || (lead.raw_scraped_data as any)?.founder_name,
+    (lead.raw_scraped_data as any)?.founder_name,
     lead.company_name
   );
   const formattedHtmlBody = formatPitchHtml(sanitizedPitch);

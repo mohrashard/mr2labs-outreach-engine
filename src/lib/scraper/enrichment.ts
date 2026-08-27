@@ -3,6 +3,7 @@ import OpenAI from 'openai';
 import { verifyEmailHttpBridge, verifyEmailWithDetails } from '@/lib/email/validator';
 import { runTechnicalAudit, AuditResult } from '@/lib/scraper/audit';
 import { fetchGooglePageSpeed } from '@/lib/scraper/pagespeed';
+import { BLACKLISTED_DOMAINS } from '@/lib/scraper/discovery';
 
 export interface EnrichedContactData {
   email: string | null;
@@ -27,13 +28,15 @@ export function isValidLeadEmail(email: string): boolean {
   if (!email || !email.includes('@')) return false;
   const lower = email.toLowerCase().trim();
 
-  // Block generic catch-all, networking, and team inboxes
+  // Block generic catch-all, networking, media, obituaries, and non-decision-maker inboxes
   const genericPrefixes = [
     'press@', 'info@', 'admin@', 'hello@', 'support@', 'sales@', 
     'webleads', 'askthe', 'myhome@', 'contact@', 'office@', 'help@',
     'inquiries@', 'team@', 'general@', 'jobs@', 'careers@', 'media@',
     'marketing@', 'billing@', 'privacy@', 'legal@', 'compliance@',
-    'associationnetworking@', 'networking@', 'membership@', 'events@', 'newsletter@'
+    'associationnetworking@', 'networking@', 'membership@', 'events@', 'newsletter@',
+    'obits@', 'websitehelp@', 'recruit@', 'copyright@', 'terms@', 'abuse@',
+    'no-reply@', 'noreply@', 'editorial@', 'tips@', 'submissions@'
   ];
   if (genericPrefixes.some(prefix => lower.startsWith(prefix))) return false;
 
@@ -41,12 +44,11 @@ export function isValidLeadEmail(email: string): boolean {
     'sentry.io', 'wixpress.com', 'example.com', 'schema.org', 'domain.com', 
     'godaddy.com', 'compass.com', 'century21.com', 'remax.com', 'kw.com',
     'avisonyoung.com', 'usnews.com', 'realtrends.com', 'serhant.com', 'miamirealtors.com',
-    'nar.realtor'
+    'nar.realtor', 'google.com', 'indeed.com', 'yellowpages.com', 'yellow-pages.us.com'
   ];
   const invalidExts = [
     '.png', '.jpg', '.jpeg', '.gif', '.svg', '.js', '.css', '.third', 
-    '.org', '.gov', '.edu', 
-    '.ru', '.cn', '.in', '.vn', '.br'
+    '.org', '.gov', '.edu'
   ];
   
   if (invalidDomains.some(d => lower.includes(d))) return false;
@@ -704,12 +706,17 @@ export async function qualifyTargetCompany(
     console.log(`[Operational Friction Detected for ${url}]: Relies on generic 3rd party tools (${matchedTools.join(', ')})`);
   }
 
-  const systemPrompt = `You are a B2B Lead Qualifier for MR² Labs, a Full-Stack Software Engineering & Automation Studio. 
-Our current outbound campaign is targeting: "${activeNiche}".
+  const systemPrompt = `You are a Universal B2B Lead Qualification Engine for MR² Labs.
+Our active outbound campaign target niche is: "${activeNiche}".
 
-Read the provided website text and determine if this business fits the target niche.
-- ACCEPT: Actual, operational companies that fit the "${activeNiche}" profile.
-- REJECT: Global franchises, massive conglomerates, news/media publishers, job boards, aggregators/directories (e.g., Zillow, Clutch, Yelp), or empty parked domains.
+Read the provided website text and determine if this business is an ACTUAL operational company operating directly in the target niche "${activeNiche}".
+
+CRITICAL REJECTION RULES (Strictly enforce for ALL niches & ALL countries):
+1. VENDOR / AGENCY TRAP: Reject if the website is an agency, vendor, software tool, or service provider SELLING TO or SERVICING "${activeNiche}" (e.g., SEO agency for ${activeNiche}, web design for ${activeNiche}, marketing agency, CRM, transaction management software, SaaS platform).
+2. MEDIA & DIRECTORY TRAP: Reject if the website is a news publication, newspaper, magazine, blog, job board, directory, legal firm, or rating platform that merely mentions "${activeNiche}".
+3. NON-BUSINESS ENTITY: Reject if it's an obituary page, support portal, forum, personal blog, or non-commercial entity.
+
+ACCEPT ONLY IF: The company is an ACTUAL operational business directly performing and selling services as a "${activeNiche}".
 
 Return JSON ONLY: { "is_qualified": boolean, "reason": "Brief explanation of why it fits or fails" }
 
@@ -947,6 +954,22 @@ export async function deepEnrichDomain(
       linkedin_url: null,
       dom_snippet: '',
       enrichment_source: 'NONE',
+      is_rejected: true
+    };
+  }
+
+  const domainHost = extractCleanHostname(domainUrl);
+  if (BLACKLISTED_DOMAINS.some(blocked => domainHost.includes(blocked))) {
+    console.log(`[Blacklist Pre-Filter] Instantly rejected blacklisted domain: ${domainUrl}`);
+    return {
+      email: null,
+      phone: null,
+      whatsapp: null,
+      instagram_url: null,
+      linkedin_url: null,
+      dom_snippet: '',
+      enrichment_source: 'NONE',
+      verifier_used: 'None',
       is_rejected: true
     };
   }

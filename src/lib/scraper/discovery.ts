@@ -7,15 +7,29 @@ export interface DiscoveredLead {
   snippet: string;
 }
 
-const BLACKLISTED_DOMAINS = [
-  // Aggregators & Directories
-  'zillow.com', 'redfin.com', 'realtor.com', 'trulia.com', 'yelp.com',
-  'facebook.com', 'instagram.com', 'linkedin.com', 'homes.com', 'loopnet.com',
+export const BLACKLISTED_DOMAINS = [
+  // Search Engines, Tech Giants & Social
+  'google.com', 'google.co.in', 'google.com.au', 'google.co.uk', 'google.ca',
+  'bing.com', 'yahoo.com', 'apple.com', 'microsoft.com', 'indeed.com', 'glassdoor.com',
+  'linkedin.com', 'facebook.com', 'twitter.com', 'x.com', 'instagram.com', 'youtube.com',
+  'reddit.com', 'quora.com', 'pinterest.com', 'medium.com', 'tiktok.com',
+
+  // Aggregators, Directories & Review Sites
+  'zillow.com', 'redfin.com', 'realtor.com', 'trulia.com', 'yelp.com', 'homes.com', 'loopnet.com',
   'clutch.co', 'expertise.com', 'designrush.com', 'upwork.com', 'fiverr.com',
-  'thumbtack.com', 'yellowpages.com', 'g2.com', 'capterra.com', 'bark.com',
-  'builtin.com', 'digitalagencynetwork.com', 'itprofiles.com', '50pros.com',
-  'themanifest.com', 'upcity.com', 'goodfirms.co', 'sortlist.com',
-  'wikipedia.org', 'mapquest.com', 'bairesdev.com',
+  'thumbtack.com', 'yellowpages.com', 'yellow-pages.us.com', 'yellowpages.com.au', 'yellowpages.ca',
+  'g2.com', 'capterra.com', 'bark.com', 'builtin.com', 'digitalagencynetwork.com', 'itprofiles.com', 
+  '50pros.com', 'themanifest.com', 'upcity.com', 'goodfirms.co', 'sortlist.com',
+  'wikipedia.org', 'mapquest.com', 'bairesdev.com', 'clearlyrated.com', 'trustpilot.com', 'sitejabber.com',
+
+  // News, Publishing & Media Outlets
+  'usnews.com', 'realtrends.com', 'forbes.com', 'inc.com', 'entrepreneur.com',
+  'bloomberg.com', 'businessinsider.com', 'nytimes.com', 'wsj.com', 'nypost.com',
+  'variety.com', 'pottsmerc.com', 'travelvoice.jp', 'gbdmagazine.com', 'huffpost.com',
+
+  // Tech Tools, CRMs & Lead Competitors
+  'shaker.nyc', 'leads-extractor.com', 'godaddy.com', 'namecheap.com', 'wix.com', 'squarespace.com',
+  'wordpress.com', 'shopify.com', 'hubspot.com',
 
   // Global Franchises & Mega-Brokerages (Unpitchable corporate IT lock-ins)
   'compass.com', 'century21.com', 'remax.com', 'kw.com', 'exprealty.com',
@@ -25,13 +39,6 @@ const BLACKLISTED_DOMAINS = [
 
   // Trade Associations, Boards & Non-Profits
   'miamirealtors.com', 'nar.realtor', 'floridarealtors.org', 'realtor.org',
-
-  // National Media, Ranking & Publishing Sites
-  'usnews.com', 'realtrends.com', 'forbes.com', 'inc.com', 'entrepreneur.com',
-  'bloomberg.com', 'businessinsider.com', 'nytimes.com', 'wsj.com',
-
-  // Social & Forums
-  'reddit.com', 'quora.com', 'pinterest.com', 'medium.com', 'twitter.com', 'tiktok.com', 'x.com',
 ];
 
 function cleanDomainUrl(urlStr: string): string | null {

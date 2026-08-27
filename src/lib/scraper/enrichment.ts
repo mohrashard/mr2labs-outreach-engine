@@ -652,6 +652,35 @@ async function fetchEmailFromSnov(domain: string): Promise<string | null> {
 }
 
 /**
+ * Tier 5.5 Waterfall Alternative: AnyMailFinder API
+ */
+async function fetchEmailFromAnyMailFinder(domain: string): Promise<string | null> {
+  const amfKey = process.env.ANY_MAIL_FINDER;
+  if (!amfKey) return null;
+
+  try {
+    const res = await fetch(`https://api.anymailfinder.com/v5.0/search/company.json`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${amfKey}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ domain })
+    });
+    if (!res.ok) return null;
+    const data = await res.json();
+    const candidate = data.email || data.verified_email;
+    if (candidate && isValidLeadEmail(candidate)) {
+      console.log(`[Waterfall AnyMailFinder Success] Found email for ${domain}: ${candidate}`);
+      return candidate.toLowerCase();
+    }
+  } catch (err) {
+    console.warn('[Waterfall AnyMailFinder] AnyMailFinder API error:', err);
+  }
+  return null;
+}
+
+/**
  * MR² Labs Custom Software & Automation Lead Qualifier (Dynamic Bouncer)
  * Evaluates scraped text dynamically against active targetNiche before triggering costly Tier 2-5 enrichment APIs.
  */
@@ -1109,6 +1138,14 @@ export async function deepEnrichDomain(
       if (candidate && await verifyEmailHttpBridge(candidate)) {
         email = candidate;
         enrichment_source = 'SNOV';
+      }
+    }
+
+    if (!email) {
+      const candidate = await fetchEmailFromAnyMailFinder(rootDomain);
+      if (candidate && await verifyEmailHttpBridge(candidate)) {
+        email = candidate;
+        enrichment_source = 'PROSPEO';
       }
     }
   }

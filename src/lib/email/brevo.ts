@@ -4,9 +4,11 @@ export async function sendColdEmail(toEmail: string, subject: string, htmlConten
     throw new Error('Missing BREVO_API_KEY environment variable');
   }
 
-  const senderEmail = process.env.SENDER_EMAIL || 'outreach@mr2labs.com';
-  const senderName = process.env.SENDER_NAME || 'MR² Labs';
+  const senderEmail = process.env.SENDER_EMAIL || 'growth@getmr2labs.com';
+  const senderName = process.env.SENDER_NAME || 'Rashard';
+  const bccEmail = process.env.BCC_EMAIL || 'rashardln@gmail.com';
 
+  // 1. Send primary email to actual recipient (clean, no shared tracking tokens)
   const response = await fetch('https://api.brevo.com/v3/smtp/email', {
     method: 'POST',
     headers: {
@@ -17,7 +19,6 @@ export async function sendColdEmail(toEmail: string, subject: string, htmlConten
     body: JSON.stringify({
       sender: { email: senderEmail, name: senderName },
       to: [{ email: toEmail }],
-      bcc: [{ email: process.env.BCC_EMAIL || 'rashardln@gmail.com' }],
       subject: subject,
       htmlContent: htmlContent
     })
@@ -26,6 +27,32 @@ export async function sendColdEmail(toEmail: string, subject: string, htmlConten
   if (!response.ok) {
     const errorText = await response.text();
     throw new Error(`Brevo API Error: ${response.status} ${errorText}`);
+  }
+
+  // 2. Send separate test copy to BCC address with test=true appended to links
+  if (bccEmail && bccEmail !== toEmail) {
+    try {
+      const bccHtmlContent = htmlContent
+        .replace(/(\/api\/audit\/[a-zA-Z0-9_-]+)/g, '$1?test=true')
+        .replace(/(\/api\/response\?id=[a-zA-Z0-9_-]+)/g, '$1&test=true');
+
+      await fetch('https://api.brevo.com/v3/smtp/email', {
+        method: 'POST',
+        headers: {
+          'api-key': apiKey,
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
+        body: JSON.stringify({
+          sender: { email: senderEmail, name: senderName },
+          to: [{ email: bccEmail }],
+          subject: `[BCC TEST COPY] ${subject}`,
+          htmlContent: bccHtmlContent
+        })
+      });
+    } catch (bccErr) {
+      console.warn('[Brevo Helper] BCC test copy send warning:', bccErr);
+    }
   }
 
   return response.json();

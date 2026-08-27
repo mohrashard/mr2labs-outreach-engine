@@ -16,24 +16,30 @@ export async function GET(request: NextRequest) {
   }
 
   try {
+    const isTest = searchParams.get('test') === 'true' || searchParams.get('isTest') === 'true';
+
     // 1. Log the activity for telemetry
     await supabase.from('activity_logs').insert({
       lead_id: leadId,
-      event_type: 'MAGIC_LINK_CLICK',
-      payload: { intent }
+      event_type: isTest ? 'TEST_MAGIC_LINK_CLICK' : 'MAGIC_LINK_CLICK',
+      payload: { intent, isTest }
     });
 
-    // 2. Determine Database Status based on Intent
-    let newStatus = 'REPLIED'; // Default for warm engagement
-    if (intent === 'pass') {
-      newStatus = 'UNCONTACTABLE'; // Respect their time, stop follow-ups
-    }
+    // 2. Determine Database Status based on Intent (Only if not a test click)
+    if (!isTest) {
+      let newStatus = 'REPLIED'; // Default for warm engagement
+      if (intent === 'pass') {
+        newStatus = 'UNCONTACTABLE'; // Respect their time, stop follow-ups
+      }
 
-    // Update the Lead record
-    await supabase
-      .from('outreach_leads')
-      .update({ status: newStatus })
-      .eq('id', leadId);
+      // Update the Lead record
+      await supabase
+        .from('outreach_leads')
+        .update({ status: newStatus })
+        .eq('id', leadId);
+    } else {
+      console.log(`[MAGIC LINK] Test click for lead ${leadId}. Preserving original lead status.`);
+    }
 
     // 3. SMART INTENT ROUTING
     if (intent === 'fix') {

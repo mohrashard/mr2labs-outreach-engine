@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { sanitizeGreetingAndBody, formatPitchHtml } from '@/lib/email/formatter';
+import { sendColdEmail } from '@/lib/email/brevo';
 
 // Configure Supabase client (Server-side only)
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
@@ -117,27 +118,8 @@ export async function POST(request: Request) {
 
     console.log(`[DISPATCH] Sending email via Brevo to ${email}...`);
     
-    // 6. Send Email via Brevo API
-    const brevoResponse = await fetch('https://api.brevo.com/v3/smtp/email', {
-      method: 'POST',
-      headers: {
-        'api-key': BREVO_API_KEY,
-        'Content-Type': 'application/json',
-        'Accept': 'application/json'
-      },
-      body: JSON.stringify({
-        sender: { name: SENDER_NAME, email: SENDER_EMAIL },
-        to: [{ email: email }],
-        bcc: [{ email: process.env.BCC_EMAIL || 'rashardln@gmail.com' }],
-        subject: subject,
-        htmlContent: htmlContent
-      })
-    });
-
-    if (!brevoResponse.ok) {
-      const errorText = await brevoResponse.text();
-      throw new Error(`Brevo API Error: ${brevoResponse.status} ${errorText}`);
-    }
+    // 6. Send Email via Brevo API (decoupled from test BCC tracking)
+    await sendColdEmail(email, subject, htmlContent);
 
     // 7. Update Lead Status to SENT
     console.log(`[DISPATCH] Email sent successfully. Updating status to SENT.`);

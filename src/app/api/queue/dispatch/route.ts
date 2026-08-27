@@ -133,11 +133,18 @@ export async function POST(request: Request) {
       })
       .eq('id', id);
 
-    // 8. Log the activity
+    const stepNum = lead.follow_up_step !== undefined ? lead.follow_up_step : 0;
+
+    // 8. Log the activity and detailed system_log
     await supabase.from('activity_logs').insert({
       lead_id: id,
       event_type: 'EMAIL_SENT',
-      payload: { subject, filename }
+      payload: { subject, filename, step: stepNum }
+    });
+
+    await supabase.from('system_logs').insert({
+      event_type: `STEP_${stepNum}_SENT`,
+      message: `[STEP ${stepNum}] Sent ${stepNum === 0 ? 'Initial Audit Pitch' : `Follow-up #${stepNum}`} to ${company_name} (${email}) - Subject: "${subject}"`
     });
 
     return NextResponse.json({ 

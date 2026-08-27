@@ -1,19 +1,21 @@
 "use client";
 
-import React, { useEffect, useState } from 'react';
-import { Terminal, Clock, ShieldAlert, Sparkles, Navigation, PauseCircle, CheckCircle2 } from 'lucide-react';
+import React, { useEffect, useState, useMemo } from 'react';
+import { Terminal, PauseCircle, Navigation, Sparkles, CheckCircle2, Calendar } from 'lucide-react';
 
 interface SystemLog {
   id: string;
   event_type: string;
   message: string;
   created_at: string;
+  step?: number | 'SYSTEM';
 }
 
 export function LiveLogs() {
   const [logs, setLogs] = useState<SystemLog[]>([]);
   const [loading, setLoading] = useState(true);
-  const [filter, setFilter] = useState<'ALL' | 'SYSTEM' | 'SUCCESS' | 'REJECTED'>('ALL');
+  const [todayDate, setTodayDate] = useState<string>('');
+  const [filter, setFilter] = useState<'ALL' | 'STEP_0' | 'STEP_1' | 'STEP_2' | 'STEP_3' | 'SYSTEM' | 'REJECTED'>('ALL');
 
   useEffect(() => {
     const fetchLogs = async () => {
@@ -22,6 +24,9 @@ export function LiveLogs() {
         const data = await res.json();
         if (data.logs) {
           setLogs(data.logs);
+        }
+        if (data.date) {
+          setTodayDate(data.date);
         }
       } catch (err) {
         console.error('Failed to fetch logs', err);
@@ -35,82 +40,147 @@ export function LiveLogs() {
     return () => clearInterval(interval);
   }, []);
 
-  const getLogColor = (type: string) => {
-    switch (type) {
-      case 'SUCCESS': return 'text-emerald-400 font-bold';
-      case 'BOUNCER_REJECTED': return 'text-rose-400';
-      case 'NO_EMAIL': return 'text-amber-400';
-      case 'QUOTA_MET': return 'text-cyan-400 font-bold';
-      case 'COOLDOWN': return 'text-purple-400 font-bold';
-      case 'SCRAPE_START': return 'text-blue-400 font-bold';
-      case 'DORK_GENERATED': return 'text-sky-400 font-bold';
-      case 'SCRAPE_ENQUEUED': return 'text-indigo-400 font-semibold';
-      case 'LOCATION_PIVOT': return 'text-fuchsia-400 font-bold';
-      case 'ERROR': return 'text-red-500 font-bold';
-      default: return 'text-slate-300';
+  // Helper for Step Tag Styling
+  const getStepBadge = (step?: number | 'SYSTEM') => {
+    switch (step) {
+      case 0:
+        return { label: 'STEP 0', style: 'bg-cyan-500/10 text-cyan-300 border-cyan-500/20' };
+      case 1:
+        return { label: 'STEP 1', style: 'bg-blue-500/10 text-blue-300 border-blue-500/20' };
+      case 2:
+        return { label: 'STEP 2', style: 'bg-purple-500/10 text-purple-300 border-purple-500/20' };
+      case 3:
+        return { label: 'STEP 3', style: 'bg-amber-500/10 text-amber-300 border-amber-500/20' };
+      default:
+        return { label: 'SYSTEM', style: 'bg-slate-500/10 text-slate-400 border-slate-500/20' };
     }
   };
 
-  // Find the latest priority system state event (COOLDOWN, SCRAPE_START, DORK_GENERATED, LOCATION_PIVOT, QUOTA_MET)
+  const getLogColor = (type: string, step?: number | 'SYSTEM') => {
+    if (type === 'SUCCESS' || type.includes('SENT')) return 'text-emerald-400 font-bold';
+    if (type.includes('REJECTED') || type === 'ERROR') return 'text-rose-400 font-semibold';
+    if (type === 'NO_EMAIL') return 'text-amber-400';
+    if (type === 'QUOTA_MET') return 'text-cyan-400 font-bold';
+    if (type === 'COOLDOWN') return 'text-purple-400 font-bold';
+    if (type === 'LOCATION_PIVOT') return 'text-fuchsia-400 font-bold';
+    if (step === 0) return 'text-cyan-300';
+    if (step === 1) return 'text-blue-300';
+    if (step === 2) return 'text-purple-300';
+    if (step === 3) return 'text-amber-300';
+    return 'text-slate-300';
+  };
+
+  // Find priority system state event (COOLDOWN, SCRAPE_START, DORK_GENERATED, LOCATION_PIVOT, QUOTA_MET)
   const priorityEvent = logs.find(l => 
     ['COOLDOWN', 'SCRAPE_START', 'DORK_GENERATED', 'LOCATION_PIVOT', 'QUOTA_MET', 'SCRAPE_ENQUEUED'].includes(l.event_type)
   );
 
-  const filteredLogs = logs.filter(l => {
-    if (filter === 'SYSTEM') return ['COOLDOWN', 'SCRAPE_START', 'DORK_GENERATED', 'LOCATION_PIVOT', 'QUOTA_MET', 'SCRAPE_ENQUEUED', 'ERROR'].includes(l.event_type);
-    if (filter === 'SUCCESS') return l.event_type === 'SUCCESS';
-    if (filter === 'REJECTED') return ['BOUNCER_REJECTED', 'NO_EMAIL', 'NO_FINDING'].includes(l.event_type);
-    return true;
-  });
+  // Filtered Logs
+  const filteredLogs = useMemo(() => {
+    return logs.filter(l => {
+      if (filter === 'STEP_0') return l.step === 0;
+      if (filter === 'STEP_1') return l.step === 1;
+      if (filter === 'STEP_2') return l.step === 2;
+      if (filter === 'STEP_3') return l.step === 3;
+      if (filter === 'SYSTEM') return l.step === 'SYSTEM' || ['COOLDOWN', 'QUOTA_MET', 'ERROR'].includes(l.event_type);
+      if (filter === 'REJECTED') return ['BOUNCER_REJECTED', 'NO_EMAIL', 'NO_FINDING', 'DELIVERY_FAILURE', 'ERROR'].includes(l.event_type);
+      return true;
+    });
+  }, [logs, filter]);
+
+  // Count logs by step
+  const counts = useMemo(() => {
+    const res = { step0: 0, step1: 0, step2: 0, step3: 0, system: 0 };
+    logs.forEach(l => {
+      if (l.step === 0) res.step0++;
+      else if (l.step === 1) res.step1++;
+      else if (l.step === 2) res.step2++;
+      else if (l.step === 3) res.step3++;
+      else res.system++;
+    });
+    return res;
+  }, [logs]);
 
   return (
     <div id="live-logs" className="bg-[#0a0a0c] border border-white/[0.06] rounded-2xl overflow-hidden mt-9 shadow-2xl">
+      
       {/* Header Bar */}
       <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 bg-white/[0.02] border-b border-white/[0.04]">
-        <div className="flex items-center gap-2">
-          <Terminal className="w-4 h-4 text-indigo-400" />
-          <h3 className="text-xs font-semibold text-slate-200">Live Scraper & Pipeline Feed</h3>
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
+            <Terminal className="w-4 h-4 text-indigo-400" />
+            <h3 className="text-xs font-semibold text-slate-200 uppercase tracking-wide">Live Pipeline Feed</h3>
+          </div>
+          
+          <div className="flex items-center gap-1 text-[10px] text-slate-400 bg-white/5 border border-white/10 px-2 py-0.5 rounded-md font-mono">
+            <Calendar className="w-3 h-3 text-indigo-400" />
+            <span>Today ({todayDate || new Date().toLocaleDateString()})</span>
+          </div>
         </div>
 
-        {/* Tab Selector */}
-        <div className="flex items-center gap-1 bg-white/[0.03] p-1 rounded-lg border border-white/[0.04]">
+        {/* Step Filter Tabs */}
+        <div className="flex flex-wrap items-center gap-1 bg-[#050508] p-1 rounded-xl border border-white/10">
           <button 
             onClick={() => setFilter('ALL')}
-            className={`px-2 py-0.5 text-[10px] font-medium rounded transition-colors ${filter === 'ALL' ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:text-slate-200'}`}
+            className={`px-2.5 py-1 text-[10px] font-mono rounded-lg transition-all ${filter === 'ALL' ? 'bg-indigo-600/30 text-indigo-300 font-bold border border-indigo-500/30' : 'text-slate-400 hover:text-slate-200'}`}
           >
-            All Activity ({logs.length})
+            All Today ({logs.length})
           </button>
+          
+          <button 
+            onClick={() => setFilter('STEP_0')}
+            className={`px-2.5 py-1 text-[10px] font-mono rounded-lg transition-all ${filter === 'STEP_0' ? 'bg-cyan-500/20 text-cyan-300 font-bold border border-cyan-500/30' : 'text-cyan-400/70 hover:text-cyan-300'}`}
+          >
+            Step 0 ({counts.step0})
+          </button>
+
+          <button 
+            onClick={() => setFilter('STEP_1')}
+            className={`px-2.5 py-1 text-[10px] font-mono rounded-lg transition-all ${filter === 'STEP_1' ? 'bg-blue-500/20 text-blue-300 font-bold border border-blue-500/30' : 'text-blue-400/70 hover:text-blue-300'}`}
+          >
+            Step 1 ({counts.step1})
+          </button>
+
+          <button 
+            onClick={() => setFilter('STEP_2')}
+            className={`px-2.5 py-1 text-[10px] font-mono rounded-lg transition-all ${filter === 'STEP_2' ? 'bg-purple-500/20 text-purple-300 font-bold border border-purple-500/30' : 'text-purple-400/70 hover:text-purple-300'}`}
+          >
+            Step 2 ({counts.step2})
+          </button>
+
+          <button 
+            onClick={() => setFilter('STEP_3')}
+            className={`px-2.5 py-1 text-[10px] font-mono rounded-lg transition-all ${filter === 'STEP_3' ? 'bg-amber-500/20 text-amber-300 font-bold border border-amber-500/30' : 'text-amber-400/70 hover:text-amber-300'}`}
+          >
+            Step 3 ({counts.step3})
+          </button>
+
           <button 
             onClick={() => setFilter('SYSTEM')}
-            className={`px-2 py-0.5 text-[10px] font-medium rounded transition-colors ${filter === 'SYSTEM' ? 'bg-purple-600 text-white' : 'text-purple-400/80 hover:text-purple-300'}`}
+            className={`px-2.5 py-1 text-[10px] font-mono rounded-lg transition-all ${filter === 'SYSTEM' ? 'bg-slate-700/40 text-slate-200 font-bold border border-slate-600/30' : 'text-slate-400 hover:text-slate-200'}`}
           >
-            System & Cooldowns
+            System ({counts.system})
           </button>
-          <button 
-            onClick={() => setFilter('SUCCESS')}
-            className={`px-2 py-0.5 text-[10px] font-medium rounded transition-colors ${filter === 'SUCCESS' ? 'bg-emerald-600 text-white' : 'text-emerald-400/80 hover:text-emerald-300'}`}
-          >
-            Verified ({logs.filter(l => l.event_type === 'SUCCESS').length})
-          </button>
+
           <button 
             onClick={() => setFilter('REJECTED')}
-            className={`px-2 py-0.5 text-[10px] font-medium rounded transition-colors ${filter === 'REJECTED' ? 'bg-rose-600 text-white' : 'text-rose-400/80 hover:text-rose-300'}`}
+            className={`px-2.5 py-1 text-[10px] font-mono rounded-lg transition-all ${filter === 'REJECTED' ? 'bg-rose-600/30 text-rose-300 font-bold border border-rose-500/30' : 'text-rose-400/70 hover:text-rose-300'}`}
           >
             Rejections
           </button>
         </div>
 
-        {/* Pulse Indicator */}
+        {/* Active Worker Status Pulse */}
         <div className="flex items-center gap-1.5">
           <span className="relative flex h-2 w-2">
             <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
             <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
           </span>
-          <span className="text-[10px] text-slate-400 font-mono">QStash Workers Active</span>
+          <span className="text-[10px] text-slate-400 font-mono">QStash Active</span>
         </div>
       </div>
 
-      {/* Pinned Latest Pipeline Status Banner */}
+      {/* Pinned Pipeline State Banner */}
       {priorityEvent && (
         <div className={`px-4 py-2.5 border-b text-xs flex items-center gap-2.5 font-medium transition-all ${
           priorityEvent.event_type === 'COOLDOWN' 
@@ -136,34 +206,45 @@ export function LiveLogs() {
             {priorityEvent.message}
           </div>
           <span className="text-[10px] text-slate-400 font-mono shrink-0">
-            {new Date(priorityEvent.created_at).toLocaleTimeString()}
+            {new Date(priorityEvent.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
           </span>
         </div>
       )}
 
-      {/* Terminal Output */}
-      <div className="p-4 h-72 overflow-y-auto font-mono text-[11px] leading-relaxed tracking-tight bg-[#040406]">
+      {/* Terminal Feed Display */}
+      <div className="p-4 h-80 overflow-y-auto font-mono text-[11px] leading-relaxed tracking-tight bg-[#040406] space-y-2">
         {loading ? (
-          <div className="text-slate-600 animate-pulse">Initializing log stream...</div>
+          <div className="text-slate-600 animate-pulse">Initializing log stream for today...</div>
         ) : filteredLogs.length === 0 ? (
-          <div className="text-slate-600 italic">No logs matching current filter.</div>
+          <div className="text-slate-600 italic py-6 text-center">No logs recorded for this filter today.</div>
         ) : (
-          <div className="flex flex-col gap-1.5">
-            {filteredLogs.map(log => (
-              <div key={log.id} className="flex gap-3 hover:bg-white/[0.03] px-2 py-1 rounded transition-colors items-center">
-                <span className="text-slate-500 shrink-0 flex items-center gap-1">
-                  <Clock className="w-3 h-3" />
-                  {new Date(log.created_at).toLocaleTimeString()}
+          filteredLogs.map(log => {
+            const stepBadge = getStepBadge(log.step);
+
+            return (
+              <div key={log.id} className="flex items-start gap-2.5 hover:bg-white/[0.02] py-0.5 px-1 rounded transition-colors">
+                {/* Timestamp */}
+                <span className="text-slate-500 shrink-0 select-none">
+                  {new Date(log.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
                 </span>
-                <span className={`shrink-0 w-36 font-semibold ${getLogColor(log.event_type)}`}>
+
+                {/* Step Badge */}
+                <span className={`px-1.5 py-0.2 text-[9px] font-bold border rounded shrink-0 ${stepBadge.style}`}>
+                  {stepBadge.label}
+                </span>
+
+                {/* Event Type Tag */}
+                <span className="text-slate-400 font-semibold shrink-0">
                   [{log.event_type}]
                 </span>
-                <span className="text-slate-300 truncate" title={log.message}>
+
+                {/* Human-Readable Message */}
+                <span className={`flex-1 break-words ${getLogColor(log.event_type, log.step)}`}>
                   {log.message}
                 </span>
               </div>
-            ))}
-          </div>
+            );
+          })
         )}
       </div>
     </div>

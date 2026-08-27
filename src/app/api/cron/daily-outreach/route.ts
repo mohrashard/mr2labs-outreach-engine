@@ -175,6 +175,10 @@ export async function GET(req: Request) {
             } catch (qstashErr: any) {
               console.warn(`[Cron] QStash publish skipped (${qstashErr.message}).`);
             }
+            await supabaseAdmin.from('system_logs').insert({
+              event_type: `STEP_${nextStep}_QUEUED`,
+              message: `[STEP ${nextStep}] Queued ${nextStep === 0 ? 'Initial Pitch' : `Follow-up #${nextStep}`} for ${lead.company_name || lead.email} - Scheduled for ${new Date(scheduledForIso).toLocaleTimeString()}`
+            });
             enqueuedJobs++;
             totalEnqueued++;
           }

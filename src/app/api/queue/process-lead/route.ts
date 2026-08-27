@@ -183,9 +183,12 @@ export async function POST(request: Request) {
       throw insertError;
     }
 
-    const toolName = contactData.enrichment_source || 'Unknown';
-    console.log(`[Background Worker Success] Created lead ID ${insertedLead.id} for ${target.websiteUrl} using ${toolName}`);
-    await logEvent('SUCCESS', `Successfully scraped and verified ${target.websiteUrl} using Tool: ${toolName}`, { url: target.websiteUrl, email: contactData.email, tool: toolName, leadId: insertedLead.id });
+    const finderTool = contactData.enrichment_source || 'DOM';
+    const verifierTool = contactData.verifier_used || 'Verifalia';
+    const logMsg = `Verified ${target.websiteUrl} [Found via: ${finderTool} | Verified by: ${verifierTool}] (${contactData.email})`;
+
+    console.log(`[Background Worker Success] Created lead ID ${insertedLead.id} - ${logMsg}`);
+    await logEvent('SUCCESS', logMsg, { url: target.websiteUrl, email: contactData.email, finderTool, verifierTool, leadId: insertedLead.id });
     return NextResponse.json({ success: true, leadId: insertedLead.id });
   } catch (error: any) {
     console.error('[Background Worker Error]:', error);

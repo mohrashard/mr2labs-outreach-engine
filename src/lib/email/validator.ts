@@ -41,23 +41,28 @@ import { VerifaliaRestClient, WaitOptions } from 'verifalia';
  */
 const catchAllCache = new Set<string>();
 
-export async function verifyEmailHttpBridge(email: string | null | undefined, allowCatchAll: boolean = false): Promise<boolean> {
-  if (!email || !email.includes('@')) return false;
+export interface DetailedVerificationResult {
+  isValid: boolean;
+  verifier: 'Verifalia' | 'MyEmailVerifier' | 'EmailAwesome' | 'AnyMailFinder' | 'None';
+}
+
+export async function verifyEmailWithDetails(
+  email: string | null | undefined, 
+  allowCatchAll: boolean = false
+): Promise<DetailedVerificationResult> {
+  if (!email || !email.includes('@')) return { isValid: false, verifier: 'None' };
 
   const domain = email.split('@')[1].toLowerCase();
 
-  // If we are strictly checking guesses (allowCatchAll=false) and we already know 
-  // this domain is a Catch-All, instantly reject without spending API credits!
   if (!allowCatchAll && catchAllCache.has(domain)) {
     console.log(`[Validation] Instantly rejected ${email} (Domain ${domain} is cached as Catch-All)`);
-    return false;
+    return { isValid: false, verifier: 'None' };
   }
 
-  // Basic syntax & MX record pre-filter: If domain doesn't even have MX records, reject immediately
   const hasMx = await hasValidMxRecords(email);
   if (!hasMx) {
     console.log(`[Validation] Rejected ${email}: Domain ${domain} has no valid MX records.`);
-    return false;
+    return { isValid: false, verifier: 'None' };
   }
 
   console.log(`[Validation] Running strict verification waterfall for: ${email}`);
@@ -80,16 +85,16 @@ export async function verifyEmailHttpBridge(email: string | null | undefined, al
         const entry = job.entries[0];
         if (entry.classification === 'Deliverable') {
           console.log(`[Validation] Verifalia: ${email} is DELIVERABLE!`);
-          return true;
+          return { isValid: true, verifier: 'Verifalia' };
         }
         if (entry.classification === 'CatchAll') {
           console.log(`[Validation] Verifalia: ${email} is CatchAll (allowCatchAll=${allowCatchAll})`);
           catchAllCache.add(domain);
-          return allowCatchAll;
+          return { isValid: allowCatchAll, verifier: allowCatchAll ? 'Verifalia' : 'None' };
         }
         if (entry.classification === 'Undeliverable') {
           console.log(`[Validation] Verifalia: ${email} is UNDELIVERABLE.`);
-          return false;
+          return { isValid: false, verifier: 'Verifalia' };
         }
       }
     }
@@ -110,16 +115,16 @@ export async function verifyEmailHttpBridge(email: string | null | undefined, al
         const data = await res.json();
         if (data.Status === 'Valid') {
           console.log(`[Validation] MyEmailVerifier: ${email} is VALID!`);
-          return true;
+          return { isValid: true, verifier: 'MyEmailVerifier' };
         }
         if (data.Status === 'Catch-All') {
           console.log(`[Validation] MyEmailVerifier: ${email} is Catch-All (allowCatchAll=${allowCatchAll})`);
           catchAllCache.add(domain);
-          return allowCatchAll;
+          return { isValid: allowCatchAll, verifier: allowCatchAll ? 'MyEmailVerifier' : 'None' };
         }
         if (data.Status === 'Invalid') {
           console.log(`[Validation] MyEmailVerifier: ${email} is INVALID.`);
-          return false;
+          return { isValid: false, verifier: 'MyEmailVerifier' };
         }
       }
     }
@@ -145,16 +150,16 @@ export async function verifyEmailHttpBridge(email: string | null | undefined, al
         const data = await res.json();
         if (data.state === 'deliverable' || data.is_valid === true) {
           console.log(`[Validation] EmailAwesome: ${email} is DELIVERABLE!`);
-          return true;
+          return { isValid: true, verifier: 'EmailAwesome' };
         }
         if (data.state === 'catch_all') {
           console.log(`[Validation] EmailAwesome: ${email} is Catch-All (allowCatchAll=${allowCatchAll})`);
           catchAllCache.add(domain);
-          return allowCatchAll;
+          return { isValid: allowCatchAll, verifier: allowCatchAll ? 'EmailAwesome' : 'None' };
         }
         if (data.state === 'undeliverable') {
           console.log(`[Validation] EmailAwesome: ${email} is UNDELIVERABLE.`);
-          return false;
+          return { isValid: false, verifier: 'EmailAwesome' };
         }
       }
     }
@@ -180,7 +185,7 @@ export async function verifyEmailHttpBridge(email: string | null | undefined, al
         const data = await res.json();
         if (data.email_class === 'verified' || data.status === 'valid') {
           console.log(`[Validation] AnyMailFinder: ${email} is VERIFIED!`);
-          return true;
+          return { isValid: true, verifier: 'AnyMailFinder' };
         }
       }
     }
@@ -188,7 +193,11 @@ export async function verifyEmailHttpBridge(email: string | null | undefined, al
     console.warn(`[Validation] AnyMailFinder verification check warning:`, err);
   }
 
-  // STRICT RULE: If no API could strictly confirm this email is Deliverable/Valid, REJECT it to protect sender domain reputation!
   console.log(`[Validation] Strict Filter: ${email} could not be confirmed as deliverable by verification APIs. Rejecting email.`);
-  return false;
+  return { isValid: false, verifier: 'None' };
+}
+
+export async function verifyEmailHttpBridge(email: string | null | undefined, allowCatchAll: boolean = false): Promise<boolean> {
+  const result = await verifyEmailWithDetails(email, allowCatchAll);
+  return result.isValid;
 }

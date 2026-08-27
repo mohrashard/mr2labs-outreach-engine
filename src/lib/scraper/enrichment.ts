@@ -1,6 +1,6 @@
 import * as cheerio from 'cheerio';
 import OpenAI from 'openai';
-import { verifyEmailHttpBridge } from '@/lib/email/validator';
+import { verifyEmailHttpBridge, verifyEmailWithDetails } from '@/lib/email/validator';
 import { runTechnicalAudit, AuditResult } from '@/lib/scraper/audit';
 import { fetchGooglePageSpeed } from '@/lib/scraper/pagespeed';
 
@@ -12,6 +12,7 @@ export interface EnrichedContactData {
   linkedin_url: string | null;
   dom_snippet: string;
   enrichment_source?: 'DOM' | 'SERPER_DORK' | 'SERPAPI_DORK' | 'APOLLO' | 'PROSPEO' | 'HUNTER' | 'SNOV' | 'NONE';
+  verifier_used?: string;
   is_rejected?: boolean;
   raw_scraped_data?: AuditResult | Record<string, any>;
 }
@@ -968,6 +969,8 @@ export async function deepEnrichDomain(
   let primaryHeaders: Headers | null = null;
   let primaryUrl = '';
 
+  let verifier_used: string = 'None';
+
   // Tier 1: Fast DOM Regex Scraping (Cost: $0)
   for (const url of targetUrls) {
     try {
@@ -1010,10 +1013,11 @@ export async function deepEnrichDomain(
         });
 
         if (matchingDomainEmail) {
-          // Only spend 1 API credit verifying the primary domain match
-          if (await verifyEmailHttpBridge(matchingDomainEmail)) {
+          const vRes = await verifyEmailWithDetails(matchingDomainEmail);
+          if (vRes.isValid) {
             email = matchingDomainEmail.toLowerCase();
             enrichment_source = 'DOM';
+            verifier_used = vRes.verifier;
           }
         }
       }
@@ -1065,9 +1069,11 @@ export async function deepEnrichDomain(
           });
 
           if (matchingDomainEmail) {
-            if (await verifyEmailHttpBridge(matchingDomainEmail)) {
+            const vRes = await verifyEmailWithDetails(matchingDomainEmail);
+            if (vRes.isValid) {
               email = matchingDomainEmail.toLowerCase();
               enrichment_source = 'DOM';
+              verifier_used = vRes.verifier;
             }
           }
         }
@@ -1089,6 +1095,7 @@ export async function deepEnrichDomain(
       linkedin_url: null,
       dom_snippet,
       enrichment_source: 'NONE',
+      verifier_used: 'None',
       is_rejected: true
     };
   }
@@ -1101,51 +1108,75 @@ export async function deepEnrichDomain(
     const effectiveCompanyName = companyName || domainToTitleCase(rootDomain);
 
     const dorkResult = await fetchEmailViaDorking(effectiveCompanyName, domainUrl, targetPersonas);
-    if (dorkResult && await verifyEmailHttpBridge(dorkResult.email)) {
-      email = dorkResult.email;
-      enrichment_source = dorkResult.source;
+    if (dorkResult) {
+      const vRes = await verifyEmailWithDetails(dorkResult.email);
+      if (vRes.isValid) {
+        email = dorkResult.email;
+        enrichment_source = dorkResult.source;
+        verifier_used = vRes.verifier;
+      }
     }
 
     // Tier 3: Apollo API (Generous Free Tier)
     if (!email) {
       const candidate = await fetchEmailFromApollo(rootDomain);
-      if (candidate && await verifyEmailHttpBridge(candidate)) {
-        email = candidate;
-        enrichment_source = 'APOLLO';
+      if (candidate) {
+        const vRes = await verifyEmailWithDetails(candidate);
+        if (vRes.isValid) {
+          email = candidate;
+          enrichment_source = 'APOLLO';
+          verifier_used = vRes.verifier;
+        }
       }
     }
 
     // Tier 4: Prospeo API (50/day Free Tier)
     if (!email) {
       const candidate = await fetchEmailFromProspeo(rootDomain, companyName);
-      if (candidate && await verifyEmailHttpBridge(candidate)) {
-        email = candidate;
-        enrichment_source = 'PROSPEO';
+      if (candidate) {
+        const vRes = await verifyEmailWithDetails(candidate);
+        if (vRes.isValid) {
+          email = candidate;
+          enrichment_source = 'PROSPEO';
+          verifier_used = vRes.verifier;
+        }
       }
     }
 
     // Tier 5: Hunter / Snov (Strict Reserves)
     if (!email) {
       const candidate = await fetchEmailFromHunter(rootDomain);
-      if (candidate && await verifyEmailHttpBridge(candidate)) {
-        email = candidate;
-        enrichment_source = 'HUNTER';
+      if (candidate) {
+        const vRes = await verifyEmailWithDetails(candidate);
+        if (vRes.isValid) {
+          email = candidate;
+          enrichment_source = 'HUNTER';
+          verifier_used = vRes.verifier;
+        }
       }
     }
 
     if (!email) {
       const candidate = await fetchEmailFromSnov(rootDomain);
-      if (candidate && await verifyEmailHttpBridge(candidate)) {
-        email = candidate;
-        enrichment_source = 'SNOV';
+      if (candidate) {
+        const vRes = await verifyEmailWithDetails(candidate);
+        if (vRes.isValid) {
+          email = candidate;
+          enrichment_source = 'SNOV';
+          verifier_used = vRes.verifier;
+        }
       }
     }
 
     if (!email) {
       const candidate = await fetchEmailFromAnyMailFinder(rootDomain);
-      if (candidate && await verifyEmailHttpBridge(candidate)) {
-        email = candidate;
-        enrichment_source = 'PROSPEO';
+      if (candidate) {
+        const vRes = await verifyEmailWithDetails(candidate);
+        if (vRes.isValid) {
+          email = candidate;
+          enrichment_source = 'PROSPEO';
+          verifier_used = vRes.verifier;
+        }
       }
     }
   }
@@ -1180,6 +1211,7 @@ export async function deepEnrichDomain(
     linkedin_url,
     dom_snippet,
     enrichment_source,
+    verifier_used,
     raw_scraped_data
   };
 }

@@ -12,7 +12,7 @@ const supabase = createClient(supabaseUrl, supabaseServiceKey);
 const BREVO_API_KEY = process.env.BREVO_API_KEY || '';
 
 // Secret token to prevent unauthorized execution (e.g. from QStash)
-const CRON_SECRET = process.env.CRON_SECRET || 'dev-secret';
+const CRON_SECRET = process.env.CRON_SECRET || '';
 
 const SENDER_EMAIL = process.env.SENDER_EMAIL || 'growth@getmr2labs.com';
 const SENDER_NAME = process.env.SENDER_NAME || 'Rashard';

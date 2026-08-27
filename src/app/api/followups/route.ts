@@ -6,6 +6,29 @@ export const revalidate = 0;
 
 export async function GET() {
   try {
+    // 0. Auto-trigger daily outreach dispatch if today's queue hasn't been processed yet
+    const now = new Date();
+    const startOfToday = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 0, 0, 0, 0)).toISOString();
+
+    const { data: todayCronLog } = await supabaseAdmin
+      .from('system_logs')
+      .select('id')
+      .eq('event_type', 'DAILY_CRON_DISPATCH_COMPLETE')
+      .gte('created_at', startOfToday)
+      .limit(1);
+
+    if (!todayCronLog || todayCronLog.length === 0) {
+      const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+      const secret = process.env.CRON_SECRET;
+      
+      if (secret) {
+        fetch(`${baseUrl}/api/cron/daily-outreach?action=dispatch`, {
+          method: 'GET',
+          headers: { Authorization: `Bearer ${secret}` }
+        }).catch(err => console.warn('[Auto-Outreach Trigger Error]:', err.message));
+      }
+    }
+
     // 1. Funnel Metrics
     const { data: leads, error } = await supabaseAdmin
       .from('outreach_leads')

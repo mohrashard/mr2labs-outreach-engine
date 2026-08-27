@@ -187,6 +187,10 @@ export async function GET(req: Request) {
     }
 
     if (action === 'dispatch') {
+      await supabaseAdmin.from('system_logs').insert({
+        event_type: 'DAILY_CRON_DISPATCH_COMPLETE',
+        message: `[AUTO DISPATCH] Daily outreach queue processed. Enqueued ${enqueuedJobs} follow-up email jobs.`
+      });
       return NextResponse.json({ 
         status: 'Dispatch Complete',
         enqueuedJobs

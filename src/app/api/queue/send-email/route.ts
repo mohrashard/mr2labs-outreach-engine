@@ -19,8 +19,12 @@ export async function POST(request: Request) {
   try {
     const bodyText = await request.text();
 
-    // Verify QStash signature strictly if signing keys are present
-    if (receiver) {
+    const authHeader = request.headers.get('authorization');
+    const cronSecret = process.env.CRON_SECRET;
+    const isBearerAuth = Boolean(cronSecret && authHeader === `Bearer ${cronSecret}`);
+
+    // Verify QStash signature strictly if signing keys are present and request is not Bearer authenticated
+    if (!isBearerAuth && receiver) {
       const signature = request.headers.get('upstash-signature');
       if (!signature) {
         return NextResponse.json({ error: 'Missing QStash signature' }, { status: 401 });
@@ -37,7 +41,7 @@ export async function POST(request: Request) {
       if (!isValid) {
         return NextResponse.json({ error: 'Invalid QStash signature' }, { status: 401 });
       }
-    } else if (process.env.NODE_ENV === 'production') {
+    } else if (!isBearerAuth && process.env.NODE_ENV === 'production') {
       console.warn('[Queue Send Email] Warning: QStash signing keys are missing in production environment!');
     }
 

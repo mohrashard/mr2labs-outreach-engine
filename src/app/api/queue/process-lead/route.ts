@@ -124,6 +124,27 @@ export async function POST(request: Request) {
       return NextResponse.json({ skipped: true, reason: 'NO_VERIFIED_EMAIL' });
     }
 
+    // Table-wide Email Uniqueness Check across ALL lead statuses
+    const cleanEmail = contactData.email.toLowerCase().trim();
+    const { data: existingEmailMatch } = await supabaseAdmin
+      .from('outreach_leads')
+      .select('id, status')
+      .eq('email', cleanEmail)
+      .limit(1);
+
+    if (existingEmailMatch && existingEmailMatch.length > 0) {
+      console.log(`[Background Worker] Duplicate email detected across outreach table: ${cleanEmail}`);
+      await supabaseAdmin.from('outreach_leads').insert({
+        campaign_id: campaignId || null,
+        company_name: target.companyName,
+        website_url: target.websiteUrl,
+        status: 'REJECTED',
+        audit_notes: `Duplicate email already present in outreach database (${cleanEmail}).`
+      });
+      await logEvent('DUPLICATE_EMAIL', `Skipped ${target.websiteUrl} - Email ${cleanEmail} already exists in database.`, { url: target.websiteUrl, email: cleanEmail });
+      return NextResponse.json({ skipped: true, reason: 'DUPLICATE_EMAIL' });
+    }
+
     // 3. Generate AI audit, pitch, and email subject line using Niche Matrix
     const aiResult = await generateAuditAndPitch(
       target.companyName,
@@ -173,6 +194,7 @@ export async function POST(request: Request) {
           snippet: target.snippet, 
           dom_snippet: contactData.dom_snippet,
           enrichment_source: contactData.enrichment_source,
+          verifier_used: contactData.verifier_used,
           audit_data: contactData.raw_scraped_data
         }
       })

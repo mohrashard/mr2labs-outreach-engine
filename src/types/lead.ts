@@ -5,7 +5,9 @@ export type LeadStatus =
   | 'REPLIED' 
   | 'MISSING_EMAIL' 
   | 'UNCONTACTABLE' 
-  | 'INVALID_DOMAIN';
+  | 'INVALID_DOMAIN'
+  | 'HOLD'
+  | 'REJECTED';
 
 export interface OutreachLead {
   id: string;
@@ -21,6 +23,7 @@ export interface OutreachLead {
   raw_scraped_data?: Record<string, any> | string | null;
   audit_notes?: string | null;
   pitch_text?: string | null;
+  verifier_used?: string | null;
   status: LeadStatus;
   screenshot_url?: string | null;
   sent_at?: string | null;

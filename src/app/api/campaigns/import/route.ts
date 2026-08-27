@@ -43,14 +43,20 @@ export async function POST(req: Request) {
 
     const niche = campaign.niche || 'General B2B';
 
-    // 2. Fetch existing leads for deduplication
+    // 2. Fetch existing leads for domain & email deduplication
     const { data: existingLeads } = await supabaseAdmin
       .from('outreach_leads')
-      .select('website_url');
+      .select('website_url, email');
 
     const existingDomains = new Set<string>(
       (existingLeads || [])
         .map((l: { website_url: string }) => cleanDomain(l.website_url))
+        .filter(Boolean)
+    );
+
+    const existingEmails = new Set<string>(
+      (existingLeads || [])
+        .map((l: { email?: string | null }) => l.email ? l.email.toLowerCase().trim() : '')
         .filter(Boolean)
     );
 
@@ -98,11 +104,19 @@ export async function POST(req: Request) {
         continue;
       }
 
-      // Email Verification Check
+      // Email Verification & Table-Wide Uniqueness Check
       if (!contactData.email) {
         console.log(`[CSV Import No Email]: ${target.websiteUrl}`);
         continue;
       }
+
+      const cleanCandidateEmail = contactData.email.toLowerCase().trim();
+      if (existingEmails.has(cleanCandidateEmail)) {
+        console.log(`[CSV Import Duplicate Email Skipped]: ${cleanCandidateEmail} already exists in database.`);
+        duplicatesSkipped++;
+        continue;
+      }
+      existingEmails.add(cleanCandidateEmail);
 
       // Generate AI audit, pitch, and email subject line using Niche Matrix
       const aiResult = await generateAuditAndPitch(

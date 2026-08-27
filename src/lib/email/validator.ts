@@ -344,8 +344,10 @@ export async function scoreEmailConfidence(
     if (source === 'DOM') {
       verifierName = `${vRes.verifier}:catchall-dom-accepted`;
     }
-  } else {
+  } else if (vRes.verifier !== 'None') {
     return { email, score: 0, signals: ['smtp-undeliverable'], decision: 'REJECT', verifier: vRes.verifier };
+  } else {
+    signals.push('verifier-unavailable');
   }
 
   // 4. Gravatar check (100% free)

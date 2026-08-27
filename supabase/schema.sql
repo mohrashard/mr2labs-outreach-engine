@@ -19,7 +19,9 @@ DO $$ BEGIN
         'REPLIED', 
         'MISSING_EMAIL', 
         'UNCONTACTABLE', 
-        'INVALID_DOMAIN'
+        'INVALID_DOMAIN',
+        'HOLD',
+        'REJECTED'
     );
 EXCEPTION
     WHEN duplicate_object THEN null;
@@ -155,4 +157,13 @@ ALTER TABLE outreach_leads
   ALTER TABLE outreach_leads 
   ADD COLUMN IF NOT EXISTS audit_opened_at TIMESTAMPTZ,
   ADD COLUMN IF NOT EXISTS audit_open_count INT DEFAULT 0;
+
+-- 9. Ensure HOLD and REJECTED exist on existing lead_status ENUM
+ALTER TYPE lead_status ADD VALUE IF NOT EXISTS 'HOLD';
+ALTER TYPE lead_status ADD VALUE IF NOT EXISTS 'REJECTED';
+
+-- 10. Guarantee table-wide EMAIL uniqueness across ALL lead statuses (ignoring NULLs)
+CREATE UNIQUE INDEX IF NOT EXISTS idx_outreach_leads_unique_email 
+  ON outreach_leads(LOWER(email)) 
+  WHERE email IS NOT NULL AND email != '';
 

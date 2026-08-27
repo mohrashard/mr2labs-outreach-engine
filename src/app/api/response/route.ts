@@ -27,16 +27,15 @@ export async function GET(request: NextRequest) {
 
     // 2. Determine Database Status based on Intent (Only if not a test click)
     if (!isTest) {
-      let newStatus = 'REPLIED'; // Default for warm engagement
       if (intent === 'pass') {
-        newStatus = 'UNCONTACTABLE'; // Respect their time, stop follow-ups
+        // Respect their time, stop follow-ups
+        await supabase
+          .from('outreach_leads')
+          .update({ status: 'UNCONTACTABLE' })
+          .eq('id', leadId);
       }
-
-      // Update the Lead record
-      await supabase
-        .from('outreach_leads')
-        .update({ status: newStatus })
-        .eq('id', leadId);
+      // Note: For 'fix' or 'nurture' link clicks, we log engagement in activity_logs (above)
+      // but do NOT mark status as REPLIED because REPLIED is reserved for actual email replies.
     } else {
       console.log(`[MAGIC LINK] Test click for lead ${leadId}. Preserving original lead status.`);
     }

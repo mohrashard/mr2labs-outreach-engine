@@ -195,6 +195,7 @@ export async function POST(request: Request) {
           dom_snippet: contactData.dom_snippet,
           enrichment_source: contactData.enrichment_source,
           verifier_used: contactData.verifier_used,
+          site_type: target.siteType || 'LEGACY',
           audit_data: contactData.raw_scraped_data
         }
       })

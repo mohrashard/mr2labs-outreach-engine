@@ -30,13 +30,13 @@ export async function GET() {
 
     const campaignMap = new Map(campaigns?.map(c => [c.id, c]) || []);
 
-    // 3. Scheduled / Waiting Room
+    // 3. Scheduled / Waiting Room (Fetch active sequence leads)
     const { data: waitingRoom } = await supabaseAdmin
       .from('outreach_leads')
       .select('*, campaigns(name, niche)')
-      .in('status', ['SENT', 'QUEUED'])
-      .order('last_contacted_at', { ascending: true })
-      .limit(100);
+      .in('status', ['SENT', 'QUEUED', 'REPLIED', 'NEW'])
+      .order('last_contacted_at', { ascending: true, nullsFirst: false })
+      .limit(200);
 
     const staggerMap: Record<string, number> = {};
 

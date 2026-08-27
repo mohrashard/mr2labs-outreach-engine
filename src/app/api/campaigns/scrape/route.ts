@@ -37,23 +37,32 @@ export async function POST(req: Request) {
     const leadsNeeded = 20;
     const enqueueLimit = 80;
 
-    // 1. Phase 1: Fast Discovery Sweep (Executes in ~3-5 seconds)
-    console.log('[Scrape Pipeline] Phase 1: Aggregating raw leads from Google...');
-    const rawCandidates = [];
+    // 1. Phase 1: Fast Discovery Sweep (Dual Track: DIY + Legacy)
+    console.log('[Scrape Pipeline] Phase 1: Aggregating raw leads from Google (DIY + Legacy)...');
+    const diyLeads = [];
+    const legacyLeads = [];
     
-    // Fetch DIY leads first (Pages 1-2)
-    for (let p = 1; p <= 2; p++) {
+    // Fetch DIY leads (Pages 1-3)
+    for (let p = 1; p <= 3; p++) {
       const pageLeads = await discoverTargetDomains(niche, location, p, 'diy');
-      if (pageLeads.length > 0) rawCandidates.push(...pageLeads);
+      if (pageLeads.length > 0) diyLeads.push(...pageLeads);
     }
     
-    // Fetch Legacy leads next (Pages 1-2)
-    for (let p = 1; p <= 2; p++) {
+    // Fetch Legacy leads (Pages 1-3)
+    for (let p = 1; p <= 3; p++) {
       const pageLeads = await discoverTargetDomains(niche, location, p, 'legacy');
-      if (pageLeads.length > 0) rawCandidates.push(...pageLeads);
+      if (pageLeads.length > 0) legacyLeads.push(...pageLeads);
+    }
+
+    // Interleave DIY and Legacy candidates 1:1 so both tracks receive equal background processing
+    const rawCandidates = [];
+    const maxLen = Math.max(diyLeads.length, legacyLeads.length);
+    for (let i = 0; i < maxLen; i++) {
+      if (i < diyLeads.length) rawCandidates.push(diyLeads[i]);
+      if (i < legacyLeads.length) rawCandidates.push(legacyLeads[i]);
       if (rawCandidates.length >= enqueueLimit) break;
     }
-    console.log(`[Scrape Pipeline] Phase 1 Complete: Found ${rawCandidates.length} raw candidates.`);
+    console.log(`[Scrape Pipeline] Phase 1 Complete: Found ${diyLeads.length} DIY and ${legacyLeads.length} Legacy candidates (${rawCandidates.length} interleaved).`);
 
     // 2. Offload Phase 2 to Upstash QStash Background Jobs if QSTASH_TOKEN is set (Production Async Mode)
     if (qstash) {

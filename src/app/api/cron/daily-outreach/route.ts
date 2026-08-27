@@ -224,7 +224,8 @@ export async function GET(req: Request) {
           await supabaseAdmin.from('system_logs').insert({ event_type: 'SCRAPE_START', message: startMsg, metadata: { campaign: campaign.name, location: campaign.location, needed: leadsNeeded } });
 
           // 3. Run Discovery (Deep SERP sweep) - Dual Track (DIY + Legacy)
-          const discovered = [];
+          const diyLeads = [];
+          const legacyLeads = [];
           let isTimedOut = false;
 
           // Track 1: DIY Sites
@@ -246,8 +247,8 @@ export async function GET(req: Request) {
             }
 
             const pageLeads = await discoverTargetDomains(campaign.niche || 'General B2B', campaign.location, p, 'diy');
-            if (pageLeads.length > 0) discovered.push(...pageLeads);
-            if (discovered.length >= leadsNeeded * 7) break;
+            if (pageLeads.length > 0) diyLeads.push(...pageLeads);
+            if (diyLeads.length >= leadsNeeded * 7) break;
           }
 
           // Track 2: Legacy Sites
@@ -269,9 +270,17 @@ export async function GET(req: Request) {
               }
 
               const pageLeads = await discoverTargetDomains(campaign.niche || 'General B2B', campaign.location, p, 'legacy');
-              if (pageLeads.length > 0) discovered.push(...pageLeads);
-              if (discovered.length >= leadsNeeded * 15) break;
+              if (pageLeads.length > 0) legacyLeads.push(...pageLeads);
+              if (legacyLeads.length >= leadsNeeded * 7) break;
             }
+          }
+
+          // Interleave DIY and Legacy candidates 1:1 so QStash processes both tracks equally
+          const discovered = [];
+          const maxP = Math.max(diyLeads.length, legacyLeads.length);
+          for (let i = 0; i < maxP; i++) {
+            if (i < diyLeads.length) discovered.push(diyLeads[i]);
+            if (i < legacyLeads.length) discovered.push(legacyLeads[i]);
           }
 
           // 4. Filter out already-scraped domains

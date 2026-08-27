@@ -5,6 +5,7 @@ export interface DiscoveredLead {
   companyName: string;
   websiteUrl: string;
   snippet: string;
+  siteType?: 'DIY' | 'LEGACY';
 }
 
 export const BLACKLISTED_DOMAINS = [
@@ -219,7 +220,14 @@ export async function discoverTargetDomains(
   let query: string;
 
   if (mode === 'diy') {
-    query = `(site:*.wixsite.com OR site:*.carrd.co OR site:*.weebly.com OR site:*.squarespace.com OR site:*.vercel.app OR site:*.lovable.app OR site:*.framer.app OR site:*.webflow.io OR "powered by wordpress" OR "built with webflow") "${niche}" ${cleanLocation}`;
+    const diyQueries = [
+      `("powered by squarespace" OR "built with webflow" OR "powered by wix") "${niche}" ${cleanLocation}`,
+      `("built on carrd" OR "built with framer" OR site:wixsite.com OR "powered by weebly") "${niche}" ${cleanLocation}`,
+      `("site powered by squarespace" OR "site built with webflow" OR "created with wix") "${niche}" ${cleanLocation}`,
+      `("built with carrd" OR "framer.app" OR "wixsite.com" OR "squarespace") "${niche}" ${cleanLocation}`,
+      `("powered by wordpress" OR "built with webflow" OR "wix site") "${niche}" ${cleanLocation}`
+    ];
+    query = diyQueries[(page - 1) % diyQueries.length];
     dorkProfile = { queryTemplate: () => query, negativeKeywords: ['directory', 'top 10', 'best of', 'jobs', 'hiring'] };
   } else {
     if (dorkQueryCache.has(cacheKey)) {
@@ -260,7 +268,7 @@ export async function discoverTargetDomains(
       if (res.ok) {
         const data = await res.json();
         if (data.organic?.length) {
-          return processSerpResults(data.organic, 'title', 'link', 'snippet', dorkProfile.negativeKeywords, existingDomains);
+          return processSerpResults(data.organic, 'title', 'link', 'snippet', dorkProfile.negativeKeywords, existingDomains, mode);
         }
       }
     } catch (err) {
@@ -278,7 +286,7 @@ export async function discoverTargetDomains(
       );
       const data = await res.json();
       if (data.organic_results?.length) {
-        return processSerpResults(data.organic_results, 'title', 'link', 'snippet', dorkProfile.negativeKeywords, existingDomains);
+        return processSerpResults(data.organic_results, 'title', 'link', 'snippet', dorkProfile.negativeKeywords, existingDomains, mode);
       }
     } catch (err) {
       console.warn('[Discovery] SerpApi failed, trying ValueSERP fallback');
@@ -295,7 +303,7 @@ export async function discoverTargetDomains(
       );
       const data = await res.json();
       if (data.organic_results?.length) {
-        return processSerpResults(data.organic_results, 'title', 'link', 'snippet', dorkProfile.negativeKeywords, existingDomains);
+        return processSerpResults(data.organic_results, 'title', 'link', 'snippet', dorkProfile.negativeKeywords, existingDomains, mode);
       }
     } catch (err) {
       console.error('[Discovery] ValueSERP failed:', err);
@@ -311,7 +319,8 @@ function processSerpResults(
   linkKey: string,
   snippetKey: string,
   negativeKeywords: string[],
-  existingDomains?: Set<string>
+  existingDomains?: Set<string>,
+  mode: 'legacy' | 'diy' = 'legacy'
 ): DiscoveredLead[] {
   const leads: DiscoveredLead[] = [];
   const seenDomains = new Set<string>();
@@ -353,6 +362,7 @@ function processSerpResults(
       companyName: title || hostname,
       websiteUrl: cleanUrl,
       snippet: snippet,
+      siteType: mode === 'diy' ? 'DIY' : 'LEGACY'
     });
   }
 

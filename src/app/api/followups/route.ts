@@ -1,15 +1,16 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase/admin';
+import { processSingleQueuedLead } from '@/app/api/queue/send-email/route';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
 export async function GET() {
   try {
-    // 0. Auto-trigger daily outreach dispatch if today's queue hasn't been processed yet
     const now = new Date();
     const startOfToday = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 0, 0, 0, 0)).toISOString();
 
+    // 0. Auto-trigger daily outreach dispatch if today's queue hasn't been processed yet
     const { data: todayCronLog } = await supabaseAdmin
       .from('system_logs')
       .select('id')
@@ -26,6 +27,25 @@ export async function GET() {
           method: 'GET',
           headers: { Authorization: `Bearer ${secret}` }
         }).catch(err => console.warn('[Auto-Outreach Trigger Error]:', err.message));
+      }
+    }
+
+    // 0.5. Self-Healing Auto-Dispatch: Immediately process any QUEUED leads whose scheduled_for time has passed!
+    const { data: pastDueQueued } = await supabaseAdmin
+      .from('outreach_leads')
+      .select('id, follow_up_step, company_name')
+      .eq('status', 'QUEUED')
+      .lte('scheduled_for', now.toISOString());
+
+    if (pastDueQueued && pastDueQueued.length > 0) {
+      console.log(`[Auto-Dispatch] Found ${pastDueQueued.length} past-due queued leads ready for execution.`);
+      for (const item of pastDueQueued) {
+        try {
+          await processSingleQueuedLead(item.id, item.follow_up_step || 0);
+          console.log(`[Auto-Dispatch] Successfully dispatched past-due queued lead ${item.company_name} (${item.id})`);
+        } catch (dispatchErr: any) {
+          console.error(`[Auto-Dispatch Error] Failed to process ${item.id}:`, dispatchErr.message);
+        }
       }
     }
 

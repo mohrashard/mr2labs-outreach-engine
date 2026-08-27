@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { sanitizeGreetingAndBody, formatPitchHtml } from '@/lib/email/formatter';
 
 // Configure Supabase client (Server-side only)
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
@@ -77,23 +78,31 @@ export async function POST(request: Request) {
 
     const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://outreach.mr2labs.com';
 
+    // Sanitize greeting and format pitch HTML cleanly
+    const sanitizedPitch = sanitizeGreetingAndBody(
+      pitch_text,
+      lead.founder_name || raw_scraped_data?.founder_name,
+      company_name
+    );
+    const formattedHtmlBody = formatPitchHtml(sanitizedPitch);
+
     // 5. Construct Brevo Email Payload
     // Wrap the plain text pitch in a clean HTML structure
     const htmlContent = `
       <div style="font-family: sans-serif; font-size: 14px; color: #333; line-height: 1.6; max-width: 600px;">
-        ${pitch_text.split('\n').map((line: string) => `<p>${line}</p>`).join('')}
+        ${formattedHtmlBody}
         
         <div style="margin: 30px 0;">
           <a href="${appUrl}/api/audit/${id}" target="_blank" style="text-decoration: none;">
             <img src="${appUrl}/api/thumbnail?domain=${cleanDomain}&v=${Date.now()}" alt="Diagnostic Audit for ${cleanDomain}" style="width: 100%; max-width: 600px; border-radius: 8px; border: 1px solid #E4E4E7;" />
           </a>
           <p style="text-align: center; margin-top: 12px;">
-            <a href="${appUrl}/api/audit/${id}" style="color: #2563EB; text-decoration: none; font-size: 14px; font-weight: 600;">View your forensic security report here &rarr;</a>
+            <a href="${appUrl}/api/audit/${id}" style="color: #2563EB; text-decoration: none; font-size: 14px; font-weight: 600;">View the free audit of your business &rarr;</a>
           </p>
         </div>
         
         <div style="margin-top: 40px; border-top: 1px solid #E4E4E7; padding-top: 20px;">
-          <p style="font-size: 13px; font-weight: bold; color: #52525B;">How do you want to handle these vulnerabilities?</p>
+          <p style="font-size: 13px; font-weight: bold; color: #52525B;">How would you like to handle these audit findings?</p>
           <div style="margin-top: 12px;">
             <p style="margin: 8px 0;"><a href="${appUrl}/api/response?id=${id}&intent=fix" style="color: #2563EB; text-decoration: none; font-size: 13px; font-weight: 500;">🟢 I want MR² Labs to fix this</a></p>
             <p style="margin: 8px 0;"><a href="${appUrl}/api/response?id=${id}&intent=nurture" style="color: #2563EB; text-decoration: none; font-size: 13px; font-weight: 500;">🟡 Send over a Loom breakdown so my team can fix it</a></p>

@@ -1,5 +1,6 @@
 import OpenAI from 'openai';
 import { supabaseAdmin } from '@/lib/supabase/admin';
+import { sanitizeGreetingAndBody } from '@/lib/email/formatter';
 
 export interface AuditResult {
   email_subject: string;
@@ -214,11 +215,15 @@ Do not invent problems.
 Scan the audit JSON. Select exactly ONE primary flaw. Map it to the exact service name from the catalog above.
 
 ## STEP 2 — GENERATE THE EMAIL BODY
-Write a 4-sentence cold email using this exact formula:
-1. Observation: "I ran a quick technical check on your website and noticed [finding]."
-2. Problem: "This can [business impact]."
-3. Attachment Note & Pitch: "I've attached a quick audit highlighting what we found. MR² Labs can [service outcome]."
+Write a clean, double-spaced 4-sentence cold email using this exact formula:
+1. Greeting: If Founder First Name is provided, start with "Hi [First Name],". Otherwise start with "Hi,". NEVER use bracket placeholders like [First Name] or corporate names.
+2. Observation & Problem: "I ran a quick technical check on your website and noticed [finding]. This can [business impact]."
+3. Pitch: "I've attached a quick audit highlighting what we found. MR² Labs can [service outcome]."
 4. CTA: "Would you be open to a quick 10-minute conversation?"
+5. Sign-off: "Best,\nMohamed"
+
+CRITICAL PARAGRAPH FORMATTING RULE:
+You MUST separate each paragraph with double line breaks (\n\n). Do NOT write a single wall of text.
 
 ## OUTPUT FORMAT
 Return ONLY this JSON object. No preamble.
@@ -228,15 +233,18 @@ Return ONLY this JSON object. No preamble.
   "business_impact": "The business consequence",
   "recommended_service": "The exact service name from the catalog",
   "service_pitch": "The MR2 Labs can... pitch",
-  "email_body": "The complete 4-sentence email (include Hi [Name], and Best, Mohamed)"
+  "email_body": "Hi [Name],\n\nI ran a quick technical check on your website...\n\nI've attached a quick audit...\n\nWould you be open to a quick 10-minute conversation?\n\nBest,\nMohamed"
 }
 
 HARD CONSTRAINTS:
-1. Do NOT use placeholder text like [Company Name] — use real values from the JSON.
+1. Do NOT use placeholder text like [First Name] or [Company Name] — use real names or clean fallbacks like "Hi,".
 2. Only reference a flaw if it is explicitly present in the JSON as true or above threshold.`;
+
+  const founderFirstStr = founderFirst ? `Founder First Name: ${founderFirst}` : `Founder Name: None (Use "Hi,")`;
 
   const userPrompt = `Target Company Name: ${companyName}
 Domain: ${domain}
+${founderFirstStr}
 Niche Pain Point: ${nicheInfo.pains}
 Scraped Audit Data: ${JSON.stringify(flaggedOnly)}`;
 
@@ -265,17 +273,18 @@ Scraped Audit Data: ${JSON.stringify(flaggedOnly)}`;
           return { email_subject: '', audit_summary: '', generated_pitch: '', error: parsed.error };
         }
         if (parsed.audit_finding && parsed.email_body) {
+          const sanitizedBody = sanitizeGreetingAndBody(parsed.email_body, extraParams?.founderName, companyName);
           return {
             email_subject,
             audit_summary: `Audit Pitch for ${companyName}`,
-            generated_pitch: parsed.email_body,
+            generated_pitch: sanitizedBody,
             audit_notes: JSON.stringify({
               finding: parsed.audit_finding,
               impact: parsed.business_impact,
               service: parsed.recommended_service || 'Consultation',
               pitch: parsed.service_pitch
             }),
-            pitch_text: parsed.email_body,
+            pitch_text: sanitizedBody,
             audit_finding: parsed.audit_finding,
             business_impact: parsed.business_impact,
             recommended_service: parsed.recommended_service,
@@ -316,17 +325,18 @@ Scraped Audit Data: ${JSON.stringify(flaggedOnly)}`;
           return { email_subject: '', audit_summary: '', generated_pitch: '', error: parsed.error };
         }
         if (parsed.audit_finding && parsed.email_body) {
+          const sanitizedBody = sanitizeGreetingAndBody(parsed.email_body, extraParams?.founderName, companyName);
           return {
             email_subject,
             audit_summary: `Audit Pitch for ${companyName}`,
-            generated_pitch: parsed.email_body,
+            generated_pitch: sanitizedBody,
             audit_notes: JSON.stringify({
               finding: parsed.audit_finding,
               impact: parsed.business_impact,
               service: parsed.recommended_service || 'Consultation',
               pitch: parsed.service_pitch
             }),
-            pitch_text: parsed.email_body,
+            pitch_text: sanitizedBody,
             audit_finding: parsed.audit_finding,
             business_impact: parsed.business_impact,
             recommended_service: parsed.recommended_service,
@@ -365,17 +375,18 @@ Scraped Audit Data: ${JSON.stringify(flaggedOnly)}`;
           return { email_subject: '', audit_summary: '', generated_pitch: '', error: parsed.error };
         }
         if (parsed.audit_finding && parsed.email_body) {
+          const sanitizedBody = sanitizeGreetingAndBody(parsed.email_body, extraParams?.founderName, companyName);
           return {
             email_subject,
             audit_summary: `Audit Pitch for ${companyName}`,
-            generated_pitch: parsed.email_body,
+            generated_pitch: sanitizedBody,
             audit_notes: JSON.stringify({
               finding: parsed.audit_finding,
               impact: parsed.business_impact,
               service: parsed.recommended_service || 'Consultation',
               pitch: parsed.service_pitch
             }),
-            pitch_text: parsed.email_body,
+            pitch_text: sanitizedBody,
             audit_finding: parsed.audit_finding,
             business_impact: parsed.business_impact,
             recommended_service: parsed.recommended_service,
@@ -414,17 +425,18 @@ Scraped Audit Data: ${JSON.stringify(flaggedOnly)}`;
           return { email_subject: '', audit_summary: '', generated_pitch: '', error: parsed.error };
         }
         if (parsed.audit_finding && parsed.email_body) {
+          const sanitizedBody = sanitizeGreetingAndBody(parsed.email_body, extraParams?.founderName, companyName);
           return {
             email_subject,
             audit_summary: `Audit Pitch for ${companyName}`,
-            generated_pitch: parsed.email_body,
+            generated_pitch: sanitizedBody,
             audit_notes: JSON.stringify({
               finding: parsed.audit_finding,
               impact: parsed.business_impact,
               service: parsed.recommended_service || 'Consultation',
               pitch: parsed.service_pitch
             }),
-            pitch_text: parsed.email_body,
+            pitch_text: sanitizedBody,
             audit_finding: parsed.audit_finding,
             business_impact: parsed.business_impact,
             recommended_service: parsed.recommended_service,
@@ -468,17 +480,18 @@ Scraped Audit Data: ${JSON.stringify(flaggedOnly)}`;
           return { email_subject: '', audit_summary: '', generated_pitch: '', error: parsed.error };
         }
         if (parsed.audit_finding && parsed.email_body) {
+          const sanitizedBody = sanitizeGreetingAndBody(parsed.email_body, extraParams?.founderName, companyName);
           return {
             email_subject,
             audit_summary: `Audit Pitch for ${companyName}`,
-            generated_pitch: parsed.email_body,
+            generated_pitch: sanitizedBody,
             audit_notes: JSON.stringify({
               finding: parsed.audit_finding,
               impact: parsed.business_impact,
               service: parsed.recommended_service || 'Consultation',
               pitch: parsed.service_pitch
             }),
-            pitch_text: parsed.email_body,
+            pitch_text: sanitizedBody,
             audit_finding: parsed.audit_finding,
             business_impact: parsed.business_impact,
             recommended_service: parsed.recommended_service,
@@ -605,7 +618,7 @@ Generate Follow-Up #${followUpStep} based on the strict formula.`;
         if (parsed.generated_email_body) {
           return {
             email_subject: parsed.email_subject || 'Following up',
-            generated_pitch: parsed.generated_email_body,
+            generated_pitch: sanitizeGreetingAndBody(parsed.generated_email_body, founderName, companyName),
           };
         }
       }
@@ -638,7 +651,7 @@ Generate Follow-Up #${followUpStep} based on the strict formula.`;
         if (parsed.generated_email_body) {
           return {
             email_subject: parsed.email_subject || 'Following up',
-            generated_pitch: parsed.generated_email_body,
+            generated_pitch: sanitizeGreetingAndBody(parsed.generated_email_body, founderName, companyName),
           };
         }
       }
@@ -671,7 +684,7 @@ Generate Follow-Up #${followUpStep} based on the strict formula.`;
         if (parsed.generated_email_body) {
           return {
             email_subject: parsed.email_subject || 'Following up',
-            generated_pitch: parsed.generated_email_body,
+            generated_pitch: sanitizeGreetingAndBody(parsed.generated_email_body, founderName, companyName),
           };
         }
       }
@@ -704,7 +717,7 @@ Generate Follow-Up #${followUpStep} based on the strict formula.`;
         if (parsed.generated_email_body) {
           return {
             email_subject: parsed.email_subject || 'Following up',
-            generated_pitch: parsed.generated_email_body,
+            generated_pitch: sanitizeGreetingAndBody(parsed.generated_email_body, founderName, companyName),
           };
         }
       }
@@ -742,7 +755,7 @@ Generate Follow-Up #${followUpStep} based on the strict formula.`;
         if (parsed.generated_email_body) {
           return {
             email_subject: parsed.email_subject || 'Following up',
-            generated_pitch: parsed.generated_email_body,
+            generated_pitch: sanitizeGreetingAndBody(parsed.generated_email_body, founderName, companyName),
           };
         }
       }

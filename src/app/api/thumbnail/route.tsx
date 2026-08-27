@@ -1,111 +1,128 @@
 import { ImageResponse } from 'next/og';
 import { NextRequest } from 'next/server';
 
-export const runtime = 'edge'; // Lightweight and incredibly fast
+export const runtime = 'nodejs';
 
 export async function GET(request: NextRequest) {
-  const searchParams = request.nextUrl.searchParams;
-  let domain = searchParams.get('domain') || 'target-domain.com';
-  const time = searchParams.get('time') || new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
-
   try {
-    domain = domain.replace(/^https?:\/\//, '').replace(/\/.*$/, '');
-  } catch (e) {
-    // leave as is
-  }
+    const searchParams = request.nextUrl.searchParams;
+    let domain = searchParams.get('domain') || 'target-domain.com';
+    const time = searchParams.get('time') || new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
 
-  // Generate the image as a lightweight PNG using Vercel OG / Satori
-  return new ImageResponse(
-    (
-      <div
-        style={{
-          width: '100%',
-          height: '100%',
-          display: 'flex',
-          flexDirection: 'column',
-          backgroundColor: '#0E0E0F',
-          borderRadius: 8,
-          border: '1px solid #27272A',
-          overflow: 'hidden',
-          padding: 0,
-          margin: 0,
-        }}
-      >
-        {/* Title Bar */}
+    try {
+      domain = domain.replace(/^https?:\/\//, '').replace(/\/.*$/, '');
+    } catch (e) {
+      // leave as is
+    }
+
+    return new ImageResponse(
+      (
         <div
           style={{
-            display: 'flex',
-            alignItems: 'center',
-            backgroundColor: '#1C1C1F',
-            height: '36px',
-            padding: '0 16px',
-            borderBottom: '1px solid #27272A',
             width: '100%',
-          }}
-        >
-          <div style={{ display: 'flex', gap: '8px' }}>
-            <div style={{ width: 12, height: 12, borderRadius: 6, backgroundColor: '#FF5F56' }} />
-            <div style={{ width: 12, height: 12, borderRadius: 6, backgroundColor: '#FFBD2E' }} />
-            <div style={{ width: 12, height: 12, borderRadius: 6, backgroundColor: '#27C93F' }} />
-          </div>
-          <div
-            style={{
-              flex: 1,
-              display: 'flex',
-              justifyContent: 'center',
-              color: '#71717A',
-              fontFamily: 'monospace',
-              fontSize: '12px',
-            }}
-          >
-            mr2labs-forensic-engine ~ bash
-          </div>
-        </div>
-
-        {/* Terminal Output */}
-        <div
-          style={{
+            height: '100%',
             display: 'flex',
             flexDirection: 'column',
-            padding: '24px 30px',
-            gap: '8px',
-            fontFamily: 'monospace',
-            fontSize: '14px',
-            flex: 1,
+            backgroundColor: '#0E0E0F',
+            border: '1px solid #27272A',
+            padding: 0,
+            margin: 0,
           }}
         >
-          <div style={{ color: '#10B981', fontWeight: 'bold' }}>root@mr2labs:~# analyze --target {domain}</div>
-          <div style={{ color: '#A1A1AA', marginTop: '16px' }}>Initializing forensic sequence...</div>
-          <div style={{ color: '#A1A1AA' }}>Scanning frontend architecture and DNS configuration...</div>
-          
-          <div style={{ color: '#EF4444', fontWeight: 'bold', marginTop: '16px' }}>[✖] CRITICAL: Severe Vulnerabilities & Conversion Leaks Detected</div>
-          <div style={{ color: '#F59E0B', fontWeight: 'bold' }}>[!] WARNING: Immediate Remediation Recommended</div>
-
+          {/* Title Bar */}
           <div
             style={{
+              display: 'flex',
+              flexDirection: 'row',
+              alignItems: 'center',
+              backgroundColor: '#1C1C1F',
+              height: '36px',
+              paddingLeft: '16px',
+              paddingRight: '16px',
+              borderBottom: '1px solid #27272A',
               width: '100%',
-              height: '1px',
-              backgroundColor: '#2A2A2E',
-              marginTop: 'auto',
-              marginBottom: '16px',
             }}
-          />
+          >
+            <div style={{ display: 'flex', flexDirection: 'row', gap: '8px' }}>
+              <div style={{ width: 12, height: 12, borderRadius: 6, backgroundColor: '#FF5F56', display: 'flex' }} />
+              <div style={{ width: 12, height: 12, borderRadius: 6, backgroundColor: '#FFBD2E', display: 'flex' }} />
+              <div style={{ width: 12, height: 12, borderRadius: 6, backgroundColor: '#27C93F', display: 'flex' }} />
+            </div>
+            <div
+              style={{
+                flex: 1,
+                display: 'flex',
+                justifyContent: 'center',
+                color: '#71717A',
+                fontFamily: 'monospace',
+                fontSize: '12px',
+              }}
+            >
+              mr2labs-forensic-engine ~ bash
+            </div>
+          </div>
 
-          <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%' }}>
-            <div style={{ color: '#F4F4F5', fontWeight: 'bold' }}>{`>> Scan completed at ${time}`}</div>
-            <div style={{ color: '#3B82F6', fontWeight: 'bold', textDecoration: 'underline' }}>
-              CLICK TO VIEW FULL PDF REPORT ➔
+          {/* Terminal Output */}
+          <div
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              padding: '24px 30px',
+              gap: '8px',
+              fontFamily: 'monospace',
+              fontSize: '14px',
+              flex: 1,
+            }}
+          >
+            <div style={{ display: 'flex', color: '#10B981', fontWeight: 'bold' }}>
+              {`root@mr2labs:~# analyze --target ${domain}`}
+            </div>
+            <div style={{ display: 'flex', color: '#A1A1AA', marginTop: '12px' }}>
+              Initializing forensic sequence...
+            </div>
+            <div style={{ display: 'flex', color: '#A1A1AA' }}>
+              Scanning frontend architecture and DNS configuration...
+            </div>
+            
+            <div style={{ display: 'flex', color: '#EF4444', fontWeight: 'bold', marginTop: '16px' }}>
+              [✖] CRITICAL: Severe Vulnerabilities & Conversion Leaks Detected
+            </div>
+            <div style={{ display: 'flex', color: '#F59E0B', fontWeight: 'bold' }}>
+              [!] WARNING: Immediate Remediation Recommended
+            </div>
+
+            <div
+              style={{
+                display: 'flex',
+                width: '100%',
+                height: '1px',
+                backgroundColor: '#2A2A2E',
+                marginTop: '20px',
+                marginBottom: '16px',
+              }}
+            />
+
+            <div style={{ display: 'flex', flexDirection: 'row', justifyContent: 'space-between', width: '100%', alignItems: 'center' }}>
+              <div style={{ display: 'flex', color: '#F4F4F5', fontWeight: 'bold' }}>
+                {`>> Scan completed at ${time}`}
+              </div>
+              <div style={{ display: 'flex', color: '#3B82F6', fontWeight: 'bold' }}>
+                CLICK TO VIEW FULL PDF REPORT ➔
+              </div>
             </div>
           </div>
         </div>
-      </div>
-    ),
-    {
-      width: 600,
-      height: 300,
-      headers: {
-        'Cache-Control': 'public, max-age=31536000, immutable',
-      },
-    }
-  );
+      ),
+      {
+        width: 600,
+        height: 300,
+        headers: {
+          'Cache-Control': 'public, max-age=31536000, immutable',
+        },
+      }
+    );
+  } catch (err: any) {
+    console.error('[Thumbnail API Error]:', err);
+    return new Response(`Failed to generate thumbnail: ${err.message}`, { status: 500 });
+  }
 }

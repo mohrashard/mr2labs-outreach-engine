@@ -20,22 +20,21 @@ export default function LoginPage() {
     setErrorMsg(null);
 
     try {
-      const supabase = createClient();
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email: email.trim(),
-        password,
+      const res = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: email.trim(), password }),
       });
 
-      if (error) {
-        throw error;
+      const data = await res.json();
+
+      if (!res.ok || data.error) {
+        throw new Error(data.error || 'Invalid email or password credentials.');
       }
 
-      if (data.session) {
-        window.location.href = '/';
-      }
+      window.location.href = '/';
     } catch (err: any) {
       setErrorMsg(err.message || 'Invalid email or password credentials.');
-    } finally {
       setIsLoading(false);
     }
   };

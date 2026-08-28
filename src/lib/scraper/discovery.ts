@@ -15,13 +15,15 @@ export const BLACKLISTED_DOMAINS = [
   'linkedin.com', 'facebook.com', 'twitter.com', 'x.com', 'instagram.com', 'youtube.com',
   'reddit.com', 'quora.com', 'pinterest.com', 'medium.com', 'tiktok.com',
 
-  // Aggregators, Directories & Review Sites
+  // Aggregators, Directories, Major Franchises & Review Sites
   'zillow.com', 'redfin.com', 'realtor.com', 'trulia.com', 'yelp.com', 'homes.com', 'loopnet.com',
   'clutch.co', 'expertise.com', 'designrush.com', 'upwork.com', 'fiverr.com',
   'thumbtack.com', 'yellowpages.com', 'yellow-pages.us.com', 'yellowpages.com.au', 'yellowpages.ca',
   'g2.com', 'capterra.com', 'bark.com', 'builtin.com', 'digitalagencynetwork.com', 'itprofiles.com', 
   '50pros.com', 'themanifest.com', 'upcity.com', 'goodfirms.co', 'sortlist.com',
   'wikipedia.org', 'mapquest.com', 'bairesdev.com', 'clearlyrated.com', 'trustpilot.com', 'sitejabber.com',
+  'har.com', 'fastexpert.com', 'sitebuilderreport.com', 'apartmentguide.com', 'rent.com', 'apartments.com',
+  'compass.com', 'coldwellbanker.com', 'century21.com', 'remax.com', 'kw.com',
 
   // News, Publishing & Media Outlets
   'usnews.com', 'realtrends.com', 'forbes.com', 'inc.com', 'entrepreneur.com',
@@ -60,6 +62,17 @@ function cleanDomainUrl(urlStr: string): string | null {
   }
 }
 
+function sanitizeQueryForSerper(query: string): string {
+  return query
+    .replace(/-site:[^\s]+/g, '')
+    .replace(/-inurl:[^\s]+/g, '')
+    .replace(/intitle:[^\s]+/g, '')
+    .replace(/inurl:[^\s]+/g, '')
+    .replace(/["()]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
 // --- DYNAMIC INDUSTRY DORK PROFILES ---
 export interface DorkProfile {
   queryTemplate: (niche: string, location: string) => string;
@@ -74,34 +87,33 @@ async function generateDorkQueryFromLLM(
   solution: string,
   location: string
 ): Promise<DorkProfile> {
-  const systemPrompt = `You are a B2B lead generation expert specializing in Google search operators.
-Your job is to generate a precise Google search query string to find ideal small/mid-size independent businesses that match the given ICP profile.
+  const systemPrompt = `You are a B2B lead generation expert.
+Your job is to generate a clean Google search query string to find ideal small/mid-size independent businesses matching the ICP profile.
 
 Rules:
-- Target ONLY independent, owner-operated businesses (not franchises, not directories, not aggregators, not media sites)
-- Use Google operators: intitle:, inurl:, site: exclusions, OR groups, quotes for exact phrases
-- The query must surface actual company websites, not listicles or review sites
-- Negative keywords must block: directories, job boards, news sites, franchises, aggregators
-- Keep the query under 200 characters so Google doesn't truncate it
-- Return ONLY valid JSON, no markdown, no explanation
+- Keep the query simple and clean WITHOUT advanced operators like -site:, intitle:, inurl:, or quotes around long phrases (which get blocked by SERP APIs on free tier).
+- Target ONLY local independent owner-operated businesses.
+- Combine niche/industry terms with location terms naturally.
+- Keep the query under 100 characters.
+- Return ONLY valid JSON, no markdown.
 
 Return format:
 {
-  "query": "the full google search string including location",
+  "query": "clean google search phrase including location",
   "negative_keywords": ["keyword1", "keyword2"]
 }`;
 
-  const userPrompt = `Generate a Google dork query for this ICP:
+  const userPrompt = `Generate a Google search query for this ICP:
 
 Niche: ${niche}
 Location: ${location}
 Pain Points (what they struggle with): ${painPoints}
 Our Solution (what we sell): ${solution}
 
-The query should find businesses that HAVE these pain points — meaning they are small, independent, likely using outdated tech or manual processes.`;
+The query should find local businesses in ${location} that match this niche.`;
 
   const fallbackProfile: DorkProfile = {
-    queryTemplate: (n, l) => `"${n}" ${l} -site:yelp.com -site:clutch.co -intitle:"top" -intitle:"best"`,
+    queryTemplate: (n, l) => `${n} agency ${l}`,
     negativeKeywords: ['directory', 'top 10', 'best of', 'jobs', 'hiring']
   };
 
@@ -136,7 +148,7 @@ The query should find businesses that HAVE these pain points — meaning they ar
         const trimmedQuery = parsed.query.trim();
         
         // Reject if LLM hallucinated an empty or absurdly long query
-        if (trimmedQuery.length < 10 || trimmedQuery.length > 250) {
+        if (trimmedQuery.length < 5 || trimmedQuery.length > 200) {
           console.warn(`[LLM Dork Generator] Query length out of bounds (${trimmedQuery.length} chars), using fallback`);
           continue;
         }
@@ -218,20 +230,20 @@ export async function discoverTargetDomains(
   let query: string;
 
   const legacyFallbackQueries = [
-    `"${niche}" "${cleanLocation}" -site:zillow.com -site:realtor.com -site:redfin.com -site:yelp.com -site:linkedin.com`,
-    `"${niche} agency" "${cleanLocation}" -site:zillow.com -site:realtor.com -site:yelp.com`,
-    `"${niche} firm" "${cleanLocation}" -site:zillow.com -site:realtor.com -site:yelp.com`,
-    `intitle:"${niche}" "${cleanLocation}" -site:zillow.com -site:realtor.com -site:yelp.com`,
-    `"${niche} group" "${cleanLocation}" -site:zillow.com -site:realtor.com -site:yelp.com`
+    `${niche} agency ${cleanLocation}`,
+    `${niche} firm ${cleanLocation}`,
+    `${niche} broker ${cleanLocation}`,
+    `Independent ${niche} ${cleanLocation}`,
+    `Boutique ${niche} ${cleanLocation}`
   ];
 
   if (mode === 'diy') {
     const diyQueries = [
-      `"powered by squarespace" "${niche}" "${cleanLocation}"`,
-      `"created with wix" "${niche}" "${cleanLocation}"`,
-      `"powered by wordpress" "${niche}" "${cleanLocation}"`,
-      `"built with webflow" "${niche}" "${cleanLocation}"`,
-      `("wixsite.com" OR "framer.app" OR "squarespace") "${niche}" "${cleanLocation}"`
+      `${niche} website ${cleanLocation}`,
+      `${niche} small business ${cleanLocation}`,
+      `${niche} portfolio ${cleanLocation}`,
+      `${niche} local ${cleanLocation}`,
+      `${niche} contact ${cleanLocation}`
     ];
     query = diyQueries[(page - 1) % diyQueries.length];
     dorkProfile = { queryTemplate: () => query, negativeKeywords: ['directory', 'top 10', 'best of', 'jobs', 'hiring'] };
@@ -267,20 +279,38 @@ export async function discoverTargetDomains(
   if (process.env.SERPER_API_KEY) {
     try {
       console.log(`[Discovery] Fetching Serper page ${page}...`);
-      const res = await fetch('https://google.serper.dev/search', {
+      let activeQuery = query;
+      let res = await fetch('https://google.serper.dev/search', {
         method: 'POST',
         headers: {
           'X-API-KEY': process.env.SERPER_API_KEY,
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ q: query, num: 50, page }),
+        body: JSON.stringify({ q: activeQuery, num: 50, page }),
       });
+
+      // Handle Serper Free Tier 400 Bad Request pattern restrictions
+      if (res.status === 400) {
+        const cleanQ = sanitizeQueryForSerper(activeQuery);
+        console.warn(`[Discovery] Serper returned 400 for query pattern. Retrying with sanitized query: "${cleanQ}"`);
+        res = await fetch('https://google.serper.dev/search', {
+          method: 'POST',
+          headers: {
+            'X-API-KEY': process.env.SERPER_API_KEY,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ q: cleanQ, num: 50, page }),
+        });
+      }
       
       if (res.ok) {
         const data = await res.json();
         if (data.organic?.length) {
           return processSerpResults(data.organic, 'title', 'link', 'snippet', dorkProfile.negativeKeywords, existingDomains, mode);
         }
+      } else {
+        const errText = await res.text();
+        console.warn(`[Discovery] Serper API non-ok response (${res.status}): ${errText}`);
       }
     } catch (err) {
       console.warn(`[Discovery] Serper page ${page} failed, trying SerpApi fallback`, err);

@@ -55,8 +55,9 @@ export async function updateSession(request: NextRequest) {
 
   const pathname = request.nextUrl.pathname;
 
-  // Exempt background worker routes, crons, webhooks, streaming PDFs and public email assets from auth checks
+  // Exempt background worker routes, auth endpoints, crons, webhooks, streaming PDFs and public email assets from auth checks
   if (
+    pathname.startsWith('/api/auth') ||
     pathname.startsWith('/api/queue') ||
     pathname.startsWith('/api/cron') ||
     pathname.startsWith('/api/webhooks') ||

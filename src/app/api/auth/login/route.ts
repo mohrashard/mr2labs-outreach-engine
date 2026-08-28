@@ -3,7 +3,16 @@ import { supabaseAdmin } from '@/lib/supabase/admin';
 
 export async function POST(req: Request) {
   try {
-    const { email, password } = await req.json();
+    let email = '';
+    let password = '';
+    try {
+      const rawText = await req.text();
+      const body = JSON.parse(rawText);
+      email = body.email || '';
+      password = body.password || '';
+    } catch {
+      return NextResponse.json({ error: 'Invalid JSON request payload.' }, { status: 400 });
+    }
 
     if (!email || !password) {
       return NextResponse.json({ error: 'Email and password are required.' }, { status: 400 });

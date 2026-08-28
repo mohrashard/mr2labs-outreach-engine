@@ -5,6 +5,16 @@ export interface OSMNode {
   };
 }
 
+const TOP_US_METROS = [
+  "Dallas, Texas", "Houston, Texas", "San Antonio, Texas", "Austin, Texas",
+  "Miami, Florida", "Tampa, Florida", "Orlando, Florida", "Atlanta, Georgia",
+  "Chicago, Illinois", "Phoenix, Arizona", "Denver, Colorado", "Charlotte, North Carolina",
+  "Raleigh, North Carolina", "Nashville, Tennessee", "San Diego, California",
+  "Los Angeles, California", "San Francisco, California", "Seattle, Washington",
+  "Las Vegas, Nevada", "Boston, Massachusetts", "Philadelphia, Pennsylvania",
+  "New York, New York", "Columbus, Ohio", "Indianapolis, Indiana", "Salt Lake City, Utah"
+];
+
 async function getCoordinates(location: string): Promise<{ lat: number; lon: number; state: string } | null> {
   try {
     const res = await fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(location)}&format=json&addressdetails=1&limit=1`, {
@@ -50,16 +60,26 @@ async function getNearbyCities(lat: number, lon: number): Promise<string[]> {
 export async function getNextCityDynamic(currentLocation: string, exhaustedLocations: string[] = []): Promise<string> {
   console.log(`[Geo-Pivot] Searching OSM for cities near: ${currentLocation}`);
   const coords = await getCoordinates(currentLocation);
-  if (!coords) return "New York, New York"; 
 
-  const nearbyCities = await getNearbyCities(coords.lat, coords.lon);
-  const freshCities = nearbyCities.filter(city => {
-    const isExhausted = exhaustedLocations.some(ex => ex.toLowerCase().includes(city.toLowerCase()));
-    return city.toLowerCase() !== currentLocation.split(',')[0].toLowerCase() && !isExhausted;
+  if (coords) {
+    const nearbyCities = await getNearbyCities(coords.lat, coords.lon);
+    const freshCities = nearbyCities.filter(city => {
+      const isExhausted = exhaustedLocations.some(ex => ex.toLowerCase().includes(city.toLowerCase()));
+      return city.toLowerCase() !== currentLocation.split(',')[0].toLowerCase() && !isExhausted;
+    });
+
+    if (freshCities.length > 0) {
+      return `${freshCities[0]}, ${coords.state || 'US'}`;
+    }
+  }
+
+  // Robust Fallback: Cycle through TOP_US_METROS to find an un-exhausted major business metro
+  const fallbackCity = TOP_US_METROS.find(m => {
+    const cityName = m.split(',')[0].toLowerCase();
+    const currentCityName = currentLocation.split(',')[0].toLowerCase();
+    const isExhausted = exhaustedLocations.some(ex => ex.toLowerCase().includes(cityName));
+    return cityName !== currentCityName && !isExhausted;
   });
 
-  if (freshCities.length > 0) {
-    return `${freshCities[0]}, ${coords.state}`;
-  }
-  return "Austin, Texas"; 
+  return fallbackCity || "Dallas, Texas"; 
 }

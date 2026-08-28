@@ -219,25 +219,38 @@ export async function discoverTargetDomains(
   let dorkProfile: DorkProfile;
   let query: string;
 
+  const legacyFallbackQueries = [
+    `"${niche}" "${cleanLocation}" -site:zillow.com -site:realtor.com -site:redfin.com -site:yelp.com -site:linkedin.com`,
+    `"${niche} agency" "${cleanLocation}" -site:zillow.com -site:realtor.com -site:yelp.com`,
+    `"${niche} firm" "${cleanLocation}" -site:zillow.com -site:realtor.com -site:yelp.com`,
+    `intitle:"${niche}" "${cleanLocation}" -site:zillow.com -site:realtor.com -site:yelp.com`,
+    `"${niche} group" "${cleanLocation}" -site:zillow.com -site:realtor.com -site:yelp.com`
+  ];
+
   if (mode === 'diy') {
     const diyQueries = [
-      `("powered by squarespace" OR "built with webflow" OR "powered by wix") "${niche}" ${cleanLocation}`,
-      `("built on carrd" OR "built with framer" OR site:wixsite.com OR "powered by weebly") "${niche}" ${cleanLocation}`,
-      `("site powered by squarespace" OR "site built with webflow" OR "created with wix") "${niche}" ${cleanLocation}`,
-      `("built with carrd" OR "framer.app" OR "wixsite.com" OR "squarespace") "${niche}" ${cleanLocation}`,
-      `("powered by wordpress" OR "built with webflow" OR "wix site") "${niche}" ${cleanLocation}`
+      `"powered by squarespace" "${niche}" "${cleanLocation}"`,
+      `"created with wix" "${niche}" "${cleanLocation}"`,
+      `"powered by wordpress" "${niche}" "${cleanLocation}"`,
+      `"built with webflow" "${niche}" "${cleanLocation}"`,
+      `("wixsite.com" OR "framer.app" OR "squarespace") "${niche}" "${cleanLocation}"`
     ];
     query = diyQueries[(page - 1) % diyQueries.length];
     dorkProfile = { queryTemplate: () => query, negativeKeywords: ['directory', 'top 10', 'best of', 'jobs', 'hiring'] };
   } else {
-    if (dorkQueryCache.has(cacheKey)) {
-      dorkProfile = dorkQueryCache.get(cacheKey)!;
-      console.log(`[LLM Dork Generator] Cache hit for "${cacheKey}"`);
+    if (page === 1) {
+      if (dorkQueryCache.has(cacheKey)) {
+        dorkProfile = dorkQueryCache.get(cacheKey)!;
+        console.log(`[LLM Dork Generator] Cache hit for "${cacheKey}"`);
+      } else {
+        dorkProfile = await generateDorkQueryFromLLM(niche, painPoints, solution, cleanLocation);
+        dorkQueryCache.set(cacheKey, dorkProfile);
+      }
+      query = dorkProfile.queryTemplate(niche, cleanLocation);
     } else {
-      dorkProfile = await generateDorkQueryFromLLM(niche, painPoints, solution, cleanLocation);
-      dorkQueryCache.set(cacheKey, dorkProfile);
+      query = legacyFallbackQueries[(page - 1) % legacyFallbackQueries.length];
+      dorkProfile = { queryTemplate: () => query, negativeKeywords: ['directory', 'top 10', 'best of', 'jobs', 'hiring'] };
     }
-    query = dorkProfile.queryTemplate(niche, cleanLocation);
   }
 
   console.log(`[Discovery] Using Dork Query [${mode.toUpperCase()}]: ${query}`);

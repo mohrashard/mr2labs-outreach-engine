@@ -4,44 +4,76 @@ import { NextResponse, type NextRequest } from 'next/server';
 function getUserFromJwtCookie(request: NextRequest): { id: string; email?: string } | null {
   try {
     const allCookies = request.cookies.getAll();
-    const authCookies = allCookies
-      .filter((c) => c.name.includes('auth-token'))
-      .sort((a, b) => a.name.localeCompare(b.name));
+    const authCookies = allCookies.filter(
+      (c) => c.name.includes('auth-token') || c.name.startsWith('sb-')
+    );
 
     if (authCookies.length === 0) return null;
 
-    const rawValue = authCookies.map((c) => c.value).join('');
-    if (!rawValue) return null;
+    // Check each cookie individually first (prevents multi-cookie JSON string concatenation bugs)
+    for (const cookie of authCookies) {
+      const val = cookie.value;
+      if (!val) continue;
 
-    let parsed: any = null;
-    try {
-      parsed = JSON.parse(rawValue);
-    } catch {
+      let parsed: any = null;
       try {
-        parsed = JSON.parse(decodeURIComponent(rawValue));
-      } catch {}
-    }
+        parsed = JSON.parse(val);
+      } catch {
+        try {
+          parsed = JSON.parse(decodeURIComponent(val));
+        } catch {}
+      }
 
-    if (parsed && (parsed.user || parsed.access_token)) {
-      if (parsed.user && (parsed.user.id || parsed.user.email)) {
-        return {
-          id: parsed.user.id || 'admin_user',
-          email: parsed.user.email,
-        };
+      if (parsed && typeof parsed === 'object') {
+        const userObj = parsed.user || (Array.isArray(parsed) ? parsed[2]?.user : null);
+        if (userObj && (userObj.id || userObj.email)) {
+          return {
+            id: userObj.id || 'admin_user',
+            email: userObj.email,
+          };
+        }
+      }
+
+      const accessToken = parsed ? (Array.isArray(parsed) ? parsed[0] : parsed?.access_token) : val;
+      if (accessToken && typeof accessToken === 'string' && accessToken.startsWith('ey')) {
+        const parts = accessToken.split('.');
+        if (parts.length === 3) {
+          try {
+            const payloadJson = Buffer.from(parts[1], 'base64').toString('utf-8');
+            const payload = JSON.parse(payloadJson);
+            if (payload && payload.exp && payload.exp * 1000 > Date.now() + 10000) {
+              return {
+                id: payload.sub || payload.user_id || 'admin_user',
+                email: payload.email,
+              };
+            }
+          } catch {}
+        }
       }
     }
 
-    const accessToken = parsed ? (Array.isArray(parsed) ? parsed[0] : parsed?.access_token) : rawValue;
+    // Fallback: If chunked cookies exist (.0, .1), join chunks for matching prefix
+    const chunkedCookies = authCookies
+      .filter((c) => /\.\d+$/.test(c.name))
+      .sort((a, b) => a.name.localeCompare(b.name));
 
-    if (accessToken && typeof accessToken === 'string') {
-      const parts = accessToken.split('.');
-      if (parts.length === 3) {
-        const payloadJson = Buffer.from(parts[1], 'base64').toString('utf-8');
-        const payload = JSON.parse(payloadJson);
-        if (payload && payload.exp && payload.exp * 1000 > Date.now() + 10000) {
+    if (chunkedCookies.length > 0) {
+      const combined = chunkedCookies.map((c) => c.value).join('');
+      let parsed: any = null;
+      try {
+        parsed = JSON.parse(combined);
+      } catch {
+        try {
+          parsed = JSON.parse(decodeURIComponent(combined));
+        } catch {}
+      }
+
+      if (parsed) {
+        const userObj = parsed.user || (Array.isArray(parsed) ? parsed[2]?.user : null);
+        if (userObj && (userObj.id || userObj.email)) {
           return {
-            id: payload.sub || payload.user_id || 'admin_user',
-            email: payload.email,
+            id: userObj.id || 'admin_user',
+            email: userObj.email,
           };
         }
       }

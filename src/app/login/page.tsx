@@ -38,12 +38,15 @@ export default function LoginPage() {
         throw new Error(data.error || 'Invalid email or password credentials.');
       }
 
+      const userEmail = data.user?.email || email.trim();
+      const maxAge = 60 * 60 * 24 * 7;
+      const projectRef = data.projectRef || 'lniqncfnfdsmdzttbmlr';
+      
+      document.cookie = `admin_session=${encodeURIComponent(userEmail)}; path=/; max-age=${maxAge}; SameSite=Lax`;
       if (data.sessionToken) {
         const token = encodeURIComponent(data.sessionToken);
-        const maxAge = 60 * 60 * 24 * 7;
-        const projectRef = data.projectRef || 'lniqncfnfdsmdzttbmlr';
-        document.cookie = `sb-${projectRef}-auth-token=${token}; path=/; max-age=${maxAge}; SameSite=Lax; Secure`;
-        document.cookie = `auth-token=${token}; path=/; max-age=${maxAge}; SameSite=Lax; Secure`;
+        document.cookie = `sb-${projectRef}-auth-token=${token}; path=/; max-age=${maxAge}; SameSite=Lax`;
+        document.cookie = `auth-token=${token}; path=/; max-age=${maxAge}; SameSite=Lax`;
       }
 
       window.location.href = '/';

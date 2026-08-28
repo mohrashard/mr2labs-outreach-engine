@@ -79,12 +79,14 @@ export default function AdminDashboard() {
 
   const handleSignOut = async () => {
     try {
+      document.cookie = 'admin_session=; path=/; max-age=0; SameSite=Lax';
+      document.cookie = 'auth-token=; path=/; max-age=0; SameSite=Lax';
       const supabase = createClient();
       await supabase.auth.signOut();
-      router.push('/login');
-      router.refresh();
+      window.location.href = '/login';
     } catch (err) {
       console.error('Sign out error:', err);
+      window.location.href = '/login';
     }
   };
 

@@ -52,8 +52,6 @@ export async function POST(req: Request) {
       },
     };
     const sessionToken = JSON.stringify(sessionObject);
-
-    const isProd = process.env.NODE_ENV === 'production';
     const projectRef = 'lniqncfnfdsmdzttbmlr';
 
     const response = NextResponse.json({
@@ -63,21 +61,29 @@ export async function POST(req: Request) {
       projectRef,
     });
 
-    // Set auth cookie directly for Supabase middleware
+    const maxAge = 60 * 60 * 24 * 7; // 7 days
+
+    // Set admin_session cookie
+    response.cookies.set('admin_session', adminUser.email || trimmedEmail, {
+      path: '/',
+      httpOnly: false,
+      sameSite: 'lax',
+      maxAge,
+    });
+
+    // Set Supabase auth token cookie
     response.cookies.set(`sb-${projectRef}-auth-token`, sessionToken, {
       path: '/',
       httpOnly: false,
-      secure: isProd,
       sameSite: 'lax',
-      maxAge: 60 * 60 * 24 * 7, // 7 days
+      maxAge,
     });
 
     response.cookies.set(`auth-token`, sessionToken, {
       path: '/',
       httpOnly: false,
-      secure: isProd,
       sameSite: 'lax',
-      maxAge: 60 * 60 * 24 * 7,
+      maxAge,
     });
 
     return response;

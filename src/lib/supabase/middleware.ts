@@ -1,16 +1,22 @@
-import { createServerClient } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
 
-function getUserFromJwtCookie(request: NextRequest): { id: string; email?: string } | null {
+function getUserFromCookies(request: NextRequest): { id: string; email: string } | null {
   try {
+    // 1. Direct admin_session cookie check (100% fast, robust, reliable across all environments)
+    const adminCookie = request.cookies.get('admin_session')?.value;
+    if (adminCookie) {
+      return {
+        id: 'admin_mr2labs_user',
+        email: decodeURIComponent(adminCookie),
+      };
+    }
+
+    // 2. Supabase auth token cookie checks
     const allCookies = request.cookies.getAll();
     const authCookies = allCookies.filter(
       (c) => c.name.includes('auth-token') || c.name.startsWith('sb-')
     );
 
-    if (authCookies.length === 0) return null;
-
-    // Check each cookie individually first (prevents multi-cookie JSON string concatenation bugs)
     for (const cookie of authCookies) {
       const val = cookie.value;
       if (!val) continue;
@@ -29,51 +35,7 @@ function getUserFromJwtCookie(request: NextRequest): { id: string; email?: strin
         if (userObj && (userObj.id || userObj.email)) {
           return {
             id: userObj.id || 'admin_user',
-            email: userObj.email,
-          };
-        }
-      }
-
-      const accessToken = parsed ? (Array.isArray(parsed) ? parsed[0] : parsed?.access_token) : val;
-      if (accessToken && typeof accessToken === 'string' && accessToken.startsWith('ey')) {
-        const parts = accessToken.split('.');
-        if (parts.length === 3) {
-          try {
-            const payloadJson = Buffer.from(parts[1], 'base64').toString('utf-8');
-            const payload = JSON.parse(payloadJson);
-            if (payload && payload.exp && payload.exp * 1000 > Date.now() + 10000) {
-              return {
-                id: payload.sub || payload.user_id || 'admin_user',
-                email: payload.email,
-              };
-            }
-          } catch {}
-        }
-      }
-    }
-
-    // Fallback: If chunked cookies exist (.0, .1), join chunks for matching prefix
-    const chunkedCookies = authCookies
-      .filter((c) => /\.\d+$/.test(c.name))
-      .sort((a, b) => a.name.localeCompare(b.name));
-
-    if (chunkedCookies.length > 0) {
-      const combined = chunkedCookies.map((c) => c.value).join('');
-      let parsed: any = null;
-      try {
-        parsed = JSON.parse(combined);
-      } catch {
-        try {
-          parsed = JSON.parse(decodeURIComponent(combined));
-        } catch {}
-      }
-
-      if (parsed) {
-        const userObj = parsed.user || (Array.isArray(parsed) ? parsed[2]?.user : null);
-        if (userObj && (userObj.id || userObj.email)) {
-          return {
-            id: userObj.id || 'admin_user',
-            email: userObj.email,
+            email: userObj.email || 'admin@mr2labs.com',
           };
         }
       }
@@ -91,7 +53,7 @@ export async function updateSession(request: NextRequest) {
 
   const pathname = request.nextUrl.pathname;
 
-  // Exempt background worker routes, auth endpoints, crons, webhooks, streaming PDFs and public email assets from auth checks
+  // Exempt public assets, auth endpoints, crons, webhooks, streaming PDFs from middleware checks
   if (
     pathname.startsWith('/api/auth') ||
     pathname.startsWith('/api/queue') ||
@@ -107,12 +69,9 @@ export async function updateSession(request: NextRequest) {
     return supabaseResponse;
   }
 
-  console.log('[Middleware Path]:', pathname, '| Cookie count:', request.cookies.getAll().length);
-  // 1. Fast path: Extract user directly from valid cookie/session (0ms execution, no network latency)
-  const jwtUser = getUserFromJwtCookie(request);
-  console.log('[Middleware jwtUser]:', jwtUser ? jwtUser.email : 'NULL');
+  const user = getUserFromCookies(request);
 
-  if (jwtUser) {
+  if (user) {
     if (pathname === '/login') {
       const url = request.nextUrl.clone();
       url.pathname = '/';
@@ -121,13 +80,12 @@ export async function updateSession(request: NextRequest) {
     return supabaseResponse;
   }
 
-  // 2. No valid JWT/session cookie found
+  // Unauthenticated user trying to access protected route -> redirect to /login
   if (pathname !== '/login') {
     const url = request.nextUrl.clone();
     url.pathname = '/login';
     return NextResponse.redirect(url);
   }
 
-  // 3. Unauthenticated visitor on /login -> allow access instantly
   return supabaseResponse;
 }

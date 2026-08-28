@@ -31,8 +31,7 @@ export default function LoginPage() {
       }
 
       if (data.session) {
-        router.push('/');
-        router.refresh();
+        window.location.href = '/';
       }
     } catch (err: any) {
       setErrorMsg(err.message || 'Invalid email or password credentials.');

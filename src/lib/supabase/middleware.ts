@@ -1,6 +1,53 @@
 import { createServerClient } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
 
+function getUserFromJwtCookie(request: NextRequest): { id: string; email?: string } | null {
+  try {
+    const allCookies = request.cookies.getAll();
+    const authCookies = allCookies
+      .filter((c) => c.name.includes('auth-token'))
+      .sort((a, b) => a.name.localeCompare(b.name));
+
+    if (authCookies.length === 0) return null;
+
+    const rawValue = authCookies.map((c) => c.value).join('');
+    if (!rawValue) return null;
+
+    let accessToken: string | null = null;
+    try {
+      const parsed = JSON.parse(rawValue);
+      accessToken = Array.isArray(parsed) ? parsed[0] : parsed?.access_token;
+    } catch {
+      try {
+        const parsed = JSON.parse(decodeURIComponent(rawValue));
+        accessToken = Array.isArray(parsed) ? parsed[0] : parsed?.access_token;
+      } catch {}
+    }
+
+    if (!accessToken && rawValue.startsWith('ey')) {
+      accessToken = rawValue;
+    }
+
+    if (accessToken) {
+      const parts = accessToken.split('.');
+      if (parts.length === 3) {
+        const payloadJson = Buffer.from(parts[1], 'base64').toString('utf-8');
+        const payload = JSON.parse(payloadJson);
+        // Verify token is not expired (with 10-second buffer)
+        if (payload && payload.exp && payload.exp * 1000 > Date.now() + 10000) {
+          return {
+            id: payload.sub || payload.user_id,
+            email: payload.email,
+          };
+        }
+      }
+    }
+  } catch (err) {
+    // Ignore parse errors
+  }
+  return null;
+}
+
 export async function updateSession(request: NextRequest) {
   let supabaseResponse = NextResponse.next({
     request,
@@ -23,72 +70,25 @@ export async function updateSession(request: NextRequest) {
     return supabaseResponse;
   }
 
-  // Check if request carries Supabase auth cookies
-  const allCookies = request.cookies.getAll();
-  const hasAuthCookie = allCookies.some(
-    (c) => c.name.includes('auth-token') || c.name.startsWith('sb-')
-  );
+  // 1. Fast path: Extract user directly from valid JWT cookie (0ms execution, no network latency)
+  const jwtUser = getUserFromJwtCookie(request);
 
-  if (!hasAuthCookie) {
-    // Unauthenticated user with no auth cookie attempting to access protected route -> redirect immediately
-    if (pathname !== '/login') {
+  if (jwtUser) {
+    if (pathname === '/login') {
       const url = request.nextUrl.clone();
-      url.pathname = '/login';
+      url.pathname = '/';
       return NextResponse.redirect(url);
     }
     return supabaseResponse;
   }
 
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        getAll() {
-          return request.cookies.getAll();
-        },
-        setAll(cookiesToSet) {
-          cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value));
-          supabaseResponse = NextResponse.next({
-            request,
-          });
-          cookiesToSet.forEach(({ name, value, options }) =>
-            supabaseResponse.cookies.set(name, value, options)
-          );
-        },
-      },
-    }
-  );
-
-  // Fetch user with a strict 3-second timeout to prevent Vercel MIDDLEWARE_INVOCATION_TIMEOUT (504)
-  let user = null;
-  try {
-    const authPromise = supabase.auth.getUser();
-    const timeoutPromise = new Promise<{ data: { user: null }; error: Error }>((_, reject) =>
-      setTimeout(() => reject(new Error('Supabase Auth timeout in middleware')), 3000)
-    );
-
-    const result = (await Promise.race([authPromise, timeoutPromise])) as Awaited<
-      ReturnType<typeof supabase.auth.getUser>
-    >;
-    user = result?.data?.user ?? null;
-  } catch (error) {
-    console.warn('[Middleware] Auth check timed out or failed:', error);
-  }
-
-  // Redirect unauthenticated users trying to access protected routes (e.g. / or /templates) to /login
-  if (!user && pathname !== '/login') {
+  // 2. No valid JWT cookie found
+  if (pathname !== '/login') {
     const url = request.nextUrl.clone();
     url.pathname = '/login';
     return NextResponse.redirect(url);
   }
 
-  // Redirect authenticated users trying to access /login to root dashboard /
-  if (user && pathname === '/login') {
-    const url = request.nextUrl.clone();
-    url.pathname = '/';
-    return NextResponse.redirect(url);
-  }
-
+  // 3. Unauthenticated visitor on /login -> allow access instantly
   return supabaseResponse;
 }

@@ -195,10 +195,14 @@ export async function generateAuditAndPitch(
       * missing_scheduler -> "there is no automated booking system, meaning leads that visit after hours have no way to self-schedule"
       * is_diy_subdomain -> "the business is running on a free DIY subdomain or template builder, which limits local SEO ranking and restricts custom automation workflows"`;
 
-  const systemPrompt = `You are an elite consultative sales agent for Mr² labs. Your job is to analyze a JSON audit of a prospect's website and select the MOST COMMERCIALLY RELEVANT service to pitch them.
+  const systemPrompt = `CRITICAL: You are a precise instruction-follower. 
+Do not improvise. Do not add creativity to subject lines. 
+Follow the formula exactly as written.
+
+You are an elite consultative sales agent for Mr² Labs. Your job is to analyze a JSON audit of a prospect's website and select the MOST COMMERCIALLY RELEVANT service to pitch them.
 
 ## SERVICE CATALOG
-Use this exact catalog to map findings to the primary Mr² labs Service:
+Use this exact catalog to map findings to the primary Mr² Labs Service:
 - WEBSITE_REBUILD: name: "Website Redesign & Conversion", outcome: "turn the website into a faster, modern conversion-focused experience". Triggered when is_diy_subdomain is present, or html_size_kb is extremely high.
 - AI_AUTOMATION: name: "AI Lead Automation", outcome: "automate repetitive lead and customer workflows". Triggered when missing_whatsapp, missing_scheduler, missing_live_chat, or missing_crm are present
 - CUSTOM_SOFTWARE: name: "Custom Business Software", outcome: "replace manual workflows with custom software built around your operations". Triggered when missing_crm + missing_payment together, or the niche is operations-heavy (law, dental, real estate)
@@ -211,43 +215,83 @@ If the JSON audit is empty, or all values are false/null/0, you MUST return exac
 { "error": "The automated audit could not generate a verified finding." }
 Do not invent problems.
 
-## STEP 1 — SELECT THE PRIMARY FLAWS & RELEVANT SERVICES
-Scan the audit JSON. Select 1 or 2 primary flaws that are present in the data (e.g., dmarc_missing, !has_scheduler, high html_size_kb). Map them to the relevant Mr² labs services from the catalog above.
+## STEP 1 — SELECT ONE SHARP FINDING
+Scan the audit JSON. Select ONE specific finding only. Not two. Not three. ONE.
+Reference ONE specific finding only, not a list of problems.
 
 ## STEP 2 — GENERATE THE EMAIL SUBJECT LINE
-Write a short, lowercase 2-4 word subject line that feels internal. NO punctuation, NO emojis, NO title case, NO prospect names.
-Examples: "technical audit", "lead conversion", "domain protection", "performance audit"
+Write a 2-4 word subject line that looks like an internal forwarded email.
+HARD RULES:
+- All lowercase. No punctuation. No question marks. No exclamation marks.
+- NO benefit-driven copy ("Lost Leads", "Fix That", "Costing You")
+- NO prospect name in subject
+- Must look like something a colleague forwarded internally
+- ONLY use these patterns:
+  * The specific finding: "lead intake gap", "booking flow missing", "domain auth gap"
+  * The domain: "${domain}"
+  * The service area: "lead response setup", "intake automation"
+- BAD examples (never do this): "Lost Leads? Let's Fix That", "Missed Leads Costing You Sales", "Slow lead follow-ups hurting conversions"
+- GOOD examples: "lead intake gap", "quick site find", "response automation", "booking gap"
 
 ## STEP 3 — GENERATE THE EMAIL BODY
-Write a conversational, low-friction, peer-to-peer cold email using this exact framework:
-1. Greeting: If Founder First Name is provided, use "Hi [First Name],". Otherwise, use "Hi,". (NEVER output literal brackets, use the actual name or fallback).
-2. Observation: Start with THEIR world and the observation. MUST MATCH the JSON findings (e.g., "Your website currently doesn't appear to have [finding 1], which is one area worth addressing if you're relying on the site for [business impact].")
-3. Pitch the Solution: Explicitly pitch how Mr² labs can solve those specific problems. Do NOT overpitch. Sound human. (e.g., "We can handle the [service 1 fix] setup and make sure [outcome] is properly handled if that's something you want off your plate.")
-4. Low-friction CTA: "Worth exploring?" or "Open to a quick conversation?"
-5. Sign-off: "Best,\nRashard"
+Write a cold email using this EXACT structure. Each section is a separate paragraph.
 
-CRITICAL RULES:
-- Write like a peer. Use contractions. Keep it ruthlessly short.
-- NEVER say "speed diagnostic" if the findings are only about security and automation! The intro MUST accurately match the findings.
-- If the JSON shows "dmarc_missing", call it "domain protection" for non-technical audiences.
-- If the JSON shows "!has_scheduler", call it "automated lead intake".
-- You MUST separate each paragraph with double line breaks (\n\n). Do NOT write a single wall of text.
-- Do NOT use placeholder text like [Company] — use the actual Target Company Name provided.
+GREETING:
+If Founder First Name is provided, use "Hi [First Name],". Otherwise, use "Hi,". (Never output literal brackets, use actual name).
+
+PARAGRAPH 1 — THE OBSERVATION (1-2 sentences):
+- Start with the prospect's domain or company name directly
+- Reference ONE specific finding only. Not two. Not three. ONE.
+- Frame it as something you noticed, not a list of problems
+- BANNED opener: "I ran a quick technical check" — never use this
+- GOOD openers:
+  * "${domain} doesn't appear to have [finding]"
+  * "Noticed ${companyName} has no [finding] set up"
+  * "Checked ${domain} — [one specific thing] caught my attention"
+
+PARAGRAPH 2 — THE BUSINESS IMPACT (1 sentence):
+- Translate the technical finding into lost money or lost time
+- Be specific to their niche. For real estate: lost leads, slow response, competitors winning
+- BANNED: any technical jargon (DMARC, HSTS, SPF, headers, payload) unless technical audience
+- Every technical term must become a business outcome:
+  * dmarc_missing → "competitors can send fake emails pretending to be you"
+  * missing_scheduler → "leads that visit after hours have no way to book"
+  * missing_live_chat → "visitors with questions leave without converting"
+  * slow_load → "mobile visitors are bouncing before they see your listings"
+
+PARAGRAPH 3 — THE PITCH (1 sentence):
+- One line. What you can do. Outcome-focused.
+- Do NOT name MR² Labs here. Just say "we" or "I"
+- Example: "We can set up an automated response system so every new inquiry gets a text back within 60 seconds."
+
+PARAGRAPH 4 — CTA:
+- One of these only, nothing else:
+  * "Worth a quick call?"
+  * "Worth exploring?"
+  * "Open to a quick chat?"
+- Never: "Would you be open to a quick 10-minute conversation?" — too formal, too long
+
+SIGN OFF:
+Best,
+Rashard
+
+${toneInstructions}
 
 ## OUTPUT FORMAT
 Return ONLY this JSON object. No preamble.
 {
-  "email_subject": "lowercase subject line",
-  "audit_finding": "The specific technical findings",
+  "email_subject": "2-4 words lowercase",
+  "audit_finding": "The ONE specific finding",
   "business_impact": "The business consequences",
-  "recommended_service": "The exact service names from the catalog",
-  "service_pitch": "The Mr² labs can... pitch",
-  "email_body": "Hi [Name],\n\nYour website currently doesn't appear to have [finding 1], which is one area worth addressing if you're relying on the site for [business impact].\n\nWe can handle the [solution] setup and make sure it's properly hardened if that's something you want off your plate.\n\nWorth exploring?\n\nBest,\nRashard"
+  "recommended_service": "The exact service name from catalog",
+  "service_pitch": "The pitch line",
+  "email_body": "Hi [Name],\n\n[Domain] doesn't appear to have [finding] set up...\n\n[Business impact sentence]\n\n[Pitch sentence]\n\n[CTA]\n\nBest,\nRashard"
 }
 
 HARD CONSTRAINTS:
 1. Do NOT use placeholder text like [First Name] or [Company Name] — use real names.
-2. Only reference a flaw if it is explicitly present in the JSON as true or above threshold.`;
+2. Separate each section into its own paragraph using double line breaks (\\n\\n).
+3. Only reference a flaw if it is explicitly present in the JSON as true or above threshold.`;
 
   const founderFirstStr = founderFirst ? `Founder First Name: ${founderFirst}` : `Founder Name: None (Use "Hi,")`;
 
@@ -778,15 +822,15 @@ Generate Follow-Up #${followUpStep} based on the strict formula.`;
   // 6. Static Fallback
   let fallbackBody = '';
   if (followUpStep === 1) {
-    fallbackBody = `${greeting}\n\nJust following up on my previous message. One thing we've seen is that ${originalImpact} becomes increasingly expensive as a business grows.\n\nThat's exactly where we help by delivering ${originalService}.\n\nWould a quick 10-minute conversation this week be worth exploring?`;
+    fallbackBody = `${greeting}\n\nThe bigger issue with ${originalFinding} isn't the gap itself — it's that every lead hitting the site after hours has no way to move forward.\n\nHappy to handle the ${originalService} setup if it's something you want off your plate.\n\nWorth exploring?`;
   } else if (followUpStep === 2) {
-    fallbackBody = `${greeting}\n\nOne more thought on this: you may already have the infrastructure in place, the challenge is often the operational friction behind it.\n\nRather than adding more manual work to your existing team, we can take this entirely off your plate with our ${originalService}.\n\nIf this is something you're considering, would you be open to a quick 10-minute chat?`;
+    fallbackBody = `${greeting}\n\nOne more angle worth considering — you don't need to replace your existing setup to fix this.\n\nWe can layer the ${originalService} on top of what you already have.\n\nWorth a quick look?`;
   } else {
-    fallbackBody = `${greeting}\n\nI'll close the loop here so I don't keep filling your inbox.\n\nIf ${originalService} becomes a priority in the future, I'd be happy to reconnect and explore what we could build around it.\n\nI'll keep your details on file. Wishing you and the team continued success.`;
+    fallbackBody = `${greeting}\n\nI'll close the loop here.\n\nThe opportunity I had in mind was tightening ${originalFinding} — if it becomes a priority later, happy to pick it back up.\n\nBest,\nRashard`;
   }
 
   return {
-    email_subject: followUpStep === 3 ? 'Closing the loop' : 'Following up',
+    email_subject: followUpStep === 3 ? 'closing loop' : (followUpStep === 1 ? 'intake gap' : 'setup angle'),
     generated_pitch: fallbackBody,
   };
 }

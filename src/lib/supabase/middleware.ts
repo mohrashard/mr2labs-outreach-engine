@@ -23,6 +23,22 @@ export async function updateSession(request: NextRequest) {
     return supabaseResponse;
   }
 
+  // Check if request carries Supabase auth cookies
+  const allCookies = request.cookies.getAll();
+  const hasAuthCookie = allCookies.some(
+    (c) => c.name.includes('auth-token') || c.name.startsWith('sb-')
+  );
+
+  if (!hasAuthCookie) {
+    // Unauthenticated user with no auth cookie attempting to access protected route -> redirect immediately
+    if (pathname !== '/login') {
+      const url = request.nextUrl.clone();
+      url.pathname = '/login';
+      return NextResponse.redirect(url);
+    }
+    return supabaseResponse;
+  }
+
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
@@ -44,12 +60,12 @@ export async function updateSession(request: NextRequest) {
     }
   );
 
-  // Fetch user with a strict 4-second timeout to prevent Vercel MIDDLEWARE_INVOCATION_TIMEOUT (504)
+  // Fetch user with a strict 3-second timeout to prevent Vercel MIDDLEWARE_INVOCATION_TIMEOUT (504)
   let user = null;
   try {
     const authPromise = supabase.auth.getUser();
     const timeoutPromise = new Promise<{ data: { user: null }; error: Error }>((_, reject) =>
-      setTimeout(() => reject(new Error('Supabase Auth timeout in middleware')), 4000)
+      setTimeout(() => reject(new Error('Supabase Auth timeout in middleware')), 3000)
     );
 
     const result = (await Promise.race([authPromise, timeoutPromise])) as Awaited<

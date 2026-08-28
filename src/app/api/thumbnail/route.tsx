@@ -156,7 +156,7 @@ export async function GET(request: NextRequest) {
                   borderRadius: 5,
                 }}
               >
-                VIEW FULL PDF REPORT ➔
+                VIEW FULL PDF REPORT {'->'}
               </div>
             </div>
           </div>

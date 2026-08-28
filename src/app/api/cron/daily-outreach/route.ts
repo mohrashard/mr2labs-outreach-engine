@@ -211,23 +211,23 @@ export async function GET(req: Request) {
 
         const dailyLimit = campaign.daily_lead_limit || 20;
 
-        // Check quota — count all verified leads created today (NEW, QUEUED, SENT)
-        const { count: verifiedToday } = await supabaseAdmin
+        // Scraper Employee: Target is 20 fresh NEW verified leads created today for this campaign
+        const { count: newLeadsToday } = await supabaseAdmin
           .from('outreach_leads')
           .select('id', { count: 'exact', head: true })
           .eq('campaign_id', campaign.id)
-          .in('status', ['NEW', 'QUEUED', 'SENT'])
+          .eq('status', 'NEW')
           .gte('created_at', startOfDay.toISOString());
 
-        const availableLeadsCount = verifiedToday || 0;
+        const availableLeadsCount = newLeadsToday || 0;
 
         if (availableLeadsCount >= dailyLimit) {
-          const msg = `✅ Quota already satisfied — ${availableLeadsCount}/${dailyLimit} verified leads ready for "${campaign.name}". No scraping needed.`;
+          const msg = `✅ Scraper Quota Satisfied — ${availableLeadsCount}/${dailyLimit} fresh NEW leads scraped today for "${campaign.name}". No scraping needed.`;
           console.log(`[Cron] ${msg}`);
           await supabaseAdmin.from('system_logs').insert({ event_type: 'QUOTA_MET', message: msg, metadata: { campaign: campaign.name, count: availableLeadsCount, limit: dailyLimit } });
         } else {
           const leadsNeeded = dailyLimit - availableLeadsCount;
-          const startMsg = `🔍 Starting discovery for "${campaign.name}" in ${campaign.location} — need ${leadsNeeded} more verified leads (${availableLeadsCount}/${dailyLimit} already in queue).`;
+          const startMsg = `🔍 Scraper Auto-Triggered — "${campaign.name}" in ${campaign.location}: need ${leadsNeeded} more NEW verified leads for today (${availableLeadsCount}/${dailyLimit} scraped today).`;
           console.log(`[Cron] ${startMsg}`);
           await supabaseAdmin.from('system_logs').insert({ event_type: 'SCRAPE_START', message: startMsg, metadata: { campaign: campaign.name, location: campaign.location, needed: leadsNeeded } });
 

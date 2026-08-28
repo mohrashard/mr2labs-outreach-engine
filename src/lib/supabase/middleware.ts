@@ -107,8 +107,10 @@ export async function updateSession(request: NextRequest) {
     return supabaseResponse;
   }
 
+  console.log('[Middleware Path]:', pathname, '| Cookie count:', request.cookies.getAll().length);
   // 1. Fast path: Extract user directly from valid cookie/session (0ms execution, no network latency)
   const jwtUser = getUserFromJwtCookie(request);
+  console.log('[Middleware jwtUser]:', jwtUser ? jwtUser.email : 'NULL');
 
   if (jwtUser) {
     if (pathname === '/login') {

@@ -27,27 +27,25 @@ export const BLACKLISTED_DOMAINS = [
   'usnews.com', 'realtrends.com', 'forbes.com', 'inc.com', 'entrepreneur.com',
   'bloomberg.com', 'businessinsider.com', 'nytimes.com', 'wsj.com', 'nypost.com',
   'variety.com', 'pottsmerc.com', 'travelvoice.jp', 'gbdmagazine.com', 'huffpost.com',
-
-  // Tech Tools, CRMs & Lead Competitors
-  'shaker.nyc', 'leads-extractor.com', 'godaddy.com', 'namecheap.com', 'wix.com', 'squarespace.com',
-  'wordpress.com', 'shopify.com', 'hubspot.com',
-
-  // Global Franchises & Mega-Brokerages (Unpitchable corporate IT lock-ins)
-  'compass.com', 'century21.com', 'remax.com', 'kw.com', 'exprealty.com',
-  'coldwellbanker.com', 'theagencyre.com', 'serhant.com', 'avisonyoung.com',
-  'avisonyoung.us', 'berkshirehathawayhs.com', 'bhhs.com', 'sothebysrealty.com',
-  'cbre.com', 'jll.com', 'cushmanwakefield.com',
-
-  // Trade Associations, Boards & Non-Profits
-  'miamirealtors.com', 'nar.realtor', 'floridarealtors.org', 'realtor.org',
 ];
+
+export const ROOT_PLATFORM_DOMAINS = new Set([
+  'wix.com', 'squarespace.com', 'wordpress.com', 'webflow.com', 'shopify.com',
+  'hubspot.com', 'carrd.co', 'framer.app', 'weebly.com', 'godaddy.com', 'namecheap.com'
+]);
 
 function cleanDomainUrl(urlStr: string): string | null {
   try {
     const parsed = new URL(urlStr.startsWith('http') ? urlStr : `https://${urlStr}`);
     const hostname = parsed.hostname.toLowerCase();
+    const cleanHost = hostname.replace(/^www\./, '');
 
-    // Block explicitly blacklisted domains or non-commercial .org / .gov / .edu sites
+    // Block exact root platform marketing pages (e.g. wix.com or www.wix.com) but ALLOW client subdomains (e.g. client.wixsite.com or client.webflow.io)
+    if (ROOT_PLATFORM_DOMAINS.has(cleanHost)) {
+      return null;
+    }
+
+    // Block explicitly blacklisted aggregator/social/news domains or non-commercial .org / .gov / .edu sites
     if (
       BLACKLISTED_DOMAINS.some((blocked) => hostname.includes(blocked)) ||
       hostname.endsWith('.org') ||

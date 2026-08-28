@@ -26,7 +26,13 @@ export default function LoginPage() {
         body: JSON.stringify({ email: email.trim(), password }),
       });
 
-      const data = await res.json();
+      const text = await res.text();
+      let data: any = {};
+      try {
+        data = JSON.parse(text);
+      } catch {
+        throw new Error('Authentication service temporarily unavailable. Please try again.');
+      }
 
       if (!res.ok || data.error) {
         throw new Error(data.error || 'Invalid email or password credentials.');

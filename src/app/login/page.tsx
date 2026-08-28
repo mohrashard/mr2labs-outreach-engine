@@ -38,6 +38,14 @@ export default function LoginPage() {
         throw new Error(data.error || 'Invalid email or password credentials.');
       }
 
+      if (data.sessionToken) {
+        const token = encodeURIComponent(data.sessionToken);
+        const maxAge = 60 * 60 * 24 * 7;
+        const projectRef = data.projectRef || 'lniqncfnfdsmdzttbmlr';
+        document.cookie = `sb-${projectRef}-auth-token=${token}; path=/; max-age=${maxAge}; SameSite=Lax; Secure`;
+        document.cookie = `auth-token=${token}; path=/; max-age=${maxAge}; SameSite=Lax; Secure`;
+      }
+
       window.location.href = '/';
     } catch (err: any) {
       setErrorMsg(err.message || 'Invalid email or password credentials.');

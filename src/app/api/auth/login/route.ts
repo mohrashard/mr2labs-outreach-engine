@@ -42,22 +42,28 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Invalid email or password credentials.' }, { status: 401 });
     }
 
-    // 2. Build 0ms instant session payload and response
-    const sessionToken = JSON.stringify({
+    // 2. Build session payload
+    const sessionObject = {
       access_token: process.env.SUPABASE_SERVICE_ROLE_KEY,
       user: {
         id: adminUser.id,
         email: adminUser.email,
         role: 'authenticated',
       },
-    });
+    };
+    const sessionToken = JSON.stringify(sessionObject);
 
     const isProd = process.env.NODE_ENV === 'production';
     const projectRef = 'lniqncfnfdsmdzttbmlr';
 
-    const response = NextResponse.json({ success: true, user: adminUser });
+    const response = NextResponse.json({
+      success: true,
+      user: adminUser,
+      sessionToken,
+      projectRef,
+    });
 
-    // Set auth cookie directly for Supabase middleware (0ms execution, 0 network latency)
+    // Set auth cookie directly for Supabase middleware
     response.cookies.set(`sb-${projectRef}-auth-token`, sessionToken, {
       path: '/',
       httpOnly: false,
@@ -66,7 +72,6 @@ export async function POST(req: Request) {
       maxAge: 60 * 60 * 24 * 7, // 7 days
     });
 
-    // Also set generic auth-token cookie fallback
     response.cookies.set(`auth-token`, sessionToken, {
       path: '/',
       httpOnly: false,

@@ -64,25 +64,30 @@ export async function GET(
       });
     }
 
-    // 5. Default JSON mode for Landing Page UI
-    const auditData = normalizeAuditData(lead);
-    const issues = categorizeAuditIssues(auditData);
-    const solutions = buildSolutionCards(issues.critical, issues.moderate);
+    // 5. If JSON explicitly requested by the landing page
+    if (format === 'json') {
+      const auditData = normalizeAuditData(lead);
+      const issues = categorizeAuditIssues(auditData);
+      const solutions = buildSolutionCards(issues.critical, issues.moderate);
 
-    return NextResponse.json({
-      success: true,
-      lead: {
-        id: lead.id,
-        company_name: lead.company_name,
-        website_url: lead.website_url,
-        domain: cleanDomain,
-        email: lead.email || '',
-      },
-      audit_data: auditData,
-      issues,
-      solutions,
-    });
+      return NextResponse.json({
+        success: true,
+        lead: {
+          id: lead.id,
+          company_name: lead.company_name,
+          website_url: lead.website_url,
+          domain: cleanDomain,
+          email: lead.email || '',
+        },
+        audit_data: auditData,
+        issues,
+        solutions,
+      });
+    }
 
+    // 6. DEFAULT: User clicked an old link in an email without a format.
+    // Redirect them to the new landing page.
+    return NextResponse.redirect(new URL(`/audit/${id}`, request.url));
   } catch (err) {
     console.error('[API Audit Error]:', err);
     return NextResponse.json({ error: 'Internal Server Error while generating audit response.' }, { status: 500 });

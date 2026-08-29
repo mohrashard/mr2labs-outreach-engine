@@ -60,7 +60,7 @@ export default function AuditLandingPage({ params }: { params: Promise<{ id: str
     async function fetchAudit() {
       try {
         setLoading(true);
-        const res = await fetch(`/api/audit/${leadId}`);
+        const res = await fetch(`/api/audit/${leadId}?format=json`);
         if (!res.ok) {
           throw new Error('Failed to load audit report');
         }

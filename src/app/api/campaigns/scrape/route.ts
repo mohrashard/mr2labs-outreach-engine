@@ -11,7 +11,9 @@ const qstash = process.env.QSTASH_TOKEN ? new Client({ token: process.env.QSTASH
 
 export async function POST(req: Request) {
   try {
-    let { campaignId, niche, location } = await req.json();
+    let body: any = {};
+    try { body = await req.json(); } catch {}
+    let { campaignId, niche, location } = body;
 
     if (!niche || !location) {
       if (!campaignId) {

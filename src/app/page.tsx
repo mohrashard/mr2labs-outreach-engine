@@ -90,6 +90,22 @@ export default function AdminDashboard() {
     }
   };
 
+  async function safeFetchJson(url: string, options?: RequestInit) {
+    const res = await fetch(url, options);
+    const contentType = res.headers.get('content-type') || '';
+    if (contentType.includes('application/json')) {
+      const data = await res.json();
+      if (!res.ok || data.error) {
+        throw new Error(data.error || `Server error (${res.status})`);
+      }
+      return data;
+    } else {
+      const text = await res.text();
+      const cleanText = text.replace(/<[^>]*>?/gm, '').trim().slice(0, 120);
+      throw new Error(cleanText || `Server returned status ${res.status}`);
+    }
+  }
+
   const handleCreateCampaign = async (formData: { campaignName: string; niche: string; location: string; startDate: string }) => {
     setIsScraping(true);
     try {
@@ -97,7 +113,7 @@ export default function AdminDashboard() {
       const end = new Date(start);
       end.setDate(end.getDate() + 30);
       
-      const campRes = await fetch('/api/campaigns', {
+      const campaign = await safeFetchJson('/api/campaigns', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -108,20 +124,16 @@ export default function AdminDashboard() {
           end_date: end.toISOString()
         })
       });
-      const campaign = await campRes.json();
-      if (campaign.error) throw new Error(campaign.error);
 
       showAlert('success', `Campaign created! Running discovery scraper for ${formData.niche}...`);
 
-      const scrapeRes = await fetch('/api/campaigns/scrape', {
+      const scrapeData = await safeFetchJson('/api/campaigns/scrape', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ campaignId: campaign.id, niche: formData.niche, location: formData.location })
       });
-      const scrapeData = await scrapeRes.json();
-      if (scrapeData.error) throw new Error(scrapeData.error);
       
-      showAlert('success', `Scraping complete. Processed ${scrapeData.processedCount || scrapeData.enqueuedCount} leads.`);
+      showAlert('success', `Scraping complete. Processed ${scrapeData.processedCount || scrapeData.enqueuedCount || 0} leads.`);
       fetchData();
     } catch (err: any) {
       showAlert('error', err.message);
@@ -133,14 +145,12 @@ export default function AdminDashboard() {
   const handleRunScraper = async () => {
     setIsScraping(true);
     try {
-      const res = await fetch('/api/campaigns/scrape', { 
+      const data = await safeFetchJson('/api/campaigns/scrape', { 
         method: 'POST', 
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({})
       });
-      const data = await res.json();
-      if (data.error) throw new Error(data.error);
-      showAlert('success', `Scrape initiated! Processed/Enqueued leads successfully.`);
+      showAlert('success', data.message || `Scrape initiated! Processed/Enqueued leads successfully.`);
       fetchData();
     } catch (err: any) {
       showAlert('error', err.message);
@@ -152,15 +162,13 @@ export default function AdminDashboard() {
   const handleFlushQueue = async () => {
     setIsFlushing(true);
     try {
-      const res = await fetch('/api/cron/daily-outreach', { 
+      const data = await safeFetchJson('/api/cron/daily-outreach', { 
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${process.env.NEXT_PUBLIC_CRON_SECRET || 'mr2labs_cron_secret_key_2026'}`
         }
       });
-      const data = await res.json();
-      if (data.error) throw new Error(data.error);
-      showAlert('success', `Queue flushed! Enqueued ${data.enqueuedJobs} emails to Brevo.`);
+      showAlert('success', `Queue flushed! Enqueued ${data.enqueuedJobs || 0} emails to Brevo.`);
       fetchData();
     } catch (err: any) {
       showAlert('error', err.message);
@@ -171,13 +179,11 @@ export default function AdminDashboard() {
 
   const handleUpdateLead = async (updatedLead: OutreachLead) => {
     try {
-      const res = await fetch('/api/leads/update', {
+      await safeFetchJson('/api/leads/update', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(updatedLead)
       });
-      const data = await res.json();
-      if (data.error) throw new Error(data.error);
 
       setSelectedLead(updatedLead);
       setLeads(prev => prev.map(l => l.id === updatedLead.id ? updatedLead : l));
@@ -190,14 +196,12 @@ export default function AdminDashboard() {
   const handleSendTestEmail = async (lead: OutreachLead) => {
     try {
       showAlert('success', `Sending test cold email for ${lead.company_name}...`);
-      const res = await fetch('/api/cron/daily-outreach', { 
+      await safeFetchJson('/api/cron/daily-outreach', { 
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${process.env.NEXT_PUBLIC_CRON_SECRET || 'mr2labs_cron_secret_key_2026'}`
         }
       });
-      const data = await res.json();
-      if (data.error) throw new Error(data.error);
       showAlert('success', `Test email dispatched to ${lead.email}`);
       fetchData();
     } catch (err: any) {

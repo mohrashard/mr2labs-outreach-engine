@@ -47,6 +47,7 @@ export default function AuditLandingPage({ params }: { params: Promise<{ id: str
   const [nameInput, setNameInput] = useState('');
   const [notesInput, setNotesInput] = useState('');
   const [emailInput, setEmailInput] = useState('');
+  const [selectedSolutions, setSelectedSolutions] = useState<string[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [faviconErr, setFaviconErr] = useState(false);
@@ -89,7 +90,9 @@ export default function AuditLandingPage({ params }: { params: Promise<{ id: str
           domain: data.lead.domain,
           email: emailInput || data.lead.email,
           contact_name: nameInput,
-          priority_notes: notesInput,
+          priority_notes: selectedSolutions.length > 0
+            ? `Priorities: ${selectedSolutions.join(', ')}\n\nNotes: ${notesInput}`
+            : notesInput,
         }),
       });
       if (res.ok) setSubmitted(true);
@@ -103,9 +106,11 @@ export default function AuditLandingPage({ params }: { params: Promise<{ id: str
   };
 
   const handleSelectSolution = (solutionTitle: string) => {
-    setNotesInput(`Please prioritize building: ${solutionTitle}`);
-    const el = document.getElementById('request-loom');
-    if (el) el.scrollIntoView({ behavior: 'smooth' });
+    setSelectedSolutions(prev => 
+      prev.includes(solutionTitle)
+        ? prev.filter(t => t !== solutionTitle)
+        : [...prev, solutionTitle]
+    );
   };
 
   if (loading) {
@@ -154,17 +159,14 @@ export default function AuditLandingPage({ params }: { params: Promise<{ id: str
       <nav className="fixed top-0 inset-x-0 z-50 border-b border-white/[0.04] bg-[#030407]/80 backdrop-blur-xl">
         <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <div className="w-6 h-6 rounded bg-gradient-to-tr from-emerald-500 to-emerald-300 flex items-center justify-center">
-              <div className="w-2 h-2 bg-black rounded-sm" />
-            </div>
-            <span className="font-semibold text-sm tracking-tight">MR² Labs</span>
+            <Image src="/mr-squared-logo.png" alt="Mr² Labs" width={140} height={36} className="h-7 w-auto object-contain brightness-0 invert opacity-90 hover:opacity-100 transition-opacity" />
           </div>
           <div className="flex items-center gap-4">
             <a href="#booking" className="hidden md:block text-xs font-medium text-zinc-400 hover:text-white transition-colors">
-              Schedule Review
+              Book Call
             </a>
             <a href="#request-loom" className="h-8 px-4 inline-flex items-center justify-center text-xs font-medium bg-white text-black rounded-full hover:bg-zinc-200 transition-colors">
-              Get Video
+              Get Audit
             </a>
           </div>
         </div>
@@ -189,24 +191,24 @@ export default function AuditLandingPage({ params }: { params: Promise<{ id: str
               
               <div className="space-y-6">
                 <h1 className="text-5xl md:text-6xl lg:text-7xl font-medium tracking-tight leading-[1.05] text-white">
-                  Analysis for <br/>
+                  Audit for <br/>
                   <span className="text-transparent bg-clip-text bg-gradient-to-r from-white to-zinc-500">
                     {lead.company_name}
                   </span>
                 </h1>
                 <p className="text-lg text-zinc-400 max-w-xl leading-relaxed">
-                  We ran a technical diagnostic on your domain. Here is a clear view of performance gaps, structural risks, and our exact blueprint to resolve them.
+                  We ran a technical audit on your domain. Here is a clear view of performance gaps, structural risks, and our exact plan to resolve them.
                 </p>
               </div>
 
               <div className="flex flex-wrap items-center gap-4">
                 <a href="#issues" className="h-12 px-6 inline-flex items-center justify-center gap-2 text-sm font-medium bg-white text-black rounded-xl hover:bg-zinc-200 transition-colors">
-                  View diagnostic
+                  View Audit
                   <ArrowRight className="w-4 h-4" />
                 </a>
                 <a href="#booking" className="h-12 px-6 inline-flex items-center justify-center gap-2 text-sm font-medium border border-white/10 bg-white/[0.02] rounded-xl hover:bg-white/[0.05] transition-colors">
                   <Calendar className="w-4 h-4 text-zinc-400" />
-                  Book discussion
+                  Book Call
                 </a>
               </div>
             </div>
@@ -242,7 +244,7 @@ export default function AuditLandingPage({ params }: { params: Promise<{ id: str
           <section id="issues" className="space-y-8">
             <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
               <div className="space-y-2">
-                <h2 className="text-3xl font-medium tracking-tight">Diagnostic Results</h2>
+                <h2 className="text-3xl font-medium tracking-tight">Audit Results</h2>
                 <p className="text-zinc-400 text-sm">Prioritized risks impacting performance and conversion.</p>
               </div>
               <div className="flex items-center gap-4 text-xs font-mono">
@@ -297,16 +299,18 @@ export default function AuditLandingPage({ params }: { params: Promise<{ id: str
           {/* Solutions / Roadmap */}
           <section className="space-y-8">
             <div className="space-y-2 max-w-2xl">
-              <h2 className="text-3xl font-medium tracking-tight">Execution Blueprint</h2>
+              <h2 className="text-3xl font-medium tracking-tight">How we'll fix it</h2>
               <p className="text-zinc-400 text-sm leading-relaxed">
-                Our recommended sequence to resolve these gaps. We do not just audit; we build the solutions.
+                Our recommended plan to resolve these gaps. We do not just audit; we build the solutions.
               </p>
             </div>
 
             <div className="grid md:grid-cols-2 gap-4">
-              {solutions.map((card, idx) => (
-                <div key={`sol-${idx}`} className="group relative p-8 rounded-3xl border border-white/10 bg-white/[0.02] hover:border-emerald-500/30 transition-all duration-300 overflow-hidden flex flex-col justify-between gap-8">
-                  <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+              {solutions.map((card, idx) => {
+                const isSelected = selectedSolutions.includes(card.title);
+                return (
+                <div key={`sol-${idx}`} className={`group relative p-8 rounded-3xl border transition-all duration-300 overflow-hidden flex flex-col justify-between gap-8 ${isSelected ? 'border-emerald-500/50 bg-emerald-500/[0.02]' : 'border-white/10 bg-white/[0.02] hover:border-emerald-500/30'}`}>
+                  <div className={`absolute inset-0 bg-gradient-to-br from-emerald-500/5 to-transparent transition-opacity duration-500 ${isSelected ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`} />
                   
                   <div className="relative z-10 space-y-4">
                     <div className="flex items-center justify-between">
@@ -330,13 +334,13 @@ export default function AuditLandingPage({ params }: { params: Promise<{ id: str
 
                   <button
                     onClick={() => handleSelectSolution(card.title)}
-                    className="relative z-10 w-full h-12 flex items-center justify-center gap-2 text-sm font-medium rounded-xl border border-white/10 bg-black hover:bg-white hover:text-black transition-colors"
+                    className={`relative z-10 w-full h-12 flex items-center justify-center gap-2 text-sm font-medium rounded-xl border transition-colors ${isSelected ? 'bg-emerald-500/10 border-emerald-500/50 text-emerald-400 hover:bg-emerald-500/20' : 'border-white/10 bg-black text-white hover:bg-white hover:text-black'}`}
                   >
-                    Select for priority
-                    <ArrowRight className="w-4 h-4" />
+                    {isSelected ? 'Selected for priority' : 'Select for priority'}
+                    {isSelected ? <CheckCircle2 className="w-4 h-4" /> : <ArrowRight className="w-4 h-4" />}
                   </button>
                 </div>
-              ))}
+              )})}
             </div>
           </section>
 
@@ -353,9 +357,9 @@ export default function AuditLandingPage({ params }: { params: Promise<{ id: str
                     <Video className="w-4 h-4" />
                     <span className="text-[10px] font-mono uppercase tracking-wider">Video Walkthrough</span>
                   </div>
-                  <h3 className="text-2xl font-medium text-white">Request a detailed breakdown</h3>
+                  <h3 className="text-2xl font-medium text-white">Get your video audit</h3>
                   <p className="text-sm text-zinc-400 leading-relaxed">
-                    We will record a custom video analyzing {lead.domain} in depth, delivered to your inbox within 48 hours.
+                    We will record a custom video auditing {lead.domain} in depth, delivered to your inbox within 48 hours.
                   </p>
                 </div>
 
@@ -391,13 +395,18 @@ export default function AuditLandingPage({ params }: { params: Promise<{ id: str
                       </div>
                     </div>
                     <div className="space-y-1.5">
-                      <label className="text-[11px] font-mono text-zinc-500 uppercase tracking-wide">Priority Notes (Optional)</label>
+                      <div className="flex items-center justify-between">
+                        <label className="text-[11px] font-mono text-zinc-500 uppercase tracking-wide">Priority Notes (Optional)</label>
+                        {selectedSolutions.length > 0 && (
+                          <span className="text-[10px] font-mono text-emerald-400 uppercase">{selectedSolutions.length} selected</span>
+                        )}
+                      </div>
                       <textarea
                         rows={2}
                         value={notesInput}
                         onChange={(e) => setNotesInput(e.target.value)}
                         className="w-full p-4 bg-black border border-white/10 rounded-xl text-sm text-white focus:border-indigo-500 focus:outline-none transition-colors resize-none"
-                        placeholder="What should we focus on?"
+                        placeholder={selectedSolutions.length > 0 ? "Any additional context..." : "What should we focus on?"}
                       />
                     </div>
                     <button
@@ -405,7 +414,7 @@ export default function AuditLandingPage({ params }: { params: Promise<{ id: str
                       disabled={submitting}
                       className="w-full h-12 inline-flex items-center justify-center gap-2 bg-white text-black text-sm font-medium rounded-xl hover:bg-zinc-200 transition-colors disabled:opacity-50 mt-2"
                     >
-                      {submitting ? 'Sending request...' : 'Send Video Breakdown'}
+                      {submitting ? 'Sending request...' : 'Send Video Audit'}
                     </button>
                   </form>
                 )}
@@ -422,9 +431,9 @@ export default function AuditLandingPage({ params }: { params: Promise<{ id: str
                     <Calendar className="w-4 h-4" />
                     <span className="text-[10px] font-mono uppercase tracking-wider">Strategy Call</span>
                   </div>
-                  <h3 className="text-2xl font-medium text-white">Book a direct discussion</h3>
+                  <h3 className="text-2xl font-medium text-white">Book a strategy call</h3>
                   <p className="text-sm text-zinc-400 leading-relaxed">
-                    Skip the video and schedule a working session to review the blueprint.
+                    Skip the video and schedule a working session to review the plan.
                   </p>
                 </div>
 
@@ -446,11 +455,8 @@ export default function AuditLandingPage({ params }: { params: Promise<{ id: str
       {/* Footer */}
       <footer className="border-t border-white/[0.04] bg-[#030407] py-8 relative z-10">
         <div className="max-w-7xl mx-auto px-6 flex flex-col sm:flex-row items-center justify-between gap-4">
-          <div className="flex items-center gap-2 opacity-50">
-            <div className="w-4 h-4 rounded-sm bg-gradient-to-tr from-emerald-500 to-emerald-300 flex items-center justify-center">
-              <div className="w-1.5 h-1.5 bg-black rounded-sm" />
-            </div>
-            <span className="font-semibold text-xs tracking-tight text-white">MR² Labs</span>
+          <div className="flex items-center gap-2 opacity-70 hover:opacity-100 transition-opacity">
+            <Image src="/mr-squared-logo.png" alt="Mr² Labs" width={100} height={26} className="h-5 w-auto object-contain brightness-0 invert" />
           </div>
           <p className="text-[11px] font-mono text-zinc-600 uppercase tracking-widest">
             Diagnostic Framework © {new Date().getFullYear()}

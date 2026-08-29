@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { 
-  Users, Mail, MessageSquareText, Activity, 
+  Users, Mail, MessageSquareText, Activity, Send,
   Play, RefreshCw, CheckCircle, AlertTriangle, Layers, LogOut, ShieldCheck
 } from 'lucide-react';
 import Image from 'next/image';
@@ -27,6 +27,7 @@ export default function AdminDashboard() {
     activeCampaigns: 0,
     totalScraped: 0,
     emailsSentToday: 0,
+    totalSent: 0,
     replyRate: '0%'
   });
   const [leads, setLeads] = useState<OutreachLead[]>([]);
@@ -258,6 +259,13 @@ export default function AdminDashboard() {
             )}
 
             <Link 
+              href="/campaigns"
+              className="px-3.5 py-2 hover:bg-white/[0.04] text-slate-400 hover:text-slate-200 rounded-full font-normal text-xs transition-colors duration-200 flex items-center gap-2"
+            >
+              <Layers className="w-3.5 h-3.5 text-indigo-400/80" />
+              Campaigns
+            </Link>
+            <Link 
               href="/templates"
               className="px-3.5 py-2 hover:bg-white/[0.04] text-slate-400 hover:text-slate-200 rounded-full font-normal text-xs transition-colors duration-200 flex items-center gap-2"
             >
@@ -316,15 +324,15 @@ export default function AdminDashboard() {
       <main className="max-w-7xl mx-auto px-6 pt-9 space-y-9 relative z-10">
         
         {/* Metric Cards Top Bar */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
           
-          <div className="bg-white/[0.015] hover:bg-white/[0.03] ring-1 ring-white/[0.05] hover:ring-white/[0.1] rounded-2xl p-6 shadow-sm backdrop-blur-md transition-all duration-200 ease-out group">
+          <div className="bg-white/[0.015] hover:bg-white/[0.03] ring-1 ring-white/[0.05] hover:ring-white/[0.1] rounded-2xl p-5 shadow-sm backdrop-blur-md transition-all duration-200 ease-out group">
             <div className="flex justify-between items-start">
               <div>
                 <p className="text-xs font-normal text-slate-500 tracking-normal">Total Scraped</p>
                 <h3 className="text-2xl font-medium tracking-tight text-slate-200 mt-1">{metrics.totalScraped}</h3>
               </div>
-              <div className="p-2.5 bg-white/[0.02] ring-1 ring-white/[0.06] rounded-xl text-slate-400 group-hover:text-indigo-300 transition-colors duration-200">
+              <div className="p-2 bg-white/[0.02] ring-1 ring-white/[0.06] rounded-xl text-slate-400 group-hover:text-indigo-300 transition-colors duration-200">
                 <Users className="w-4 h-4" />
               </div>
             </div>
@@ -334,13 +342,13 @@ export default function AdminDashboard() {
             </div>
           </div>
 
-          <div className="bg-white/[0.015] hover:bg-white/[0.03] ring-1 ring-white/[0.05] hover:ring-white/[0.1] rounded-2xl p-6 shadow-sm backdrop-blur-md transition-all duration-200 ease-out group">
+          <div className="bg-white/[0.015] hover:bg-white/[0.03] ring-1 ring-white/[0.05] hover:ring-white/[0.1] rounded-2xl p-5 shadow-sm backdrop-blur-md transition-all duration-200 ease-out group">
             <div className="flex justify-between items-start">
               <div>
                 <p className="text-xs font-normal text-slate-500 tracking-normal">Emails Sent Today</p>
                 <h3 className="text-2xl font-medium tracking-tight text-slate-200 mt-1">{metrics.emailsSentToday}</h3>
               </div>
-              <div className="p-2.5 bg-white/[0.02] ring-1 ring-white/[0.06] rounded-xl text-slate-400 group-hover:text-emerald-300 transition-colors duration-200">
+              <div className="p-2 bg-white/[0.02] ring-1 ring-white/[0.06] rounded-xl text-slate-400 group-hover:text-emerald-300 transition-colors duration-200">
                 <Mail className="w-4 h-4" />
               </div>
             </div>
@@ -349,13 +357,28 @@ export default function AdminDashboard() {
             </div>
           </div>
 
-          <div className="bg-white/[0.015] hover:bg-white/[0.03] ring-1 ring-white/[0.05] hover:ring-white/[0.1] rounded-2xl p-6 shadow-sm backdrop-blur-md transition-all duration-200 ease-out group">
+          <div className="bg-white/[0.015] hover:bg-white/[0.03] ring-1 ring-white/[0.05] hover:ring-white/[0.1] rounded-2xl p-5 shadow-sm backdrop-blur-md transition-all duration-200 ease-out group">
+            <div className="flex justify-between items-start">
+              <div>
+                <p className="text-xs font-normal text-slate-500 tracking-normal">Total Sent (All Time)</p>
+                <h3 className="text-2xl font-medium tracking-tight text-slate-200 mt-1">{metrics.totalSent}</h3>
+              </div>
+              <div className="p-2 bg-white/[0.02] ring-1 ring-white/[0.06] rounded-xl text-slate-400 group-hover:text-blue-300 transition-colors duration-200">
+                <Send className="w-4 h-4" />
+              </div>
+            </div>
+            <div className="mt-4 flex items-center text-[11px] text-slate-500 font-normal">
+              <span className="text-blue-400/90 font-normal">Lifetime dispatches</span>
+            </div>
+          </div>
+
+          <div className="bg-white/[0.015] hover:bg-white/[0.03] ring-1 ring-white/[0.05] hover:ring-white/[0.1] rounded-2xl p-5 shadow-sm backdrop-blur-md transition-all duration-200 ease-out group">
             <div className="flex justify-between items-start">
               <div>
                 <p className="text-xs font-normal text-slate-500 tracking-normal">Reply Rate</p>
                 <h3 className="text-2xl font-medium tracking-tight text-slate-200 mt-1">{metrics.replyRate}</h3>
               </div>
-              <div className="p-2.5 bg-white/[0.02] ring-1 ring-white/[0.06] rounded-xl text-slate-400 group-hover:text-purple-300 transition-colors duration-200">
+              <div className="p-2 bg-white/[0.02] ring-1 ring-white/[0.06] rounded-xl text-slate-400 group-hover:text-purple-300 transition-colors duration-200">
                 <MessageSquareText className="w-4 h-4" />
               </div>
             </div>
@@ -365,13 +388,13 @@ export default function AdminDashboard() {
             </div>
           </div>
 
-          <div className="bg-white/[0.015] hover:bg-white/[0.03] ring-1 ring-white/[0.05] hover:ring-white/[0.1] rounded-2xl p-6 shadow-sm backdrop-blur-md transition-all duration-200 ease-out group">
+          <div className="bg-white/[0.015] hover:bg-white/[0.03] ring-1 ring-white/[0.05] hover:ring-white/[0.1] rounded-2xl p-5 shadow-sm backdrop-blur-md transition-all duration-200 ease-out group">
             <div className="flex justify-between items-start">
               <div>
                 <p className="text-xs font-normal text-slate-500 tracking-normal">Active Campaigns</p>
                 <h3 className="text-2xl font-medium tracking-tight text-slate-200 mt-1">{metrics.activeCampaigns}</h3>
               </div>
-              <div className="p-2.5 bg-white/[0.02] ring-1 ring-white/[0.06] rounded-xl text-slate-400 group-hover:text-cyan-300 transition-colors duration-200">
+              <div className="p-2 bg-white/[0.02] ring-1 ring-white/[0.06] rounded-xl text-slate-400 group-hover:text-cyan-300 transition-colors duration-200">
                 <Activity className="w-4 h-4" />
               </div>
             </div>

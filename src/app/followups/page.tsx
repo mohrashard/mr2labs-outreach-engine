@@ -284,8 +284,12 @@ export default function FollowUpsDashboard() {
       <header className="border-b border-white/[0.04] bg-[#0a0a0c]/80 backdrop-blur-2xl sticky top-0 z-40">
         <div className="max-w-7xl mx-auto px-6 py-3.5 flex flex-col md:flex-row justify-between items-center gap-4">
           <div className="flex items-center gap-4">
-            <Link href="/" className="p-2 bg-white/[0.02] hover:bg-white/[0.05] rounded-xl transition-colors ring-1 ring-white/5">
+            <Link href="/" className="p-2 bg-white/[0.02] hover:bg-white/[0.05] rounded-xl transition-colors ring-1 ring-white/5" title="Back to Dashboard">
               <ArrowLeft className="w-4 h-4 text-slate-400" />
+            </Link>
+            <Link href="/campaigns" className="px-3 py-2 bg-white/[0.02] hover:bg-white/[0.05] text-slate-400 hover:text-slate-200 rounded-xl transition-colors ring-1 ring-white/5 flex items-center gap-1.5 text-xs" title="Campaign Control Center">
+              <Layers className="w-3.5 h-3.5 text-indigo-400" />
+              <span className="hidden sm:inline">Campaigns</span>
             </Link>
             <div className="flex items-center gap-3">
               <Image src="/mr-squared-logo.png" alt="Logo" width={30} height={30} className="rounded-lg ring-1 ring-white/10" />

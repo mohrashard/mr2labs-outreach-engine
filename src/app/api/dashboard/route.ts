@@ -25,6 +25,7 @@ export async function GET() {
         activeCampaigns: activeCampaignsCount || 0,
         totalScraped: totalScrapedCount || 0,
         emailsSentToday: emailsSentToday || 0,
+        totalSent: totalSentEver || 0,
         replyRate: `${replyRate}%`
       },
       leads: leads || []

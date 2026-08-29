@@ -65,20 +65,20 @@ export function categorizeAuditIssues(audit: AuditData) {
   const moderate: AuditIssue[] = [];
   const passing: AuditIssue[] = [];
 
-  // 1. Security Checks
+  // 1. Security & Deliverability Checks
   if (audit.security?.dmarc === false) {
     critical.push({
       id: 'dmarc_missing',
-      title: 'DMARC not configured',
-      description: 'High risk of email spoofing & spam filter domain flags.',
+      title: 'Email Security Missing (Domain Spoofing Risk)',
+      description: 'Without DMARC authentication, spammers can impersonate your domain, causing your emails to land in customer spam folders.',
       severity: 'critical',
       category: 'security',
     });
   } else if (audit.security?.dmarc === true) {
     passing.push({
       id: 'dmarc_ok',
-      title: 'DMARC policy configured ✓',
-      description: 'Domain authenticated against spoofing attacks.',
+      title: 'Email Domain Authenticated',
+      description: 'Your domain is verified against spoofing and spam filter flags.',
       severity: 'passing',
       category: 'security',
     });
@@ -87,35 +87,35 @@ export function categorizeAuditIssues(audit: AuditData) {
   if (audit.security?.spf === false) {
     moderate.push({
       id: 'spf_missing',
-      title: 'SPF record missing',
-      description: 'Outbound emails risk landing in customer junk folders.',
+      title: 'Sender Verification Record Missing',
+      description: 'Major email providers (Gmail & Outlook) may flag your customer emails as untrusted.',
       severity: 'moderate',
       category: 'security',
     });
   } else if (audit.security?.spf === true) {
     passing.push({
       id: 'spf_ok',
-      title: 'SPF record verified ✓',
-      description: 'Authorized email sending IPs configured properly.',
+      title: 'Sender Verification Active',
+      description: 'Authorized email sending servers are properly configured.',
       severity: 'passing',
       category: 'security',
     });
   }
 
-  // 2. Lead Capture Checks
+  // 2. Lead Capture & Friction Checks
   if (audit.lead_capture?.live_chat === false) {
     critical.push({
       id: 'live_chat_missing',
-      title: 'No live chat detected',
-      description: 'Losing mobile & high-intent leads in real time without instant engagement.',
+      title: 'No Real-Time Visitor Chat',
+      description: 'Mobile visitors looking for quick answers leave your site without contacting you.',
       severity: 'critical',
       category: 'lead_capture',
     });
   } else if (audit.lead_capture?.live_chat === true) {
     passing.push({
       id: 'live_chat_ok',
-      title: 'Live chat active ✓',
-      description: 'Real-time visitor chat tool identified on site.',
+      title: 'Real-Time Chat Widget Active',
+      description: 'Visitors can initiate instant conversations on your site.',
       severity: 'passing',
       category: 'lead_capture',
     });
@@ -124,16 +124,16 @@ export function categorizeAuditIssues(audit: AuditData) {
   if (audit.lead_capture?.scheduler === false) {
     critical.push({
       id: 'scheduler_missing',
-      title: 'No instant call scheduler',
-      description: 'Prospects must fill out static contact forms instead of self-booking.',
+      title: 'No 24/7 Automated Booking System',
+      description: 'Prospects must submit slow contact forms instead of self-scheduling calls on your calendar.',
       severity: 'critical',
       category: 'lead_capture',
     });
   } else if (audit.lead_capture?.scheduler === true) {
     passing.push({
       id: 'scheduler_ok',
-      title: 'Call scheduler active ✓',
-      description: 'Direct calendar booking available for prospects.',
+      title: 'Automated Calendar Scheduler Active',
+      description: 'Prospects can book consultations directly on your calendar.',
       severity: 'passing',
       category: 'lead_capture',
     });
@@ -142,36 +142,36 @@ export function categorizeAuditIssues(audit: AuditData) {
   if (!audit.lead_capture?.crm) {
     moderate.push({
       id: 'crm_missing',
-      title: 'No CRM detected',
-      description: 'Manual follow-ups costing team time and causing lead leakages.',
+      title: 'Leads Stored In Inbox (No Automated CRM Sync)',
+      description: 'Inbound customer inquiries are handled manually, leading to delayed response times and lost sales.',
       severity: 'moderate',
       category: 'lead_capture',
     });
   } else {
     passing.push({
       id: 'crm_ok',
-      title: `CRM system active (${audit.lead_capture.crm}) ✓`,
-      description: 'Inbound leads automatically sync to CRM workflow.',
+      title: `Automated CRM Sync Active (${audit.lead_capture.crm})`,
+      description: 'Inbound leads automatically sync to your pipeline.',
       severity: 'passing',
       category: 'lead_capture',
     });
   }
 
-  // 3. Performance Checks
+  // 3. Performance & Mobile Experience
   const perfScore = audit.performance?.score ?? 50;
   if (perfScore < 50) {
     moderate.push({
       id: 'speed_low',
-      title: `Mobile speed score ${perfScore}/100`,
-      description: 'Estimated 40%+ bounce rate on mobile devices due to slow load times.',
+      title: `Slow Mobile Page Speed (${perfScore}/100)`,
+      description: 'Google penalizes slow sites in search rankings, and over 40% of mobile visitors leave before the page loads.',
       severity: 'moderate',
       category: 'performance',
     });
   } else {
     passing.push({
       id: 'speed_ok',
-      title: `Mobile speed score ${perfScore}/100 ✓`,
-      description: 'Fast core web vitals response time.',
+      title: `Fast Mobile Experience (${perfScore}/100)`,
+      description: 'Your website loads quickly across mobile devices.',
       severity: 'passing',
       category: 'performance',
     });
@@ -180,27 +180,27 @@ export function categorizeAuditIssues(audit: AuditData) {
   if (audit.code_quality?.unoptimized_images) {
     moderate.push({
       id: 'unoptimized_images',
-      title: 'Unoptimized hero & media images',
-      description: 'Heavy uncompressed assets causing noticeable layout shift and rendering lag.',
+      title: 'Uncompressed Website Images',
+      description: 'Large image files slow down page loading speeds and consume unnecessary mobile data.',
       severity: 'moderate',
       category: 'code_quality',
     });
   }
 
-  // 4. SEO & Metadata
+  // 4. Social Sharing & Visibility
   if (audit.seo?.meta_desc === false) {
     moderate.push({
       id: 'meta_desc_missing',
-      title: 'Missing meta description tag',
-      description: 'Lower search engine click-through rates due to auto-generated snippet.',
+      title: 'Missing Search Preview Summary',
+      description: 'Search engines display generic snippet text instead of a compelling description of your services.',
       severity: 'moderate',
       category: 'seo',
     });
   } else if (audit.seo?.meta_desc === true) {
     passing.push({
       id: 'meta_desc_ok',
-      title: 'Meta description present ✓',
-      description: 'Custom search preview configured for search engines.',
+      title: 'Custom Search Summary Configured',
+      description: 'Search engine previews display your optimized description.',
       severity: 'passing',
       category: 'seo',
     });
@@ -209,16 +209,16 @@ export function categorizeAuditIssues(audit: AuditData) {
   if (audit.seo?.og_tags === false) {
     moderate.push({
       id: 'og_tags_missing',
-      title: 'Missing Open Graph preview tags',
-      description: 'Links shared on LinkedIn, WhatsApp, or Twitter lack branded rich previews.',
+      title: 'Unbranded Social Link Previews',
+      description: 'When your site link is shared on WhatsApp, LinkedIn, or text messages, it shows a blank link instead of a rich branded card.',
       severity: 'moderate',
       category: 'seo',
     });
   } else if (audit.seo?.og_tags === true) {
     passing.push({
       id: 'og_tags_ok',
-      title: 'Open Graph social tags present ✓',
-      description: 'Rich link previews display correctly across messaging & social apps.',
+      title: 'Branded Social Cards Active',
+      description: 'Rich preview cards display when your website link is shared in messages.',
       severity: 'passing',
       category: 'seo',
     });

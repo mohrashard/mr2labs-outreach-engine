@@ -2,6 +2,18 @@
 
 import React, { useEffect, useState, use } from 'react';
 import Image from 'next/image';
+import {
+  Zap,
+  Calendar,
+  Clock,
+  CheckCircle2,
+  AlertTriangle,
+  AlertCircle,
+  ChevronDown,
+  ChevronUp,
+  Check,
+  ArrowRight,
+} from 'lucide-react';
 import { AuditIssue, SolutionCard, AuditData } from '@/types/audit';
 
 interface LeadInfo {
@@ -53,9 +65,6 @@ export default function AuditLandingPage({ params }: { params: Promise<{ id: str
         }
         const json: AuditApiResponse = await res.json();
         setData(json);
-        if (json.lead?.company_name) {
-          setNameInput('');
-        }
       } catch (err: any) {
         setError(err.message || 'Audit report not found or expired.');
       } finally {
@@ -86,7 +95,7 @@ export default function AuditLandingPage({ params }: { params: Promise<{ id: str
       if (res.ok) {
         setSubmitted(true);
       } else {
-        alert('Could not submit form. Please try again.');
+        alert('Could not submit request. Please try again.');
       }
     } catch (err) {
       console.error(err);
@@ -96,11 +105,29 @@ export default function AuditLandingPage({ params }: { params: Promise<{ id: str
     }
   };
 
+  const handleSelectSolution = (solutionTitle: string) => {
+    setNotesInput(`Please prioritize building: ${solutionTitle}`);
+    const el = document.getElementById('request-loom');
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth' });
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col items-center justify-center p-6">
-        <div className="w-12 h-12 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin mb-4"></div>
-        <p className="text-slate-400 font-medium text-lg">Loading personalized audit report...</p>
+        <div className="relative mb-6">
+          <Image
+            src="/mr-squared-logo.png"
+            alt="MR² Labs"
+            width={160}
+            height={40}
+            priority
+            className="h-10 w-auto object-contain animate-pulse"
+          />
+        </div>
+        <div className="w-10 h-10 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin mb-4"></div>
+        <p className="text-slate-400 font-medium text-sm">Preparing diagnostic audit report...</p>
       </div>
     );
   }
@@ -108,13 +135,20 @@ export default function AuditLandingPage({ params }: { params: Promise<{ id: str
   if (error || !data) {
     return (
       <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col items-center justify-center p-6 text-center">
-        <div className="w-16 h-16 bg-red-500/10 border border-red-500/20 text-red-400 rounded-2xl flex items-center justify-center mb-4 text-2xl font-bold">
-          !
+        <Image
+          src="/mr-squared-logo.png"
+          alt="MR² Labs"
+          width={140}
+          height={36}
+          className="h-8 w-auto object-contain mb-8"
+        />
+        <div className="w-14 h-14 bg-red-500/10 border border-red-500/20 text-red-400 rounded-2xl flex items-center justify-center mb-4">
+          <AlertCircle className="w-7 h-7 text-red-400" />
         </div>
-        <h1 className="text-2xl font-bold text-slate-100 mb-2">Report Not Found</h1>
-        <p className="text-slate-400 max-w-md mb-6">{error || 'This audit report link is missing or invalid.'}</p>
-        <a href="/" className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-500 rounded-lg text-white font-medium transition-all">
-          Return to Home
+        <h1 className="text-2xl font-bold text-slate-100 mb-2">Audit Report Not Found</h1>
+        <p className="text-slate-400 max-w-md mb-6">{error || 'This audit report link is missing or expired.'}</p>
+        <a href="https://mr2labs.com" className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-500 rounded-xl text-white font-semibold text-sm transition-all">
+          Visit MR² Labs Homepage
         </a>
       </div>
     );
@@ -125,89 +159,139 @@ export default function AuditLandingPage({ params }: { params: Promise<{ id: str
   const moderateCount = issues.moderate.length;
   const passingCount = issues.passing.length;
 
-  // Build top issues summary string for Section 5
   const topIssueTitles = [...issues.critical, ...issues.moderate]
     .slice(0, 2)
     .map((i) => i.title)
     .join(' + ');
 
   const bookingContext = topIssueTitles
-    ? `Booking a call about: ${topIssueTitles} on ${lead.domain}`
-    : `Booking a tech review call for ${lead.domain}`;
+    ? `Fixing: ${topIssueTitles} on ${lead.domain}`
+    : `Strategy Call for ${lead.domain}`;
 
   const faviconUrl = `https://www.google.com/s2/favicons?domain=${encodeURIComponent(lead.domain)}&sz=128`;
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 font-sans selection:bg-indigo-500 selection:text-white">
-      {/* Top Header */}
-      <header className="border-b border-slate-800/80 bg-slate-900/60 backdrop-blur-md sticky top-0 z-50">
-        <div className="max-w-5xl mx-auto px-6 h-16 flex items-center justify-between">
+      {/* Sticky Header with Permanent CTAs */}
+      <header className="border-b border-slate-800/80 bg-slate-950/80 backdrop-blur-xl sticky top-0 z-50">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="h-8 w-8 rounded-lg bg-gradient-to-tr from-indigo-600 to-violet-500 flex items-center justify-center font-bold text-white shadow-lg shadow-indigo-500/20">
-              M²
-            </div>
-            <span className="font-semibold text-slate-200 tracking-tight">MR² Labs Outreach</span>
+            <a href="https://mr2labs.com" target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 hover:opacity-90 transition-opacity">
+              <Image
+                src="/mr-squared-logo.png"
+                alt="MR² Labs Logo"
+                width={140}
+                height={36}
+                priority
+                className="h-8 w-auto object-contain"
+              />
+            </a>
           </div>
-          <div className="flex items-center gap-2 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs px-3 py-1.5 rounded-full font-medium">
-            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-            Verified Audit Report
+
+          <div className="flex items-center gap-3">
+            <a
+              href="#request-loom"
+              className="hidden sm:inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-indigo-600/10 hover:bg-indigo-600/20 text-indigo-300 border border-indigo-500/30 rounded-lg text-xs font-semibold transition-all"
+            >
+              <Zap className="w-3.5 h-3.5 text-indigo-400" />
+              <span>Request 48h Video</span>
+            </a>
+            <a
+              href="#booking"
+              className="inline-flex items-center gap-1.5 px-4 py-1.5 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white rounded-lg text-xs font-bold shadow-lg shadow-indigo-600/20 transition-all"
+            >
+              <Calendar className="w-3.5 h-3.5 text-white" />
+              <span>Book Call</span>
+            </a>
           </div>
         </div>
       </header>
 
-      <main className="max-w-4xl mx-auto px-6 py-12 space-y-16">
+      <main className="max-w-4xl mx-auto px-4 sm:px-6 py-10 space-y-16">
         {/* SECTION 1 — HERO */}
-        <section className="text-center space-y-6 pt-4">
-          <div className="inline-flex items-center justify-center p-3 bg-slate-900 border border-slate-800 rounded-2xl shadow-xl">
+        <section className="text-center space-y-6 pt-2">
+          <div className="inline-flex items-center gap-3 p-2.5 px-4 bg-slate-900/90 border border-slate-800 rounded-2xl shadow-xl">
             {!faviconErr ? (
               <img
                 src={faviconUrl}
                 alt={`${lead.company_name} favicon`}
-                className="w-12 h-12 object-contain rounded-lg"
+                className="w-8 h-8 object-contain rounded-md"
                 onError={() => setFaviconErr(true)}
               />
             ) : (
-              <div className="w-12 h-12 bg-indigo-600/20 text-indigo-400 rounded-lg flex items-center justify-center font-bold text-xl">
+              <div className="w-8 h-8 bg-indigo-600/20 text-indigo-400 rounded-md flex items-center justify-center font-bold text-sm">
                 {lead.company_name.charAt(0).toUpperCase()}
               </div>
             )}
+            <span className="text-sm font-semibold text-slate-300">{lead.domain}</span>
           </div>
 
-          <div className="space-y-3 max-w-2xl mx-auto">
-            <h1 className="text-4xl sm:text-5xl font-extrabold text-white tracking-tight leading-tight">
+          <div className="space-y-4 max-w-3xl mx-auto">
+            <h1 className="text-3xl sm:text-5xl font-extrabold text-white tracking-tight leading-tight">
               We audited <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 via-purple-300 to-pink-400">{lead.company_name}</span>
             </h1>
-            <p className="text-lg text-slate-400 font-normal">
-              Here&apos;s what we found — and exactly how we&apos;d fix it.
+            <p className="text-base sm:text-lg text-slate-400 font-normal max-w-2xl mx-auto">
+              Here is what we discovered on your website, how it impacts your customer conversion, and the exact roadmap we would use to fix it.
             </p>
+          </div>
+
+          {/* Hero CTAs */}
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-2">
+            <a
+              href="#request-loom"
+              className="w-full sm:w-auto px-6 py-3.5 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white font-bold rounded-xl shadow-xl shadow-indigo-600/20 transition-all text-sm flex items-center justify-center gap-2"
+            >
+              <Zap className="w-4 h-4 text-white" />
+              <span>Request 48-Hour Video Walkthrough</span>
+            </a>
+            <a
+              href="#booking"
+              className="w-full sm:w-auto px-6 py-3.5 bg-slate-900 hover:bg-slate-800 text-slate-200 border border-slate-700 font-semibold rounded-xl transition-all text-sm flex items-center justify-center gap-2"
+            >
+              <Calendar className="w-4 h-4 text-indigo-400" />
+              <span>Book 15-Min Strategy Call</span>
+            </a>
           </div>
         </section>
 
         {/* SECTION 2 — ISSUES FOUND */}
         <section className="space-y-6">
-          <div className="flex items-center justify-between border-b border-slate-800 pb-4">
-            <h2 className="text-2xl font-bold text-slate-100">Audit Breakdown</h2>
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-800 pb-4">
+            <div>
+              <h2 className="text-xl sm:text-2xl font-bold text-slate-100">Audit Breakdown</h2>
+              <p className="text-xs text-slate-400 mt-0.5">Automated technical scan results for {lead.domain}</p>
+            </div>
             <div className="flex items-center gap-2 text-xs font-semibold">
-              <span className="px-2.5 py-1 bg-red-500/10 text-red-400 border border-red-500/20 rounded-md">🔴 {criticalCount} Critical</span>
-              <span className="px-2.5 py-1 bg-amber-500/10 text-amber-400 border border-amber-500/20 rounded-md">🟡 {moderateCount} Moderate</span>
-              <span className="px-2.5 py-1 bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 rounded-md">🟢 {passingCount} Passing</span>
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-red-500/10 text-red-400 border border-red-500/20 rounded-md">
+                <AlertCircle className="w-3.5 h-3.5 text-red-400" />
+                <span>{criticalCount} Critical</span>
+              </span>
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-amber-500/10 text-amber-400 border border-amber-500/20 rounded-md">
+                <AlertTriangle className="w-3.5 h-3.5 text-amber-400" />
+                <span>{moderateCount} Moderate</span>
+              </span>
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 rounded-md">
+                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+                <span>{passingCount} Verified</span>
+              </span>
             </div>
           </div>
 
           <div className="space-y-4">
             {/* Critical Issues */}
             {issues.critical.length > 0 && (
-              <div className="bg-slate-900/80 border border-red-500/30 rounded-2xl p-6 space-y-4 shadow-lg shadow-red-950/20">
-                <div className="flex items-center gap-2 font-bold text-red-400 text-sm uppercase tracking-wider">
-                  <span>🔴</span> Critical Priority ({issues.critical.length})
+              <div className="bg-slate-900/90 border border-red-500/30 rounded-2xl p-5 sm:p-6 space-y-4 shadow-lg shadow-red-950/20">
+                <div className="flex items-center gap-2 font-bold text-red-400 text-xs uppercase tracking-wider">
+                  <AlertCircle className="w-4 h-4 text-red-400" />
+                  <span>Critical Revenue & Security Risks ({issues.critical.length})</span>
                 </div>
                 <div className="grid gap-3">
                   {issues.critical.map((issue) => (
-                    <div key={issue.id} className="flex items-start gap-3 p-3.5 bg-slate-950/60 rounded-xl border border-red-500/10">
-                      <div className="w-2 h-2 rounded-full bg-red-500 mt-2 shrink-0"></div>
-                      <div>
-                        <h4 className="font-semibold text-slate-100">{issue.title}</h4>
-                        <p className="text-sm text-slate-400 mt-0.5">{issue.description}</p>
+                    <div key={issue.id} className="flex items-start gap-3.5 p-4 bg-slate-950/80 rounded-xl border border-red-500/10">
+                      <div className="w-2.5 h-2.5 rounded-full bg-red-500 mt-1.5 shrink-0"></div>
+                      <div className="space-y-1">
+                        <h3 className="font-semibold text-slate-100 text-sm sm:text-base">{issue.title}</h3>
+                        <p className="text-xs sm:text-sm text-slate-400 leading-relaxed">{issue.description}</p>
                       </div>
                     </div>
                   ))}
@@ -217,17 +301,18 @@ export default function AuditLandingPage({ params }: { params: Promise<{ id: str
 
             {/* Moderate Issues */}
             {issues.moderate.length > 0 && (
-              <div className="bg-slate-900/80 border border-amber-500/30 rounded-2xl p-6 space-y-4 shadow-lg shadow-amber-950/20">
-                <div className="flex items-center gap-2 font-bold text-amber-400 text-sm uppercase tracking-wider">
-                  <span>🟡</span> Moderate Improvement ({issues.moderate.length})
+              <div className="bg-slate-900/90 border border-amber-500/30 rounded-2xl p-5 sm:p-6 space-y-4 shadow-lg shadow-amber-950/20">
+                <div className="flex items-center gap-2 font-bold text-amber-400 text-xs uppercase tracking-wider">
+                  <AlertTriangle className="w-4 h-4 text-amber-400" />
+                  <span>Performance & Conversion Friction ({issues.moderate.length})</span>
                 </div>
                 <div className="grid gap-3">
                   {issues.moderate.map((issue) => (
-                    <div key={issue.id} className="flex items-start gap-3 p-3.5 bg-slate-950/60 rounded-xl border border-amber-500/10">
-                      <div className="w-2 h-2 rounded-full bg-amber-400 mt-2 shrink-0"></div>
-                      <div>
-                        <h4 className="font-semibold text-slate-100">{issue.title}</h4>
-                        <p className="text-sm text-slate-400 mt-0.5">{issue.description}</p>
+                    <div key={issue.id} className="flex items-start gap-3.5 p-4 bg-slate-950/80 rounded-xl border border-amber-500/10">
+                      <div className="w-2.5 h-2.5 rounded-full bg-amber-400 mt-1.5 shrink-0"></div>
+                      <div className="space-y-1">
+                        <h3 className="font-semibold text-slate-100 text-sm sm:text-base">{issue.title}</h3>
+                        <p className="text-xs sm:text-sm text-slate-400 leading-relaxed">{issue.description}</p>
                       </div>
                     </div>
                   ))}
@@ -235,17 +320,30 @@ export default function AuditLandingPage({ params }: { params: Promise<{ id: str
               </div>
             )}
 
-            {/* Passing Checks (Collapsed by default) */}
+            {/* Passing Checks */}
             {issues.passing.length > 0 && (
               <div className="bg-slate-900/40 border border-slate-800 rounded-2xl p-4 transition-all">
                 <button
                   onClick={() => setShowPassing(!showPassing)}
-                  className="w-full flex items-center justify-between text-slate-400 hover:text-slate-200 text-sm font-semibold py-1"
+                  className="w-full flex items-center justify-between text-slate-400 hover:text-slate-200 text-xs font-semibold py-1 cursor-pointer"
                 >
                   <span className="flex items-center gap-2">
-                    <span className="text-emerald-400">🟢</span> Passing Checks ({issues.passing.length})
+                    <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                    <span>Passing & Verified Systems ({issues.passing.length})</span>
                   </span>
-                  <span>{showPassing ? '▲ Collapse' : '▼ Expand'}</span>
+                  <span className="flex items-center gap-1">
+                    {showPassing ? (
+                      <>
+                        <span>Hide</span>
+                        <ChevronUp className="w-4 h-4 text-slate-400" />
+                      </>
+                    ) : (
+                      <>
+                        <span>View Verified Items</span>
+                        <ChevronDown className="w-4 h-4 text-slate-400" />
+                      </>
+                    )}
+                  </span>
                 </button>
 
                 {showPassing && (
@@ -253,65 +351,128 @@ export default function AuditLandingPage({ params }: { params: Promise<{ id: str
                     {issues.passing.map((issue) => (
                       <div key={issue.id} className="flex items-center justify-between p-3 bg-slate-950/40 rounded-xl text-xs text-slate-300">
                         <span className="font-medium">{issue.title}</span>
-                        <span className="text-emerald-400 font-semibold">Verified ✓</span>
+                        <span className="inline-flex items-center gap-1 text-emerald-400 font-semibold">
+                          <Check className="w-3.5 h-3.5 text-emerald-400" />
+                          <span>Verified</span>
+                        </span>
                       </div>
                     ))}
                   </div>
                 )}
               </div>
             )}
+
+            {/* Mid-Page Scroll CTA Banner */}
+            <div className="p-5 bg-gradient-to-r from-indigo-950/60 to-purple-950/40 border border-indigo-500/30 rounded-2xl flex flex-col sm:flex-row items-center justify-between gap-4">
+              <div>
+                <h4 className="font-bold text-slate-100 text-sm sm:text-base">Want MR² Labs to resolve these findings for {lead.company_name}?</h4>
+                <p className="text-xs text-slate-400 mt-0.5">Our engineering team fixes these bottlenecks within 3 days.</p>
+              </div>
+              <div className="flex items-center gap-2 shrink-0 w-full sm:w-auto">
+                <a
+                  href="#request-loom"
+                  className="flex-1 sm:flex-none text-center px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-xs font-bold transition-all inline-flex items-center justify-center gap-1.5"
+                >
+                  <Zap className="w-3.5 h-3.5" />
+                  <span>Request Video</span>
+                </a>
+                <a
+                  href="#booking"
+                  className="flex-1 sm:flex-none text-center px-4 py-2 bg-slate-900 hover:bg-slate-800 text-slate-200 border border-slate-700 rounded-lg text-xs font-semibold transition-all inline-flex items-center justify-center gap-1.5"
+                >
+                  <Calendar className="w-3.5 h-3.5 text-indigo-400" />
+                  <span>Schedule Call</span>
+                </a>
+              </div>
+            </div>
           </div>
         </section>
 
         {/* SECTION 3 — WHAT WE'D BUILD */}
         <section className="space-y-6">
           <div className="space-y-1 border-b border-slate-800 pb-4">
-            <h2 className="text-2xl font-bold text-slate-100">What We&apos;d Build</h2>
-            <p className="text-sm text-slate-400">Mapped solution roadmap tailored specifically for {lead.company_name}.</p>
+            <h2 className="text-xl sm:text-2xl font-bold text-slate-100">Engineering Solution Roadmap</h2>
+            <p className="text-xs text-slate-400">Custom build proposals tailored specifically for {lead.company_name}.</p>
           </div>
 
           <div className="grid md:grid-cols-2 gap-6">
             {solutions.map((card) => (
-              <div key={card.id} className="bg-slate-900/90 border border-slate-800 hover:border-indigo-500/40 transition-all rounded-2xl p-6 flex flex-col justify-between space-y-4 group">
+              <div key={card.id} className="bg-slate-900/90 border border-slate-800 hover:border-indigo-500/50 transition-all rounded-2xl p-6 flex flex-col justify-between space-y-4 group">
                 <div className="space-y-3">
                   <div className="flex items-center justify-between">
                     <span className="text-xs font-semibold px-2.5 py-1 bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 rounded-full">
                       {card.tag}
                     </span>
-                    <span className="text-xs font-medium text-slate-400 bg-slate-800/80 px-2.5 py-1 rounded-md">
-                      ⏱ {card.estimated_days}
+                    <span className="inline-flex items-center gap-1 text-xs font-medium text-slate-400 bg-slate-800/80 px-2.5 py-1 rounded-md">
+                      <Clock className="w-3 h-3 text-slate-400" />
+                      <span>{card.estimated_days} turnaround</span>
                     </span>
                   </div>
-                  <h3 className="text-lg font-bold text-slate-100 group-hover:text-indigo-300 transition-colors">
+                  <h3 className="text-base sm:text-lg font-bold text-slate-100 group-hover:text-indigo-300 transition-colors">
                     {card.title}
                   </h3>
-                  <p className="text-sm text-slate-400 leading-relaxed">
+                  <p className="text-xs sm:text-sm text-slate-400 leading-relaxed">
                     {card.description}
                   </p>
                 </div>
+
+                <button
+                  onClick={() => handleSelectSolution(card.title)}
+                  className="w-full py-2.5 bg-slate-950 hover:bg-indigo-600 text-slate-300 hover:text-white border border-slate-800 hover:border-indigo-500 rounded-xl text-xs font-semibold transition-all flex items-center justify-center gap-1.5 cursor-pointer group"
+                >
+                  <span>Select Solution</span>
+                  <ArrowRight className="w-3.5 h-3.5 transition-transform group-hover:translate-x-0.5" />
+                </button>
               </div>
             ))}
+          </div>
+
+          {/* Roadmap Scroll CTA Banner */}
+          <div className="p-4 bg-slate-900/60 border border-slate-800 rounded-2xl flex flex-col sm:flex-row items-center justify-between gap-3 text-center sm:text-left">
+            <span className="text-xs text-slate-400">
+              Have custom architecture requirements for {lead.domain}?
+            </span>
+            <a
+              href="#booking"
+              className="px-4 py-2 bg-indigo-600/20 hover:bg-indigo-600/30 text-indigo-300 border border-indigo-500/30 rounded-lg text-xs font-bold transition-all shrink-0 inline-flex items-center gap-1.5"
+            >
+              <Calendar className="w-3.5 h-3.5 text-indigo-400" />
+              <span>Book Strategy Call With Engineering Team</span>
+            </a>
           </div>
         </section>
 
         {/* SECTION 4 — THE FORM */}
-        <section className="bg-gradient-to-b from-slate-900 to-indigo-950/40 border border-indigo-500/20 rounded-3xl p-8 space-y-6 shadow-2xl relative overflow-hidden">
+        <section id="request-loom" className="bg-gradient-to-b from-slate-900 to-indigo-950/40 border border-indigo-500/20 rounded-3xl p-6 sm:p-8 space-y-6 shadow-2xl relative overflow-hidden">
           <div className="space-y-2">
-            <h2 className="text-2xl font-bold text-white">Request a Custom Video Breakdown</h2>
-            <p className="text-sm text-slate-400">
+            <div className="inline-flex items-center gap-1.5 text-xs font-bold text-indigo-400 uppercase tracking-wider">
+              <Zap className="w-3.5 h-3.5 text-indigo-400" />
+              <span>48-Hour Response Guarantee</span>
+            </div>
+            <h2 className="text-2xl font-bold text-white">Request Your Custom Video Breakdown</h2>
+            <p className="text-xs sm:text-sm text-slate-400">
               Confirm your contact details and let us know what you want us to prioritize in your 48-hour video walkthrough.
             </p>
           </div>
 
           {submitted ? (
             <div className="bg-emerald-500/10 border border-emerald-500/30 rounded-2xl p-6 text-center space-y-3">
-              <div className="w-12 h-12 bg-emerald-500/20 text-emerald-400 rounded-full flex items-center justify-center mx-auto text-xl font-bold">
-                ✓
+              <div className="w-12 h-12 bg-emerald-500/20 text-emerald-400 rounded-full flex items-center justify-center mx-auto">
+                <Check className="w-6 h-6 text-emerald-400" />
               </div>
-              <h3 className="text-xl font-bold text-emerald-300">Loom Video Request Received!</h3>
+              <h3 className="text-xl font-bold text-emerald-300">Video Request Received</h3>
               <p className="text-sm text-slate-300 max-w-md mx-auto">
-                Our team is analyzing {lead.domain}. You will receive a personalized video walkthrough at <strong className="text-white">{lead.email}</strong> within 48 hours.
+                Our team is analyzing {lead.domain}. You will receive your personalized video breakdown at <strong className="text-white">{lead.email}</strong> within 48 hours.
               </p>
+              <div className="pt-2">
+                <a
+                  href="#booking"
+                  className="inline-flex items-center gap-1.5 px-5 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-bold transition-all"
+                >
+                  <span>Need immediate help? Book a live call</span>
+                  <ArrowRight className="w-3.5 h-3.5" />
+                </a>
+              </div>
             </div>
           ) : (
             <form onSubmit={handleSubmitForm} className="space-y-4">
@@ -324,7 +485,7 @@ export default function AuditLandingPage({ params }: { params: Promise<{ id: str
                     type="text"
                     value={nameInput}
                     onChange={(e) => setNameInput(e.target.value)}
-                    placeholder="Enter your name"
+                    placeholder="Enter your full name"
                     className="w-full bg-slate-950/80 border border-slate-800 rounded-xl px-4 py-2.5 text-sm text-slate-200 focus:outline-none focus:border-indigo-500 transition-colors"
                   />
                 </div>
@@ -365,13 +526,13 @@ export default function AuditLandingPage({ params }: { params: Promise<{ id: str
 
               <div>
                 <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1.5">
-                  Anything we missed or want to prioritize?
+                  Specific focus or priority request?
                 </label>
                 <textarea
                   rows={3}
                   value={notesInput}
                   onChange={(e) => setNotesInput(e.target.value)}
-                  placeholder="e.g. Can we focus on mobile live chat and DMARC first? We are launching a marketing campaign next week..."
+                  placeholder="e.g. Please focus on mobile live chat integration and email security first..."
                   className="w-full bg-slate-950/80 border border-slate-800 rounded-xl p-4 text-sm text-slate-200 placeholder:text-slate-600 focus:outline-none focus:border-indigo-500 transition-colors"
                 ></textarea>
               </div>
@@ -384,7 +545,10 @@ export default function AuditLandingPage({ params }: { params: Promise<{ id: str
                 {submitting ? (
                   <span className="inline-block w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
                 ) : (
-                  <>Submit → Loom video within 48hrs</>
+                  <>
+                    <span>Submit Request</span>
+                    <ArrowRight className="w-4 h-4" />
+                  </>
                 )}
               </button>
             </form>
@@ -392,26 +556,36 @@ export default function AuditLandingPage({ params }: { params: Promise<{ id: str
         </section>
 
         {/* SECTION 5 — BOOK A CALL */}
-        <section className="space-y-6">
+        <section id="booking" className="space-y-6">
           <div className="p-4 bg-indigo-950/40 border border-indigo-500/30 rounded-2xl text-center space-y-1">
-            <span className="text-xs font-bold text-indigo-400 uppercase tracking-wider">Direct Calendar Booking</span>
-            <p className="text-base font-semibold text-slate-100">
+            <span className="text-xs font-bold text-indigo-400 uppercase tracking-wider">Direct Strategy Call Booking</span>
+            <p className="text-sm sm:text-base font-semibold text-slate-100">
               {bookingContext}
             </p>
           </div>
 
-          <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-2xl overflow-hidden min-h-[480px] flex flex-col items-center justify-center relative">
+          <div className="bg-slate-900 border border-slate-800 rounded-3xl p-2 shadow-2xl overflow-hidden min-h-[660px] flex flex-col items-center justify-center relative">
             <iframe
-              src={`https://cal.com/rashard?metadata[domain]=${encodeURIComponent(lead.domain)}&metadata[leadId]=${lead.id}`}
-              className="w-full h-[520px] rounded-2xl border-0"
+              src={`https://calendly.com/mohrashard/30min?embed_domain=outreach.mr2labs.com&embed_type=Inline&background_color=0f172a&text_color=f8fafc&primary_color=6366f1`}
+              className="w-full h-[650px] rounded-2xl border-0"
               title="Book a Discovery Call"
             ></iframe>
           </div>
         </section>
       </main>
 
-      <footer className="border-t border-slate-800/80 py-8 text-center text-xs text-slate-500">
-        MR² Labs Outreach Engine &copy; {new Date().getFullYear()} — Engineering High Performance Digital Systems
+      {/* Footer with MR² Labs Branding */}
+      <footer className="border-t border-slate-800/80 py-10 bg-slate-950 text-center text-xs text-slate-500 space-y-4">
+        <div className="flex items-center justify-center gap-2">
+          <Image
+            src="/mr-squared-logo.png"
+            alt="MR² Labs"
+            width={120}
+            height={30}
+            className="h-6 w-auto object-contain opacity-80"
+          />
+        </div>
+        <p>MR² Labs Outreach Engine &copy; {new Date().getFullYear()} — High Performance Systems Engineering</p>
       </footer>
     </div>
   );

@@ -13,6 +13,7 @@ import {
   ChevronUp,
   Check,
   ArrowRight,
+  Video,
 } from 'lucide-react';
 import { AuditIssue, SolutionCard, AuditData } from '@/types/audit';
 
@@ -197,18 +198,12 @@ export default function AuditLandingPage({ params }: { params: Promise<{ id: str
           </div>
 
           <div className="flex items-center gap-3">
-            <a
-              href="#request-loom"
-              className="hidden sm:inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-indigo-600/10 hover:bg-indigo-600/20 text-indigo-300 border border-indigo-500/30 rounded-lg text-xs font-semibold transition-all"
-            >
-              <Zap className="w-3.5 h-3.5 text-indigo-400" />
+            <a href="#request-loom" className="hidden sm:inline-flex items-center gap-2 px-4 py-2 bg-transparent hover:bg-slate-900 text-slate-300 text-sm font-medium rounded-md transition-colors border border-slate-800">
+              <Video className="w-4 h-4" />
               <span>Request 48h Video</span>
             </a>
-            <a
-              href="#booking"
-              className="inline-flex items-center gap-1.5 px-4 py-1.5 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white rounded-lg text-xs font-bold shadow-lg shadow-indigo-600/20 transition-all"
-            >
-              <Calendar className="w-3.5 h-3.5 text-white" />
+            <a href="#booking" className="inline-flex items-center gap-2 px-5 py-2.5 bg-white hover:bg-slate-200 text-slate-950 text-sm font-medium rounded-md transition-colors">
+              <Calendar className="w-3.5 h-3.5" />
               <span>Book Call</span>
             </a>
           </div>
@@ -216,90 +211,68 @@ export default function AuditLandingPage({ params }: { params: Promise<{ id: str
       </header>
 
       <main className="max-w-4xl mx-auto px-4 sm:px-6 py-10 space-y-16">
-        {/* SECTION 1 — HERO */}
-        <section className="text-center space-y-6 pt-2">
-          <div className="inline-flex items-center gap-3 p-2.5 px-4 bg-slate-900/40 border border-slate-700/50 backdrop-blur-md rounded-2xl shadow-xl shadow-indigo-900/10">
+        <section className="text-center space-y-6 pt-12 pb-8">
+          <div className="inline-flex items-center gap-3 p-2 px-3 border border-slate-800 rounded-sm">
             {!faviconErr ? (
               <img
                 src={faviconUrl}
                 alt={`${lead.company_name} favicon`}
-                className="w-8 h-8 object-contain rounded-md"
+                className="w-8 h-8 object-contain"
                 onError={() => setFaviconErr(true)}
               />
             ) : (
-              <div className="w-8 h-8 bg-indigo-600/20 text-indigo-400 rounded-md flex items-center justify-center font-bold text-sm">
+              <div className="w-8 h-8 bg-slate-800 text-slate-400 rounded-sm flex items-center justify-center font-bold text-sm">
                 {lead.company_name.charAt(0).toUpperCase()}
               </div>
             )}
-            <span className="text-sm font-semibold text-slate-300">{lead.domain}</span>
+            <span className="text-sm font-medium text-slate-300">{lead.domain}</span>
           </div>
 
-          <div className="space-y-4 max-w-3xl mx-auto">
-            <h1 className="text-3xl sm:text-5xl font-extrabold text-white tracking-tight leading-tight">
-              We audited <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 via-purple-300 to-pink-400">{lead.company_name}</span>
+          <div className="space-y-6 max-w-3xl mx-auto">
+            <h1 className="text-4xl sm:text-5xl font-semibold text-slate-50 tracking-tight">
+              We audited {lead.company_name}
             </h1>
-            <p className="text-lg sm:text-xl text-slate-400 font-medium max-w-2xl mx-auto leading-relaxed">
+            <p className="text-lg text-slate-400 max-w-2xl mx-auto">
               Here is what we discovered on your website, how it impacts your customer conversion, and the exact roadmap we would use to fix it.
             </p>
           </div>
-
-          {/* Hero CTAs */}
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-2">
-            <a
-              href="#request-loom"
-              className="w-full sm:w-auto px-6 py-3.5 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white font-bold rounded-xl shadow-xl shadow-indigo-600/20 transition-all text-sm flex items-center justify-center gap-2"
-            >
-              <Zap className="w-4 h-4 text-white" />
-              <span>Request 48-Hour Video Walkthrough</span>
-            </a>
-            <a
-              href="#booking"
-              className="w-full sm:w-auto px-6 py-3.5 bg-slate-900 hover:bg-slate-800 text-slate-200 border border-slate-700 font-semibold rounded-xl transition-all text-sm flex items-center justify-center gap-2"
-            >
-              <Calendar className="w-4 h-4 text-indigo-400" />
-              <span>Book 15-Min Strategy Call</span>
-            </a>
-          </div>
         </section>
 
-        {/* SECTION 2 — ISSUES FOUND */}
         <section className="space-y-6">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-800 pb-4">
             <div>
-              <h2 className="text-xl sm:text-2xl font-bold text-slate-100">Audit Breakdown</h2>
-              <p className="text-xs text-slate-400 mt-0.5">Automated technical scan results for {lead.domain}</p>
+              <h2 className="text-xl font-semibold text-slate-100">Audit Breakdown</h2>
             </div>
-            <div className="flex items-center gap-2 text-xs font-semibold">
-              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-red-500/10 text-red-400 border border-red-500/20 rounded-md">
-                <AlertCircle className="w-3.5 h-3.5 text-red-400" />
+            <div className="flex items-center gap-2 text-xs font-medium">
+              <span className="inline-flex items-center gap-1.5 text-red-400">
+                <AlertCircle className="w-4 h-4" />
                 <span>{criticalCount} Critical</span>
               </span>
-              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-amber-500/10 text-amber-400 border border-amber-500/20 rounded-md">
-                <AlertTriangle className="w-3.5 h-3.5 text-amber-400" />
+              <span className="inline-flex items-center gap-1.5 text-amber-400">
+                <AlertTriangle className="w-4 h-4" />
                 <span>{moderateCount} Moderate</span>
               </span>
-              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 rounded-md">
-                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+              <span className="inline-flex items-center gap-1.5 text-emerald-400">
+                <CheckCircle2 className="w-4 h-4" />
                 <span>{passingCount} Verified</span>
               </span>
             </div>
           </div>
 
           <div className="space-y-4">
-            {/* Critical Issues */}
             {issues.critical.length > 0 && (
-              <div className="bg-slate-900/60 border-l-4 border-y border-r border-red-500/50 border-y-red-500/10 border-r-red-500/10 rounded-2xl p-5 sm:p-6 space-y-4 shadow-lg shadow-red-950/20">
-                <div className="flex items-center gap-2 font-bold text-red-400 text-xs uppercase tracking-wider">
-                  <AlertCircle className="w-4 h-4 text-red-400" />
+              <div className="border border-slate-800 p-6 space-y-5">
+                <div className="flex items-center gap-2 font-medium text-red-400 text-xs uppercase tracking-widest">
+                  <AlertCircle className="w-4 h-4" />
                   <span>Critical Revenue & Security Risks ({issues.critical.length})</span>
                 </div>
-                <div className="grid gap-3">
+                <div className="grid gap-4">
                   {issues.critical.map((issue) => (
-                    <div key={issue.id} className="flex items-start gap-3.5 p-4 bg-slate-950/80 rounded-xl border border-red-500/10">
-                      <div className="w-2.5 h-2.5 rounded-full bg-red-500 mt-1.5 shrink-0"></div>
+                    <div key={issue.id} className="flex items-start gap-4">
+                      <div className="w-1.5 h-1.5 rounded-full bg-red-500 mt-2"></div>
                       <div className="space-y-1">
-                        <h3 className="font-semibold text-slate-100 text-sm sm:text-base">{issue.title}</h3>
-                        <p className="text-xs sm:text-sm text-slate-300 leading-relaxed">{issue.description}</p>
+                        <h3 className="font-medium text-slate-100">{issue.title}</h3>
+                        <p className="text-sm text-slate-400">{issue.description}</p>
                       </div>
                     </div>
                   ))}
@@ -307,20 +280,19 @@ export default function AuditLandingPage({ params }: { params: Promise<{ id: str
               </div>
             )}
 
-            {/* Moderate Issues */}
             {issues.moderate.length > 0 && (
-              <div className="bg-slate-900/60 border-l-4 border-y border-r border-amber-500/50 border-y-amber-500/10 border-r-amber-500/10 rounded-2xl p-5 sm:p-6 space-y-4 shadow-lg shadow-amber-950/20">
-                <div className="flex items-center gap-2 font-bold text-amber-400 text-xs uppercase tracking-wider">
-                  <AlertTriangle className="w-4 h-4 text-amber-400" />
+              <div className="border border-slate-800 p-6 space-y-5">
+                <div className="flex items-center gap-2 font-medium text-amber-400 text-xs uppercase tracking-widest">
+                  <AlertTriangle className="w-4 h-4" />
                   <span>Performance & Conversion Friction ({issues.moderate.length})</span>
                 </div>
-                <div className="grid gap-3">
+                <div className="grid gap-4">
                   {issues.moderate.map((issue) => (
-                    <div key={issue.id} className="flex items-start gap-3.5 p-4 bg-slate-950/80 rounded-xl border border-amber-500/10">
-                      <div className="w-2.5 h-2.5 rounded-full bg-amber-400 mt-1.5 shrink-0"></div>
+                    <div key={issue.id} className="flex items-start gap-4">
+                      <div className="w-1.5 h-1.5 rounded-full bg-amber-400 mt-2"></div>
                       <div className="space-y-1">
-                        <h3 className="font-semibold text-slate-100 text-sm sm:text-base">{issue.title}</h3>
-                        <p className="text-xs sm:text-sm text-slate-300 leading-relaxed">{issue.description}</p>
+                        <h3 className="font-medium text-slate-100">{issue.title}</h3>
+                        <p className="text-sm text-slate-400">{issue.description}</p>
                       </div>
                     </div>
                   ))}
@@ -328,282 +300,169 @@ export default function AuditLandingPage({ params }: { params: Promise<{ id: str
               </div>
             )}
 
-            {/* Passing Checks */}
             {issues.passing.length > 0 && (
-              <div className="bg-slate-900/40 border border-slate-800 rounded-2xl p-4 transition-all">
-                <button
-                  onClick={() => setShowPassing(!showPassing)}
-                  className="w-full flex items-center justify-between text-slate-400 hover:text-slate-200 text-xs font-semibold py-1 cursor-pointer"
-                >
-                  <span className="flex items-center gap-2">
-                    <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-                    <span>Passing & Verified Systems ({issues.passing.length})</span>
-                  </span>
-                  <span className="flex items-center gap-1">
-                    {showPassing ? (
-                      <>
-                        <span>Hide</span>
-                        <ChevronUp className="w-4 h-4 text-slate-400" />
-                      </>
-                    ) : (
-                      <>
-                        <span>View Verified Items</span>
-                        <ChevronDown className="w-4 h-4 text-slate-400" />
-                      </>
-                    )}
-                  </span>
-                </button>
-
-                {showPassing && (
-                  <div className="mt-4 grid gap-2 border-t border-slate-800/80 pt-4">
-                    {issues.passing.map((issue) => (
-                      <div key={issue.id} className="flex items-center justify-between p-3 bg-slate-950/40 rounded-xl text-xs text-slate-300">
-                        <span className="font-medium">{issue.title}</span>
-                        <span className="inline-flex items-center gap-1 text-emerald-400 font-semibold">
-                          <Check className="w-3.5 h-3.5 text-emerald-400" />
-                          <span>Verified</span>
-                        </span>
+              <div className="border border-slate-800 p-6 space-y-5">
+                <div className="flex items-center gap-2 font-medium text-slate-400 text-xs uppercase tracking-widest">
+                  <CheckCircle2 className="w-4 h-4" />
+                  <span>Passing Checks ({issues.passing.length})</span>
+                </div>
+                <div className="grid gap-4">
+                  {issues.passing.map((issue) => (
+                    <div key={issue.id} className="flex items-center gap-4 opacity-60">
+                      <CheckCircle2 className="w-4 h-4 text-slate-500 shrink-0" />
+                      <div className="space-y-1">
+                        <h3 className="font-medium text-slate-400 text-sm">{issue.title}</h3>
+                        <p className="text-sm text-slate-400">{issue.description}</p>
                       </div>
-                    ))}
-                  </div>
-                )}
+                    </div>
+                  ))}
+                </div>
               </div>
             )}
-
-            {/* Mid-Page Scroll CTA Banner */}
-            <div className="p-5 bg-gradient-to-r from-indigo-950/60 to-purple-950/40 border border-indigo-500/30 rounded-2xl flex flex-col sm:flex-row items-center justify-between gap-4">
-              <div>
-                <h4 className="font-bold text-slate-100 text-sm sm:text-base">Want MR² Labs to resolve these findings for {lead.company_name}?</h4>
-                <p className="text-xs text-slate-400 mt-0.5">Our engineering team fixes these bottlenecks within 3 days.</p>
-              </div>
-              <div className="flex items-center gap-2 shrink-0 w-full sm:w-auto">
-                <a
-                  href="#request-loom"
-                  className="flex-1 sm:flex-none text-center px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-xs font-bold transition-all inline-flex items-center justify-center gap-1.5"
-                >
-                  <Zap className="w-3.5 h-3.5" />
-                  <span>Request Video</span>
-                </a>
-                <a
-                  href="#booking"
-                  className="flex-1 sm:flex-none text-center px-4 py-2 bg-slate-900 hover:bg-slate-800 text-slate-200 border border-slate-700 rounded-lg text-xs font-semibold transition-all inline-flex items-center justify-center gap-1.5"
-                >
-                  <Calendar className="w-3.5 h-3.5 text-indigo-400" />
-                  <span>Schedule Call</span>
-                </a>
-              </div>
-            </div>
           </div>
         </section>
 
-        {/* SECTION 3 — WHAT WE'D BUILD */}
-        <section className="space-y-6">
-          <div className="space-y-1 border-b border-slate-800 pb-4">
-            <h2 className="text-xl sm:text-2xl font-bold text-slate-100">Engineering Solution Roadmap</h2>
-            <p className="text-xs text-slate-400">Custom build proposals tailored specifically for {lead.company_name}.</p>
+        <section className="space-y-8 pt-8">
+          <div className="space-y-4 pb-4">
+            <h2 className="text-2xl sm:text-3xl font-semibold text-slate-50">What We'd Build For You</h2>
+            <p className="text-base text-slate-400 max-w-2xl">
+              If we partnered today, this is the exact execution roadmap we would use to resolve the friction points above.
+            </p>
           </div>
 
-          <div className="grid md:grid-cols-2 gap-6">
+          <div className="grid md:grid-cols-2 gap-4">
             {solutions.map((card) => (
-              <div key={card.id} className="bg-slate-900/60 border border-slate-800 hover:border-indigo-500/60 hover:shadow-xl hover:shadow-indigo-500/10 transition-all duration-300 hover:-translate-y-1 rounded-2xl p-6 flex flex-col justify-between space-y-4 group">
-                <div className="space-y-3">
+              <div key={card.id} className="bg-slate-900/30 border border-slate-800 transition-colors hover:bg-slate-900/80 rounded-lg p-6 flex flex-col justify-between space-y-6">
+                <div className="space-y-4">
                   <div className="flex items-center justify-between">
-                    <span className="text-xs font-bold px-3 py-1.5 bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 rounded-full">
+                    <span className="text-[10px] font-medium px-2 py-1 uppercase tracking-widest bg-slate-800 text-slate-300 rounded-sm">
                       {card.tag}
                     </span>
-                    <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-300 bg-slate-800 px-3 py-1.5 rounded-full">
-                      <Clock className="w-3.5 h-3.5 text-slate-400" />
+                    <span className="inline-flex items-center gap-1.5 text-xs font-medium text-slate-400">
+                      <Clock className="w-3.5 h-3.5" />
                       <span>{card.estimated_days} turnaround</span>
                     </span>
                   </div>
-                  <h3 className="text-base sm:text-lg font-bold text-slate-100 group-hover:text-indigo-300 transition-colors">
+                  <h3 className="text-lg font-medium text-slate-100">
                     {card.title}
                   </h3>
-                  <div className="text-xs sm:text-sm text-slate-300 leading-relaxed space-y-2">
+                  <div className="text-sm text-slate-300 space-y-2">
                     {card.description.split('\n').map((line, idx) => (
-                      <p key={idx}>
-                        {line.startsWith('Benefit:') ? (
-                          <><strong className="text-emerald-400">Benefit:</strong> {line.replace('Benefit:', '')}</>
-                        ) : line.startsWith('Prevents:') ? (
-                          <><strong className="text-amber-400">Prevents:</strong> {line.replace('Prevents:', '')}</>
-                        ) : (
-                          line
-                        )}
-                      </p>
+                      <p key={idx}>{line}</p>
                     ))}
                   </div>
                 </div>
 
                 <button
                   onClick={() => handleSelectSolution(card.title)}
-                  className="w-full py-2.5 bg-slate-950 hover:bg-indigo-600 text-slate-300 hover:text-white border border-slate-800 hover:border-indigo-500 rounded-xl text-xs font-semibold transition-all flex items-center justify-center gap-1.5 cursor-pointer group"
+                  className="w-full py-2.5 bg-transparent border border-slate-700 hover:border-slate-500 text-slate-300 text-sm font-medium rounded-md transition-colors flex items-center justify-center gap-2"
                 >
                   <span>Select Solution</span>
-                  <ArrowRight className="w-3.5 h-3.5 transition-transform group-hover:translate-x-0.5" />
+                  <ArrowRight className="w-3.5 h-3.5" />
                 </button>
               </div>
             ))}
           </div>
-
-          {/* Roadmap Scroll CTA Banner */}
-          <div className="p-4 bg-slate-900/60 border border-slate-800 rounded-2xl flex flex-col sm:flex-row items-center justify-between gap-3 text-center sm:text-left">
-            <span className="text-xs text-slate-400">
-              Have custom architecture requirements for {lead.domain}?
-            </span>
-            <a
-              href="#booking"
-              className="px-4 py-2 bg-indigo-600/20 hover:bg-indigo-600/30 text-indigo-300 border border-indigo-500/30 rounded-lg text-xs font-bold transition-all shrink-0 inline-flex items-center gap-1.5"
-            >
-              <Calendar className="w-3.5 h-3.5 text-indigo-400" />
-              <span>Book Strategy Call With Engineering Team</span>
-            </a>
-          </div>
         </section>
 
-        {/* SECTION 4 — THE FORM */}
-        <section id="request-loom" className="bg-gradient-to-b from-slate-900 to-indigo-950/40 border border-indigo-500/20 rounded-3xl p-8 sm:p-10 space-y-6 shadow-2xl relative overflow-hidden">
-          <div className="space-y-2">
-            <div className="inline-flex items-center gap-1.5 text-xs font-bold text-indigo-400 uppercase tracking-wider">
-              <Zap className="w-3.5 h-3.5 text-indigo-400" />
-              <span>48-Hour Response Guarantee</span>
-            </div>
-            <h2 className="text-2xl font-bold text-white">Request Your Custom Video Breakdown</h2>
-            <p className="text-xs sm:text-sm text-slate-400">
+        <section id="request-loom" className="border border-slate-800 p-8 space-y-8">
+          <div className="space-y-3">
+            <h2 className="text-2xl font-medium text-slate-50">Request Your Custom Video Breakdown</h2>
+            <p className="text-sm text-slate-400">
               Confirm your contact details and let us know what you want us to prioritize in your 48-hour video walkthrough.
             </p>
           </div>
 
           {submitted ? (
-            <div className="bg-emerald-500/10 border border-emerald-500/30 rounded-2xl p-6 text-center space-y-3">
-              <div className="w-12 h-12 bg-emerald-500/20 text-emerald-400 rounded-full flex items-center justify-center mx-auto">
-                <Check className="w-6 h-6 text-emerald-400" />
-              </div>
-              <h3 className="text-xl font-bold text-emerald-300">Video Request Received</h3>
-              <p className="text-sm text-slate-300 max-w-md mx-auto">
-                Our team is analyzing {lead.domain}. You will receive your personalized video breakdown at <strong className="text-white">{lead.email}</strong> within 48 hours.
+            <div className="border border-emerald-900 bg-emerald-950/20 rounded-sm p-6 text-center space-y-3">
+              <h3 className="text-lg font-bold text-emerald-400">Video Request Received</h3>
+              <p className="text-sm text-slate-300">
+                Our team is analyzing {lead.domain}. You will receive your personalized video breakdown at {lead.email} within 48 hours.
               </p>
-              <div className="pt-2">
-                <a
-                  href="#booking"
-                  className="inline-flex items-center gap-1.5 px-5 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-bold transition-all"
-                >
-                  <span>Need immediate help? Book a live call</span>
-                  <ArrowRight className="w-3.5 h-3.5" />
-                </a>
-              </div>
             </div>
           ) : (
             <form onSubmit={handleSubmitForm} className="space-y-4">
               <div className="grid sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1.5">
-                    Your Name
-                  </label>
-                  <input
-                    type="text"
-                    value={nameInput}
-                    onChange={(e) => setNameInput(e.target.value)}
-                    placeholder="Enter your full name"
-                    className="w-full bg-slate-950/80 border border-slate-800 rounded-xl px-4 py-2.5 text-sm text-slate-200 focus:outline-none focus:border-indigo-500 transition-colors"
-                  />
+                  <label htmlFor="name" className="block text-xs font-medium text-slate-400 mb-2">
+                  Your Name
+                </label>
+                <input
+                  id="name"
+                  type="text"
+                  required
+                  value={nameInput}
+                  onChange={(e) => setNameInput(e.target.value)}
+                  className="w-full px-4 py-3 bg-slate-950 border border-slate-800 rounded-md text-slate-200 text-sm focus:outline-none focus:border-slate-500 transition-colors placeholder:text-slate-600"
+                  placeholder="e.g. John"
+                />
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1.5">
-                    Work Email (Pre-filled)
-                  </label>
+                  <label className="block text-xs font-medium text-slate-400 mb-2">Work Email</label>
                   <input
                     type="email"
                     value={lead.email}
                     disabled
-                    className="w-full bg-slate-950/40 border border-slate-800/60 rounded-xl px-4 py-2.5 text-sm text-slate-400 cursor-not-allowed"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1.5">
-                    Company
-                  </label>
-                  <input
-                    type="text"
-                    value={lead.company_name}
-                    disabled
-                    className="w-full bg-slate-950/40 border border-slate-800/60 rounded-xl px-4 py-2.5 text-sm text-slate-400 cursor-not-allowed"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1.5">
-                    Website Domain
-                  </label>
-                  <input
-                    type="text"
-                    value={lead.domain}
-                    disabled
-                    className="w-full bg-slate-950/40 border border-slate-800/60 rounded-xl px-4 py-2.5 text-sm text-slate-400 cursor-not-allowed"
+                    className="w-full bg-slate-900 border border-slate-800 rounded-md px-4 py-3 text-sm text-slate-500 cursor-not-allowed"
                   />
                 </div>
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1.5">
-                  Specific focus or priority request?
+                <label htmlFor="focus" className="block text-xs font-medium text-slate-400 mb-2">
+                  What should we prioritize in the video?
                 </label>
                 <textarea
-                  rows={3}
+                  id="focus"
+                  rows={4}
                   value={notesInput}
                   onChange={(e) => setNotesInput(e.target.value)}
-                  placeholder="e.g. Please focus on mobile live chat integration and email security first..."
-                  className="w-full bg-slate-950/80 border border-slate-800 rounded-xl p-4 text-sm text-slate-200 placeholder:text-slate-600 focus:outline-none focus:border-indigo-500 transition-colors"
-                ></textarea>
+                  className="w-full px-4 py-3 bg-slate-950 border border-slate-800 rounded-md text-slate-200 text-sm focus:outline-none focus:border-slate-500 transition-colors placeholder:text-slate-600 resize-none"
+                  placeholder={`E.g. Focus on our mobile checkout flow...`}
+                />
               </div>
 
               <button
                 type="submit"
                 disabled={submitting}
-                className="w-full py-4 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white font-bold rounded-xl shadow-xl shadow-indigo-600/20 hover:shadow-indigo-500/40 transition-all duration-300 flex items-center justify-center gap-2 text-base disabled:opacity-50 cursor-pointer"
+                className="w-full py-3 bg-white hover:bg-slate-200 text-slate-950 text-sm font-semibold rounded-md transition-colors"
               >
-                {submitting ? (
-                  <span className="inline-block w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
-                ) : (
-                  <>
-                    <span>Submit Request</span>
-                    <ArrowRight className="w-4 h-4" />
-                  </>
-                )}
+                {submitting ? 'Submitting...' : 'Submit Request'}
               </button>
             </form>
           )}
         </section>
 
-        {/* SECTION 5 — BOOK A CALL */}
-        <section id="booking" className="space-y-6">
-          <div className="p-4 bg-indigo-950/40 border border-indigo-500/30 rounded-2xl text-center space-y-1">
-            <span className="text-xs font-bold text-indigo-400 uppercase tracking-wider">Direct Strategy Call Booking</span>
-            <p className="text-sm sm:text-base font-semibold text-slate-100">
+        <section id="booking" className="space-y-6 pt-4">
+          <div className="p-5 border border-slate-800 text-center">
+            <p className="text-sm font-medium text-slate-200">
               {bookingContext}
             </p>
           </div>
 
-          <div className="bg-slate-900 border border-slate-800 rounded-[24px] p-2 sm:p-4 shadow-2xl overflow-hidden min-h-[660px] flex flex-col items-center justify-center relative">
+          <div className="border border-slate-800 p-2 overflow-hidden min-h-[660px]">
             <iframe
-              src={`https://calendly.com/mohrashard/30min?embed_domain=outreach.mr2labs.com&embed_type=Inline&background_color=0f172a&text_color=f8fafc&primary_color=6366f1&hide_event_type_details=1&hide_gdpr_banner=1`}
-              className="w-full h-[650px] rounded-[16px] border border-slate-800/80 shadow-inner"
+              src={`https://calendly.com/mohrashard/30min?embed_domain=outreach.mr2labs.com&embed_type=Inline&background_color=0f172a&text_color=f8fafc&primary_color=ffffff&hide_event_type_details=1&hide_gdpr_banner=1`}
+              className="w-full h-[650px]"
               title="Book a Discovery Call"
             ></iframe>
           </div>
         </section>
       </main>
 
-      {/* Footer with MR² Labs Branding */}
-      <footer className="border-t border-slate-800/80 py-10 bg-slate-950 text-center text-xs text-slate-500 space-y-4">
-        <div className="flex items-center justify-center gap-2">
-          <Image
-            src="/mr-squared-logo.png"
-            alt="MR² Labs"
-            width={120}
-            height={30}
-            className="h-6 w-auto object-contain opacity-80"
-          />
+      <footer className="border-t border-slate-800 bg-slate-950 py-8">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 flex flex-col sm:flex-row items-center justify-between gap-4">
+          <div className="flex items-center gap-2 opacity-60">
+            <Image
+              src="/mr-squared-logo.png"
+              alt="MR² Labs Logo"
+              width={100}
+              height={26}
+              className="h-6 w-auto object-contain grayscale"
+            />
+          </div>
+          <p className="text-xs text-slate-500">Outreach Engine &copy; {new Date().getFullYear()} — High Performance Systems Engineering</p>
         </div>
-        <p>MR² Labs Outreach Engine &copy; {new Date().getFullYear()} — High Performance Systems Engineering</p>
       </footer>
     </div>
   );

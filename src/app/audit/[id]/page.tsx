@@ -451,7 +451,7 @@ export default function AuditLandingPage({ params }: { params: Promise<{ id: str
 
                 <div className="flex-1 rounded-2xl border border-white/10 bg-black overflow-hidden relative min-h-[500px]">
                   <iframe
-                    src={`https://www.mr2labs.com/book/${leadId}`}
+                    src={`https://www.mr2labs.com/book/${leadId}?embed=true`}
                     className="absolute inset-0 w-full h-full border-none"
                     title="Book a Discovery Call"
                   />

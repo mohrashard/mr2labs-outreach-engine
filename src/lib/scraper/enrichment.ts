@@ -378,14 +378,32 @@ async function fetchEmailViaDorking(
   let organicResults: any[] = [];
   let dorkSource: 'SERPER_DORK' | 'SERPAPI_DORK' = 'SERPER_DORK';
 
-  // 1. Try Serper API key first
-  const serperKey = process.env.SERPER_API_KEY;
-  if (serperKey) {
+  // Helper to parse comma-separated keys and deduplicate
+  const parseKeys = (envVal?: string) => (envVal || '').split(',').map(k => k.trim()).filter(Boolean);
+
+  const serperKeys = Array.from(new Set([
+    ...parseKeys(process.env.SERPER_API_KEY),
+    ...parseKeys(process.env.SERPER_API_KEYS)
+  ]));
+
+  const serpApiKeys = Array.from(new Set([
+    ...parseKeys(process.env.SERP_API),
+    ...parseKeys(process.env.SERP_API_FALLBACK),
+    ...parseKeys(process.env.SERPAPI_API_KEY)
+  ]));
+
+  const valueSerpKeys = Array.from(new Set([
+    ...parseKeys(process.env.VALUE_SERP_API),
+    ...parseKeys(process.env.VALUE_SERP_API_FALLBACK)
+  ]));
+
+  // 1. Try Serper API keys pool first
+  for (const key of serperKeys) {
     try {
       const res = await fetch('https://google.serper.dev/search', {
         method: 'POST',
         headers: {
-          'X-API-KEY': serperKey,
+          'X-API-KEY': key,
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({ q: query, num: 5 })
@@ -395,31 +413,60 @@ async function fetchEmailViaDorking(
         const data = await res.json();
         if (Array.isArray(data.organic) && data.organic.length > 0) {
           organicResults = data.organic;
+          dorkSource = 'SERPER_DORK';
+          break;
         }
       } else {
-        console.warn(`[Serper Dork] Request returned HTTP ${res.status}. Cascading to SerpApi fallback...`);
+        console.warn(`[Serper Dork] Key ${key.slice(0, 6)}... returned HTTP ${res.status}. Cascading to next key/provider...`);
       }
     } catch (err) {
-      console.warn('[Serper Dork Error]:', err);
+      console.warn(`[Serper Dork Error] Key ${key.slice(0, 6)}...:`, err);
     }
   }
 
-  // 2. Fallback to SerpApi if Serper fails or has 0 results
+  // 2. Fallback to SerpApi keys pool if Serper fails or has 0 results
   if (organicResults.length === 0) {
-    const serpKey = process.env.SERP_API || process.env.SERP_API_FALLBACK || process.env.SERPAPI_API_KEY;
-    if (serpKey) {
+    for (const key of serpApiKeys) {
       try {
-        const serpUrl = `https://serpapi.com/search.json?q=${encodeURIComponent(query)}&api_key=${serpKey}&engine=google`;
+        const serpUrl = `https://serpapi.com/search.json?q=${encodeURIComponent(query)}&api_key=${key}&engine=google`;
         const res = await fetch(serpUrl);
         if (res.ok) {
           const data = await res.json();
+          if (data.error) {
+            console.warn(`[SerpApi Dork] Key ${key.slice(0, 6)}... error: ${data.error}. Cascading...`);
+            continue;
+          }
           if (Array.isArray(data.organic_results) && data.organic_results.length > 0) {
             organicResults = data.organic_results;
             dorkSource = 'SERPAPI_DORK';
+            break;
           }
         }
       } catch (err) {
-        console.warn('[SerpApi Dork Fallback Error]:', err);
+        console.warn(`[SerpApi Dork Fallback Error] Key ${key.slice(0, 6)}...:`, err);
+      }
+    }
+  }
+
+  // 3. Fallback to ValueSERP keys pool if Serper and SerpApi fail or have 0 results
+  if (organicResults.length === 0) {
+    for (const key of valueSerpKeys) {
+      try {
+        const res = await fetch(`https://api.valueserp.com/search?api_key=${key}&q=${encodeURIComponent(query)}&num=5`);
+        if (res.ok) {
+          const data = await res.json();
+          if (data.request_info?.success === false) {
+            console.warn(`[ValueSERP Dork] Key ${key.slice(0, 6)}... error: ${data.request_info?.message || 'Failed'}. Cascading...`);
+            continue;
+          }
+          if (Array.isArray(data.organic_results) && data.organic_results.length > 0) {
+            organicResults = data.organic_results;
+            dorkSource = 'SERPAPI_DORK';
+            break;
+          }
+        }
+      } catch (err) {
+        console.warn(`[ValueSERP Dork Fallback Error] Key ${key.slice(0, 6)}...:`, err);
       }
     }
   }

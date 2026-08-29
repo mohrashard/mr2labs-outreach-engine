@@ -236,17 +236,20 @@ export async function GET(req: Request) {
           const legacyLeads = [];
           let isTimedOut = false;
 
+          const cronSecret = process.env.CRON_SECRET || 'mr2labs_cron_secret_key_2026';
+          const scrapeContinuationUrl = `${baseUrl}/api/cron/daily-outreach?action=scrape&secret=${cronSecret}`;
+
           // Track 1: DIY Sites
-          for (let p = 1; p <= 5; p++) {
+          for (let p = 1; p <= 10; p++) {
             if (Date.now() - startTime > 45000) {
               const msg = `⏸️ 45s execution limit reached on DIY page ${p}. Scheduling 60s cooldown and resuming automatically.`;
               console.log(`[Cron] ${msg}`);
               await supabaseAdmin.from('system_logs').insert({ event_type: 'COOLDOWN', message: msg, metadata: { mode: 'diy', page: p, campaign: campaign.name } });
               if (qstash) {
                 await qstash.publishJSON({
-                  url: `${baseUrl}/api/cron/daily-outreach?action=scrape`,
+                  url: scrapeContinuationUrl,
                   delay: 60,
-                  headers: { Authorization: `Bearer ${process.env.CRON_SECRET || 'mr2labs_cron_secret_key_2026'}` },
+                  headers: { Authorization: `Bearer ${cronSecret}` },
                   body: {}
                 }).catch((e: any) => console.error('[Cron] QStash continuation failed:', e));
               }
@@ -261,16 +264,16 @@ export async function GET(req: Request) {
 
           // Track 2: Legacy Sites
           if (!isTimedOut) {
-            for (let p = 1; p <= 5; p++) {
+            for (let p = 1; p <= 10; p++) {
               if (Date.now() - startTime > 45000) {
                 const msg = `⏸️ 45s execution limit reached on Legacy page ${p}. Scheduling 60s cooldown and resuming automatically.`;
                 console.log(`[Cron] ${msg}`);
                 await supabaseAdmin.from('system_logs').insert({ event_type: 'COOLDOWN', message: msg, metadata: { mode: 'legacy', page: p, campaign: campaign.name } });
                 if (qstash) {
                   await qstash.publishJSON({
-                    url: `${baseUrl}/api/cron/daily-outreach?action=scrape`,
+                    url: scrapeContinuationUrl,
                     delay: 60,
-                    headers: { Authorization: `Bearer ${process.env.CRON_SECRET || 'mr2labs_cron_secret_key_2026'}` },
+                    headers: { Authorization: `Bearer ${cronSecret}` },
                     body: {}
                   }).catch((e: any) => console.error('[Cron] QStash continuation failed:', e));
                 }
@@ -321,11 +324,14 @@ export async function GET(req: Request) {
             // Re-trigger scrape immediately for the new city
             if (qstash) {
               await qstash.publishJSON({
-                url: `${baseUrl}/api/cron/daily-outreach?action=scrape`,
+                url: scrapeContinuationUrl,
                 delay: 2,
-                headers: { Authorization: `Bearer ${process.env.CRON_SECRET || 'mr2labs_cron_secret_key_2026'}` },
+                headers: { Authorization: `Bearer ${cronSecret}` },
                 body: {}
               }).catch((e: any) => console.error('[Cron] QStash auto-pivot trigger failed:', e));
+
+              const waitMsg = `🔄 Auto-pivoted to ${newCity}. Resuming lead discovery immediately...`;
+              await supabaseAdmin.from('system_logs').insert({ event_type: 'COOLDOWN', message: waitMsg, metadata: { step: 'auto_pivot', campaign: campaign.name, city: newCity } });
             }
             continue;
           }
@@ -356,9 +362,9 @@ export async function GET(req: Request) {
             // Schedule a verification re-run after the queue clears
             const completionDelay = (newLeads.length * 3) + 30;
             await qstash.publishJSON({
-              url: `${baseUrl}/api/cron/daily-outreach?action=scrape`,
+              url: scrapeContinuationUrl,
               delay: completionDelay,
-              headers: { Authorization: `Bearer ${process.env.CRON_SECRET || 'mr2labs_cron_secret_key_2026'}` },
+              headers: { Authorization: `Bearer ${cronSecret}` },
               body: {}
             }).catch((e: any) => console.error('[Cron] QStash completion check failed:', e));
 
@@ -440,6 +446,8 @@ export async function GET(req: Request) {
 }
 
 export async function POST(request: Request) {
+  const url = new URL(request.url);
+  const secretParam = url.searchParams.get('secret');
   const authHeader = request.headers.get('authorization');
   const forwardedAuth = request.headers.get('upstash-forward-authorization');
   const signature = request.headers.get('upstash-signature');
@@ -449,29 +457,35 @@ export async function POST(request: Request) {
     process.env.CRON_SECRET,
     process.env.NEXT_PUBLIC_CRON_SECRET,
     'mr2labs_cron_secret_key_2026'
-  ].filter(Boolean).map(s => `Bearer ${s}`);
+  ].filter(Boolean) as string[];
+
+  const validBearerSecrets = validSecrets.map(s => `Bearer ${s}`);
 
   let isAuthorized = false;
 
-  // 1. Direct Bearer secret match
-  if (authHeader && validSecrets.includes(authHeader)) {
+  // 1. Secret query param
+  if (secretParam && validSecrets.includes(secretParam)) {
     isAuthorized = true;
   }
-  // 2. Upstash forwarded auth header
-  else if (forwardedAuth && validSecrets.includes(forwardedAuth)) {
+  // 2. Direct Bearer secret match
+  else if (authHeader && validBearerSecrets.includes(authHeader)) {
     isAuthorized = true;
   }
-  // 3. Vercel Cron user agent
+  // 3. Upstash forwarded auth header
+  else if (forwardedAuth && validBearerSecrets.includes(forwardedAuth)) {
+    isAuthorized = true;
+  }
+  // 4. Vercel Cron user agent
   else if (userAgent.includes('vercel-cron')) {
     isAuthorized = true;
   }
-  // 4. QStash signature verification
+  // 5. QStash signature verification
   else if (signature && receiver) {
     const bodyText = await request.clone().text();
     const isValid = await receiver.verify({ signature, body: bodyText }).catch(() => false);
     if (isValid) isAuthorized = true;
   }
-  // 5. Fallback if QStash token is set (automated queue calls)
+  // 6. Fallback if QStash token is set (automated queue calls)
   else if (signature || process.env.QSTASH_TOKEN) {
     isAuthorized = true;
   }

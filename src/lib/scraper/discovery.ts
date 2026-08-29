@@ -234,18 +234,33 @@ export async function discoverTargetDomains(
     `${niche} firm ${cleanLocation}`,
     `${niche} broker ${cleanLocation}`,
     `Independent ${niche} ${cleanLocation}`,
-    `Boutique ${niche} ${cleanLocation}`
+    `Boutique ${niche} ${cleanLocation}`,
+    `${niche} group ${cleanLocation}`,
+    `Local ${niche} ${cleanLocation}`,
+    `${niche} specialists ${cleanLocation}`,
+    `${niche} services ${cleanLocation}`,
+    `${niche} consultants ${cleanLocation}`
   ];
 
+  const diyQueries = [
+    `${niche} website ${cleanLocation}`,
+    `${niche} small business ${cleanLocation}`,
+    `${niche} portfolio ${cleanLocation}`,
+    `${niche} local ${cleanLocation}`,
+    `${niche} contact ${cleanLocation}`,
+    `Owner ${niche} ${cleanLocation}`,
+    `Custom ${niche} ${cleanLocation}`,
+    `${niche} team ${cleanLocation}`,
+    `${niche} office ${cleanLocation}`,
+    `Professional ${niche} ${cleanLocation}`
+  ];
+
+  let serpPage = 1;
+
   if (mode === 'diy') {
-    const diyQueries = [
-      `${niche} website ${cleanLocation}`,
-      `${niche} small business ${cleanLocation}`,
-      `${niche} portfolio ${cleanLocation}`,
-      `${niche} local ${cleanLocation}`,
-      `${niche} contact ${cleanLocation}`
-    ];
-    query = diyQueries[(page - 1) % diyQueries.length];
+    const qIndex = (page - 1) % diyQueries.length;
+    serpPage = Math.floor((page - 1) / diyQueries.length) + 1;
+    query = diyQueries[qIndex];
     dorkProfile = { queryTemplate: () => query, negativeKeywords: ['directory', 'top 10', 'best of', 'jobs', 'hiring'] };
   } else {
     if (page === 1) {
@@ -257,8 +272,11 @@ export async function discoverTargetDomains(
         dorkQueryCache.set(cacheKey, dorkProfile);
       }
       query = dorkProfile.queryTemplate(niche, cleanLocation);
+      serpPage = 1;
     } else {
-      query = legacyFallbackQueries[(page - 1) % legacyFallbackQueries.length];
+      const qIndex = (page - 2) % legacyFallbackQueries.length;
+      serpPage = Math.floor((page - 2) / legacyFallbackQueries.length) + 1;
+      query = legacyFallbackQueries[qIndex];
       dorkProfile = { queryTemplate: () => query, negativeKeywords: ['directory', 'top 10', 'best of', 'jobs', 'hiring'] };
     }
   }
@@ -275,18 +293,37 @@ export async function discoverTargetDomains(
     // Non-blocking log insert
   }
 
-  // 1. Primary Provider: Serper.dev
-  if (process.env.SERPER_API_KEY) {
+  // Helper to parse comma-separated keys and deduplicate
+  const parseKeys = (envVal?: string) => (envVal || '').split(',').map(k => k.trim()).filter(Boolean);
+
+  const serperKeys = Array.from(new Set([
+    ...parseKeys(process.env.SERPER_API_KEY),
+    ...parseKeys(process.env.SERPER_API_KEYS)
+  ]));
+
+  const serpApiKeys = Array.from(new Set([
+    ...parseKeys(process.env.SERP_API),
+    ...parseKeys(process.env.SERP_API_FALLBACK),
+    ...parseKeys(process.env.SERPAPI_API_KEY)
+  ]));
+
+  const valueSerpKeys = Array.from(new Set([
+    ...parseKeys(process.env.VALUE_SERP_API),
+    ...parseKeys(process.env.VALUE_SERP_API_FALLBACK)
+  ]));
+
+  // 1. Primary Provider Pool: Serper.dev
+  for (const apiKey of serperKeys) {
     try {
-      console.log(`[Discovery] Fetching Serper page ${page}...`);
+      console.log(`[Discovery] Fetching Serper (key: ${apiKey.slice(0, 6)}...) dork page ${page} (serpPage ${serpPage})...`);
       let activeQuery = query;
       let res = await fetch('https://google.serper.dev/search', {
         method: 'POST',
         headers: {
-          'X-API-KEY': process.env.SERPER_API_KEY,
+          'X-API-KEY': apiKey,
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ q: activeQuery, num: 50, page }),
+        body: JSON.stringify({ q: activeQuery, num: 50, page: serpPage }),
       });
 
       // Handle Serper Free Tier 400 Bad Request pattern restrictions
@@ -296,61 +333,80 @@ export async function discoverTargetDomains(
         res = await fetch('https://google.serper.dev/search', {
           method: 'POST',
           headers: {
-            'X-API-KEY': process.env.SERPER_API_KEY,
+            'X-API-KEY': apiKey,
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify({ q: cleanQ, num: 50, page }),
+          body: JSON.stringify({ q: cleanQ, num: 50, page: serpPage }),
         });
       }
       
       if (res.ok) {
         const data = await res.json();
         if (data.organic?.length) {
-          return processSerpResults(data.organic, 'title', 'link', 'snippet', dorkProfile.negativeKeywords, existingDomains, mode);
+          const leads = processSerpResults(data.organic, 'title', 'link', 'snippet', dorkProfile.negativeKeywords, existingDomains, mode);
+          if (leads.length > 0) return leads;
         }
       } else {
         const errText = await res.text();
-        console.warn(`[Discovery] Serper API non-ok response (${res.status}): ${errText}`);
+        console.warn(`[Discovery] Serper key (${apiKey.slice(0, 6)}...) non-ok response (${res.status}): ${errText}. Cascading...`);
       }
     } catch (err) {
-      console.warn(`[Discovery] Serper page ${page} failed, trying SerpApi fallback`, err);
+      console.warn(`[Discovery] Serper key (${apiKey.slice(0, 6)}...) error, cascading to next key/provider...`, err);
     }
   }
 
-  // 2. Secondary Provider: SerpApi
-  const serpApiKey = process.env.SERP_API || process.env.SERP_API_FALLBACK;
-  if (serpApiKey) {
+  // 2. Secondary Provider Pool: SerpApi
+  for (const apiKey of serpApiKeys) {
     try {
-      const start = (page - 1) * 50;
+      console.log(`[Discovery] Fetching SerpApi (key: ${apiKey.slice(0, 6)}...) dork page ${page} (serpPage ${serpPage})...`);
+      const start = (serpPage - 1) * 50;
       const res = await fetch(
-        `https://serpapi.com/search.json?q=${encodeURIComponent(query)}&api_key=${serpApiKey}&num=50&start=${start}`
+        `https://serpapi.com/search.json?q=${encodeURIComponent(query)}&api_key=${apiKey}&num=50&start=${start}&engine=google`
       );
-      const data = await res.json();
-      if (data.organic_results?.length) {
-        return processSerpResults(data.organic_results, 'title', 'link', 'snippet', dorkProfile.negativeKeywords, existingDomains, mode);
+      if (res.ok) {
+        const data = await res.json();
+        if (data.error) {
+          console.warn(`[Discovery] SerpApi key (${apiKey.slice(0, 6)}...) account error: ${data.error}. Cascading...`);
+          continue;
+        }
+        if (data.organic_results?.length) {
+          const leads = processSerpResults(data.organic_results, 'title', 'link', 'snippet', dorkProfile.negativeKeywords, existingDomains, mode);
+          if (leads.length > 0) return leads;
+        }
+      } else {
+        console.warn(`[Discovery] SerpApi key (${apiKey.slice(0, 6)}...) non-ok response (${res.status}). Cascading...`);
       }
     } catch (err) {
-      console.warn('[Discovery] SerpApi failed, trying ValueSERP fallback');
+      console.warn(`[Discovery] SerpApi key (${apiKey.slice(0, 6)}...) error, cascading...`, err);
     }
   }
 
-  // 3. Tertiary Provider: ValueSERP
-  const valueSerpKey = process.env.VALUE_SERP_API || process.env.VALUE_SERP_API_FALLBACK;
-  if (valueSerpKey) {
+  // 3. Tertiary Provider Pool: ValueSERP
+  for (const apiKey of valueSerpKeys) {
     try {
-      const start = (page - 1) * 50;
+      console.log(`[Discovery] Fetching ValueSERP (key: ${apiKey.slice(0, 6)}...) dork page ${page} (serpPage ${serpPage})...`);
       const res = await fetch(
-        `https://api.valueserp.com/search?api_key=${valueSerpKey}&q=${encodeURIComponent(query)}&num=50&page=${page}`
+        `https://api.valueserp.com/search?api_key=${apiKey}&q=${encodeURIComponent(query)}&num=50&page=${serpPage}`
       );
-      const data = await res.json();
-      if (data.organic_results?.length) {
-        return processSerpResults(data.organic_results, 'title', 'link', 'snippet', dorkProfile.negativeKeywords, existingDomains, mode);
+      if (res.ok) {
+        const data = await res.json();
+        if (data.request_info?.success === false) {
+          console.warn(`[Discovery] ValueSERP key (${apiKey.slice(0, 6)}...) account error: ${data.request_info?.message || 'Failed'}. Cascading...`);
+          continue;
+        }
+        if (data.organic_results?.length) {
+          const leads = processSerpResults(data.organic_results, 'title', 'link', 'snippet', dorkProfile.negativeKeywords, existingDomains, mode);
+          if (leads.length > 0) return leads;
+        }
+      } else {
+        console.warn(`[Discovery] ValueSERP key (${apiKey.slice(0, 6)}...) non-ok response (${res.status}). Cascading...`);
       }
     } catch (err) {
-      console.error('[Discovery] ValueSERP failed:', err);
+      console.error(`[Discovery] ValueSERP key (${apiKey.slice(0, 6)}...) error:`, err);
     }
   }
 
+  console.warn('[Discovery] All SERP providers and keys exhausted or returned 0 leads.');
   return [];
 }
 

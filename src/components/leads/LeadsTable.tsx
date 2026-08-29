@@ -23,11 +23,15 @@ export function LeadsTable({ leads, onSelectLead }: LeadsTableProps) {
     if (statusFilter === 'new' && lead.status !== 'NEW') return false;
     if (statusFilter === 'queued' && lead.status !== 'QUEUED') return false;
 
-    // Date filter logic
+    // Date filter logic (using UTC ISO YYYY-MM-DD to avoid timezone mismatch hiding leads)
     if (dateFilter === 'today') {
-      const leadDate = new Date(lead.created_at).setHours(0,0,0,0);
-      const today = new Date().setHours(0,0,0,0);
-      if (leadDate !== today) return false;
+      try {
+        const leadDateStr = new Date(lead.created_at).toISOString().split('T')[0];
+        const todayStr = new Date().toISOString().split('T')[0];
+        if (leadDateStr !== todayStr) return false;
+      } catch {
+        return true;
+      }
     }
 
     return true;

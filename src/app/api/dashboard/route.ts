@@ -18,7 +18,7 @@ export async function GET() {
     
     const replyRate = totalSentEver && totalSentEver > 0 ? (((repliedCount || 0) / totalSentEver) * 100).toFixed(1) : 0;
 
-    const { data: leads } = await supabaseAdmin.from('outreach_leads').select('*').order('created_at', { ascending: false }).limit(50);
+    const { data: leads } = await supabaseAdmin.from('outreach_leads').select('*').order('created_at', { ascending: false }).limit(200);
 
     return NextResponse.json({
       metrics: {

@@ -44,7 +44,7 @@ export async function GET(req: Request) {
     }
 
     const startOfDay = new Date();
-    startOfDay.setHours(0, 0, 0, 0);
+    startOfDay.setUTCHours(0, 0, 0, 0);
 
     const scrapedSummary = [];
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';

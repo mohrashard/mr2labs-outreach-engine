@@ -72,7 +72,7 @@ export async function POST(request: Request) {
     }
 
     const startOfDay = new Date();
-    startOfDay.setHours(0, 0, 0, 0);
+    startOfDay.setUTCHours(0, 0, 0, 0);
 
     const { count: createdToday } = await supabaseAdmin
       .from('outreach_leads')

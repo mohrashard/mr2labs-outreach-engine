@@ -449,9 +449,9 @@ export default function AuditLandingPage({ params }: { params: Promise<{ id: str
                   </p>
                 </div>
 
-                <div className="flex-1 rounded-2xl border border-white/10 bg-black overflow-hidden relative min-h-[400px]">
+                <div className="flex-1 rounded-2xl border border-white/10 bg-black overflow-hidden relative min-h-[500px]">
                   <iframe
-                    src={`https://calendly.com/mohrashard/30min?embed_domain=outreach.mr2labs.com&embed_type=Inline&background_color=000000&text_color=ffffff&primary_color=10b981&hide_event_type_details=1&hide_gdpr_banner=1`}
+                    src={`https://www.mr2labs.com/book/${leadId}`}
                     className="absolute inset-0 w-full h-full border-none"
                     title="Book a Discovery Call"
                   />

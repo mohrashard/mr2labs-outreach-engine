@@ -239,8 +239,10 @@ export async function GET(req: Request) {
           const cronSecret = process.env.CRON_SECRET || 'mr2labs_cron_secret_key_2026';
           const scrapeContinuationUrl = `${baseUrl}/api/cron/daily-outreach?action=scrape&secret=${cronSecret}`;
 
-          // Track 1: DIY Sites
-          for (let p = 1; p <= 10; p++) {
+          // Track 1: DIY Sites (Capped at 2 high-precision pages to preserve SERP API credits)
+          const targetCandidatesPerTrack = Math.max(Math.ceil(leadsNeeded * 1.5), 10);
+          
+          for (let p = 1; p <= 2; p++) {
             if (Date.now() - startTime > 45000) {
               const msg = `⏸️ 45s execution limit reached on DIY page ${p}. Scheduling 60s cooldown and resuming automatically.`;
               console.log(`[Cron] ${msg}`);
@@ -259,12 +261,12 @@ export async function GET(req: Request) {
 
             const pageLeads = await discoverTargetDomains(campaign.niche || 'General B2B', campaign.location, p, 'diy');
             if (pageLeads.length > 0) diyLeads.push(...pageLeads);
-            if (diyLeads.length >= leadsNeeded * 7) break;
+            if (diyLeads.length >= targetCandidatesPerTrack) break;
           }
 
-          // Track 2: Legacy Sites
+          // Track 2: Legacy Sites (Capped at 2 high-precision pages to preserve SERP API credits)
           if (!isTimedOut) {
-            for (let p = 1; p <= 10; p++) {
+            for (let p = 1; p <= 2; p++) {
               if (Date.now() - startTime > 45000) {
                 const msg = `⏸️ 45s execution limit reached on Legacy page ${p}. Scheduling 60s cooldown and resuming automatically.`;
                 console.log(`[Cron] ${msg}`);
@@ -282,7 +284,7 @@ export async function GET(req: Request) {
 
               const pageLeads = await discoverTargetDomains(campaign.niche || 'General B2B', campaign.location, p, 'legacy');
               if (pageLeads.length > 0) legacyLeads.push(...pageLeads);
-              if (legacyLeads.length >= leadsNeeded * 7) break;
+              if (legacyLeads.length >= targetCandidatesPerTrack || (diyLeads.length + legacyLeads.length) >= targetCandidatesPerTrack * 2) break;
             }
           }
 

@@ -81,6 +81,14 @@ export interface DorkProfile {
 
 const dorkQueryCache = new Map<string, DorkProfile>();
 
+// 24-Hour SERP API Response Memory Cache
+interface SerpCacheEntry {
+  organic: any[];
+  timestamp: number;
+}
+const serpResultMemoryCache = new Map<string, SerpCacheEntry>();
+const CACHE_TTL_MS = 24 * 60 * 60 * 1000; // 24 Hours
+
 function singularizeNiche(nicheStr: string): string {
   let cleaned = nicheStr.trim();
   if (/agencies$/i.test(cleaned)) return cleaned.replace(/agencies$/i, 'Agency');
@@ -316,6 +324,17 @@ export async function discoverTargetDomains(
     // Non-blocking log insert
   }
 
+  // 0. Check 24-Hour SERP Cache to save API credits
+  const serpCacheKey = `${query.toLowerCase().trim()}:${serpPage}:${cleanLocation.toLowerCase()}`;
+  if (serpResultMemoryCache.has(serpCacheKey)) {
+    const entry = serpResultMemoryCache.get(serpCacheKey)!;
+    if (Date.now() - entry.timestamp < CACHE_TTL_MS) {
+      console.log(`[Discovery SERP Cache] ⚡ Hit cached organic SERP results for "${query}" (0 API credits used)`);
+      const leads = processSerpResults(entry.organic, 'title', 'link', 'snippet', dorkProfile.negativeKeywords, existingDomains, mode);
+      if (leads.length > 0) return leads;
+    }
+  }
+
   // Helper to parse comma-separated keys and deduplicate
   const parseKeys = (envVal?: string) => (envVal || '').split(',').map(k => k.trim()).filter(Boolean);
 
@@ -366,6 +385,7 @@ export async function discoverTargetDomains(
       if (res.ok) {
         const data = await res.json();
         if (data.organic?.length) {
+          serpResultMemoryCache.set(serpCacheKey, { organic: data.organic, timestamp: Date.now() });
           const leads = processSerpResults(data.organic, 'title', 'link', 'snippet', dorkProfile.negativeKeywords, existingDomains, mode);
           if (leads.length > 0) return leads;
         }
@@ -393,6 +413,7 @@ export async function discoverTargetDomains(
           continue;
         }
         if (data.organic_results?.length) {
+          serpResultMemoryCache.set(serpCacheKey, { organic: data.organic_results, timestamp: Date.now() });
           const leads = processSerpResults(data.organic_results, 'title', 'link', 'snippet', dorkProfile.negativeKeywords, existingDomains, mode);
           if (leads.length > 0) return leads;
         }
@@ -418,6 +439,7 @@ export async function discoverTargetDomains(
           continue;
         }
         if (data.organic_results?.length) {
+          serpResultMemoryCache.set(serpCacheKey, { organic: data.organic_results, timestamp: Date.now() });
           const leads = processSerpResults(data.organic_results, 'title', 'link', 'snippet', dorkProfile.negativeKeywords, existingDomains, mode);
           if (leads.length > 0) return leads;
         }

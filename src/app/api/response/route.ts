@@ -41,15 +41,23 @@ export async function GET(request: NextRequest) {
     }
 
     // 3. SMART INTENT ROUTING
+    const host = request.headers.get('host') || 'outreach.mr2labs.com';
+    const protocol = host.includes('localhost') ? 'http' : 'https';
+    const baseUrl = `${protocol}://${host}`;
+
     if (intent === 'fix') {
-      // 🟢 "I want MR² Labs to fix this"
-      // They are ready to talk. Send them straight to Calendly.
-      return NextResponse.redirect('https://calendly.com/mohrashard/30min');
+      // 🟢 "I want MR² Labs to fix this" -> Pre-filled Booking Page (Call Tab)
+      const bookUrl = new URL(`${baseUrl}/book/${leadId}`);
+      bookUrl.searchParams.set('tab', 'call');
+      if (isTest) bookUrl.searchParams.set('test', 'true');
+      return NextResponse.redirect(bookUrl.toString());
       
     } else if (intent === 'nurture') {
-      // 🟡 "Send over a scope/Loom"
-      // They want more info but aren't ready for a call. Send to the audit form.
-      return NextResponse.redirect('https://mr2labs.com/services#audit-form');
+      // 🟡 "Send over a scope/Loom" -> Pre-filled Booking Page (Loom Tab)
+      const loomUrl = new URL(`${baseUrl}/book/${leadId}`);
+      loomUrl.searchParams.set('tab', 'loom');
+      if (isTest) loomUrl.searchParams.set('test', 'true');
+      return NextResponse.redirect(loomUrl.toString());
       
     } else {
       // 🔴 "Not a priority" (intent === 'pass')

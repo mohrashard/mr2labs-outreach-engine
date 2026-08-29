@@ -36,81 +36,33 @@ export async function POST(req: Request) {
       if (latest) campaignId = latest.id;
     }
 
-    const leadsNeeded = 20;
-    const enqueueLimit = 80;
+    const cronSecret = process.env.CRON_SECRET || 'mr2labs_cron_secret_key_2026';
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://outreach.mr2labs.com';
 
-    // 1. Phase 1: Fast Discovery Sweep (Dual Track: DIY + Legacy)
-    console.log('[Scrape Pipeline] Phase 1: Aggregating raw leads from Google (DIY + Legacy)...');
-    const diyLeads = [];
-    const legacyLeads = [];
-    
-    // Fetch DIY leads (Pages 1-3)
-    for (let p = 1; p <= 3; p++) {
-      const pageLeads = await discoverTargetDomains(niche, location, p, 'diy');
-      if (pageLeads.length > 0) diyLeads.push(...pageLeads);
-    }
-    
-    // Fetch Legacy leads (Pages 1-3)
-    for (let p = 1; p <= 3; p++) {
-      const pageLeads = await discoverTargetDomains(niche, location, p, 'legacy');
-      if (pageLeads.length > 0) legacyLeads.push(...pageLeads);
-    }
-
-    // Interleave DIY and Legacy candidates 1:1 so both tracks receive equal background processing
-    const rawCandidates = [];
-    const maxLen = Math.max(diyLeads.length, legacyLeads.length);
-    for (let i = 0; i < maxLen; i++) {
-      if (i < diyLeads.length) rawCandidates.push(diyLeads[i]);
-      if (i < legacyLeads.length) rawCandidates.push(legacyLeads[i]);
-      if (rawCandidates.length >= enqueueLimit) break;
-    }
-    console.log(`[Scrape Pipeline] Phase 1 Complete: Found ${diyLeads.length} DIY and ${legacyLeads.length} Legacy candidates (${rawCandidates.length} interleaved).`);
-
-    // 2. Offload Phase 2 to Upstash QStash Background Jobs if QSTASH_TOKEN is set (Production Async Mode)
+    // 1. Production Async Mode: Delegate discovery sweep directly to QStash background scraper job
     if (qstash) {
-      const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
-      const targetUrl = `${baseUrl}/api/queue/process-lead`;
-      let enqueuedCount = 0;
+      await qstash.publishJSON({
+        url: `${baseUrl}/api/cron/daily-outreach?action=scrape&secret=${cronSecret}`,
+        delay: 0,
+        headers: { Authorization: `Bearer ${cronSecret}` },
+        body: {}
+      });
 
-      for (let i = 0; i < rawCandidates.length; i++) {
-        const target = rawCandidates[i];
-
-        // Deduplicate against database before enqueueing
-        const { data: existing } = await supabaseAdmin
-          .from('outreach_leads')
-          .select('id')
-          .eq('website_url', target.websiteUrl)
-          .maybeSingle();
-
-        if (existing) continue;
-
-        // Stagger QStash jobs by 3 seconds per lead to prevent API rate limit spikes
-        const delaySeconds = enqueuedCount * 3;
-
-        await qstash.publishJSON({
-          url: targetUrl,
-          body: {
-            target,
-            campaignId,
-            niche,
-          },
-          delay: delaySeconds,
-        });
-
-        enqueuedCount++;
-        if (enqueuedCount >= enqueueLimit) break;
-      }
-
-      console.log(`[Scrape Pipeline] Asynchronously enqueued ${enqueuedCount} background enrichment jobs via QStash.`);
+      console.log(`[Scrape Route] Triggered background scraper via QStash for campaign ${campaignId} ("${niche}" in "${location}").`);
 
       return NextResponse.json({
         success: true,
         mode: 'ASYNC_QSTASH',
-        rawDiscoveredCount: rawCandidates.length,
-        enqueuedCount,
-        message: `Successfully initiated async background enrichment for ${enqueuedCount} leads. Leads will populate in real-time.`
+        message: `🚀 Scraper initiated autonomously in background for "${niche}" in "${location}". Real-time logs will update below.`
       });
     }
+
+    // 2. Local Fallback Mode (when QSTASH_TOKEN is absent)
+    const leadsNeeded = 20;
+    console.log('[Scrape Pipeline] QSTASH_TOKEN missing. Running single-page synchronous discovery...');
+    const diyLeads = await discoverTargetDomains(niche, location, 1, 'diy');
+    const legacyLeads = await discoverTargetDomains(niche, location, 1, 'legacy');
+    const rawCandidates = [...diyLeads, ...legacyLeads];
 
     // 3. Fallback: Synchronous Processing (Local Dev Mode when QSTASH_TOKEN is absent)
     console.log('[Scrape Pipeline] QSTASH_TOKEN missing. Fallback to synchronous inline processing...');

@@ -81,26 +81,46 @@ export interface DorkProfile {
 
 const dorkQueryCache = new Map<string, DorkProfile>();
 
+function singularizeNiche(nicheStr: string): string {
+  let cleaned = nicheStr.trim();
+  if (/agencies$/i.test(cleaned)) return cleaned.replace(/agencies$/i, 'Agency');
+  if (/companies$/i.test(cleaned)) return cleaned.replace(/companies$/i, 'Company');
+  if (/brokers$/i.test(cleaned)) return cleaned.replace(/brokers$/i, 'Broker');
+  if (/brokerages$/i.test(cleaned)) return cleaned.replace(/brokerages$/i, 'Brokerage');
+  if (/firms$/i.test(cleaned)) return cleaned.replace(/firms$/i, 'Firm');
+  if (/services$/i.test(cleaned)) return cleaned.replace(/services$/i, 'Service');
+  if (/specialists$/i.test(cleaned)) return cleaned.replace(/specialists$/i, 'Specialist');
+  if (/consultants$/i.test(cleaned)) return cleaned.replace(/consultants$/i, 'Consultant');
+  if (/lawyers$/i.test(cleaned)) return cleaned.replace(/lawyers$/i, 'Lawyer');
+  if (/attorneys$/i.test(cleaned)) return cleaned.replace(/attorneys$/i, 'Attorney');
+  if (/contractors$/i.test(cleaned)) return cleaned.replace(/contractors$/i, 'Contractor');
+  
+  if (/s$/i.test(cleaned) && !/ss$/i.test(cleaned)) {
+    return cleaned.slice(0, -1);
+  }
+  return cleaned;
+}
+
+const inMemoryBatchSeenDomains = new Set<string>();
+
 async function generateDorkQueryFromLLM(
   niche: string,
   painPoints: string,
   solution: string,
   location: string
 ): Promise<DorkProfile> {
-  const systemPrompt = `You are a B2B lead generation expert.
-Your job is to generate a clean Google search query string to find ideal small/mid-size independent businesses matching the ICP profile.
+  const systemPrompt = `You are an elite B2B OSINT and SERP search engineer.
+Your task is to generate a high-precision Google search query that finds independent, owner-operated business websites for a specific niche and location.
 
 Rules:
-- Keep the query simple and clean WITHOUT advanced operators like -site:, intitle:, inurl:, or quotes around long phrases (which get blocked by SERP APIs on free tier).
-- Target ONLY local independent owner-operated businesses.
-- Combine niche/industry terms with location terms naturally.
-- Keep the query under 100 characters.
-- Return ONLY valid JSON, no markdown.
-
-Return format:
+1. Target ONLY local independent businesses (avoid franchises, directories, aggregators, or SaaS tools).
+2. Use native operational terms for this specific industry (e.g., for Real Estate use "brokerage", "principal broker", "our agents"; for Medical use "practice", "clinic", "our doctors"; for Legal use "attorney", "partners").
+3. NEVER use developer words like "portfolio", "website", or "small business".
+4. Ensure grammatical natural phrasing (e.g. "boutique real estate firm", not "real estate agencies firm").
+5. Return JSON ONLY:
 {
-  "query": "clean google search phrase including location",
-  "negative_keywords": ["keyword1", "keyword2"]
+  "query": "clean search phrase under 80 characters",
+  "negative_keywords": ["directory", "top 10", "best of", "jobs", "clutch", "yelp"]
 }`;
 
   const userPrompt = `Generate a Google search query for this ICP:
@@ -113,8 +133,8 @@ Our Solution (what we sell): ${solution}
 The query should find local businesses in ${location} that match this niche.`;
 
   const fallbackProfile: DorkProfile = {
-    queryTemplate: (n, l) => `${n} agency ${l}`,
-    negativeKeywords: ['directory', 'top 10', 'best of', 'jobs', 'hiring']
+    queryTemplate: (n, l) => `${singularizeNiche(n)} boutique ${l}`,
+    negativeKeywords: ['directory', 'top 10', 'best of', 'jobs', 'hiring', 'clutch', 'yelp']
   };
 
   // Try Groq first, then cascade through your existing LLM waterfall
@@ -182,6 +202,8 @@ export async function discoverTargetDomains(
     .replace(/\s+/g, ' ')
     .trim();
 
+  const cleanNiche = singularizeNiche(niche);
+
   // Fetch ALL processed domains to prevent redundant enrichment across any campaign
   const { data: existingLeads } = await supabaseAdmin
     .from('outreach_leads')
@@ -229,30 +251,31 @@ export async function discoverTargetDomains(
   let dorkProfile: DorkProfile;
   let query: string;
 
+  // High-precision industry native dork patterns
   const legacyFallbackQueries = [
-    `${niche} agency ${cleanLocation}`,
-    `${niche} firm ${cleanLocation}`,
-    `${niche} broker ${cleanLocation}`,
-    `Independent ${niche} ${cleanLocation}`,
-    `Boutique ${niche} ${cleanLocation}`,
-    `${niche} group ${cleanLocation}`,
-    `Local ${niche} ${cleanLocation}`,
-    `${niche} specialists ${cleanLocation}`,
-    `${niche} services ${cleanLocation}`,
-    `${niche} consultants ${cleanLocation}`
+    `boutique ${cleanNiche} ${cleanLocation}`,
+    `independent ${cleanNiche} ${cleanLocation}`,
+    `"principal broker" ${cleanNiche} ${cleanLocation}`,
+    `"our agents" ${cleanNiche} ${cleanLocation}`,
+    `"meet the team" ${cleanNiche} ${cleanLocation}`,
+    `"featured listings" ${cleanNiche} ${cleanLocation}`,
+    `local ${cleanNiche} ${cleanLocation}`,
+    `${cleanNiche} group ${cleanLocation}`,
+    `${cleanNiche} firm ${cleanLocation}`,
+    `owner operated ${cleanNiche} ${cleanLocation}`
   ];
 
   const diyQueries = [
-    `${niche} website ${cleanLocation}`,
-    `${niche} small business ${cleanLocation}`,
-    `${niche} portfolio ${cleanLocation}`,
-    `${niche} local ${cleanLocation}`,
-    `${niche} contact ${cleanLocation}`,
-    `Owner ${niche} ${cleanLocation}`,
-    `Custom ${niche} ${cleanLocation}`,
-    `${niche} team ${cleanLocation}`,
-    `${niche} office ${cleanLocation}`,
-    `Professional ${niche} ${cleanLocation}`
+    `"contact us" ${cleanNiche} ${cleanLocation}`,
+    `"our team" ${cleanNiche} ${cleanLocation}`,
+    `"about us" ${cleanNiche} ${cleanLocation}`,
+    `"local office" ${cleanNiche} ${cleanLocation}`,
+    `"client reviews" ${cleanNiche} ${cleanLocation}`,
+    `owner operated ${cleanNiche} ${cleanLocation}`,
+    `custom ${cleanNiche} ${cleanLocation}`,
+    `independent ${cleanNiche} ${cleanLocation}`,
+    `"schedule consultation" ${cleanNiche} ${cleanLocation}`,
+    `professional ${cleanNiche} ${cleanLocation}`
   ];
 
   let serpPage = 1;
@@ -447,14 +470,23 @@ function processSerpResults(
     const cleanUrl = cleanDomainUrl(item[linkKey]);
     if (!cleanUrl) continue;
 
+    if (inMemoryBatchSeenDomains.size > 5000) {
+      inMemoryBatchSeenDomains.clear();
+    }
+
     const hostname = new URL(cleanUrl).hostname.replace(/^www\./, '').toLowerCase();
     if (seenDomains.has(hostname)) continue;
     if (existingDomains?.has(hostname)) {
       console.log(`[Discovery] Skipping duplicate domain: ${hostname}`);
       continue;
     }
+    if (inMemoryBatchSeenDomains.has(hostname)) {
+      console.log(`[Discovery Batch Deduplication] Skipping duplicate domain in current pipeline batch: ${hostname}`);
+      continue;
+    }
 
     seenDomains.add(hostname);
+    inMemoryBatchSeenDomains.add(hostname);
     leads.push({
       companyName: title || hostname,
       websiteUrl: cleanUrl,

@@ -53,8 +53,9 @@ export async function updateSession(request: NextRequest) {
 
   const pathname = request.nextUrl.pathname;
 
-  // Exempt public assets, auth endpoints, crons, webhooks, streaming PDFs from middleware checks
+  // Exempt public assets, auth endpoints, crons, webhooks, streaming PDFs, and public audit landing pages from middleware checks
   if (
+    pathname.startsWith('/audit') ||
     pathname.startsWith('/api/auth') ||
     pathname.startsWith('/api/queue') ||
     pathname.startsWith('/api/cron') ||

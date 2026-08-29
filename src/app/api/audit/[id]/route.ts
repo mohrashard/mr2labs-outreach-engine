@@ -155,7 +155,36 @@ export async function POST(
 
       await sendColdEmail('growth@getmr2labs.com', emailSubject, emailBody);
     } catch (emailErr) {
-      console.error('[AUDIT SUBMIT] Email notification failed:', emailErr);
+      console.error('[AUDIT SUBMIT] Internal email notification failed:', emailErr);
+    }
+
+    // 3. Trigger automated confirmation email directly to prospect
+    if (email) {
+      try {
+        const { sendColdEmail } = await import('@/lib/email/brevo');
+        const prospectSubject = `We received your audit request for ${domain} — Mr² Labs`;
+        const prospectBody = `
+          <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; color: #1e293b; line-height: 1.6;">
+            <h2 style="color: #6366f1;">Your Audit Breakdown is on the Way!</h2>
+            <p>Hi ${contact_name || company_name || 'there'},</p>
+            <p>Thank you for submitting your custom priorities for <strong>${company_name || domain}</strong>.</p>
+            <p>Our engineering team at Mr² Labs is reviewing your technical audit. We are preparing a personalized video breakdown focusing on your requested items:</p>
+            <blockquote style="background: #f8fafc; border-left: 4px solid #6366f1; padding: 12px 16px; margin: 16px 0; font-style: italic; color: #475569;">
+              "${priority_notes || 'Full technical audit & optimization roadmap'}"
+            </blockquote>
+            <p>You will receive your custom Loom video walkthrough directly at <strong>${email}</strong> within 48 hours.</p>
+            <p style="margin-top: 24px; font-size: 14px; color: #64748b;">
+              Best regards,<br />
+              <strong>Rashard</strong><br />
+              Mr² Labs Engineering
+            </p>
+          </div>
+        `;
+
+        await sendColdEmail(email, prospectSubject, prospectBody);
+      } catch (prospectEmailErr) {
+        console.error('[AUDIT SUBMIT] Prospect confirmation email failed:', prospectEmailErr);
+      }
     }
 
     return NextResponse.json({

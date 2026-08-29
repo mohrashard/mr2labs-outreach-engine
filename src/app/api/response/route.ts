@@ -41,19 +41,19 @@ export async function GET(request: NextRequest) {
     }
 
     // 3. SMART INTENT ROUTING
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://outreach.mr2labs.com';
+
     if (intent === 'fix') {
-      // 🟢 "I want MR² Labs to fix this"
-      // They are ready to talk. Send them straight to Calendly.
-      return NextResponse.redirect('https://calendly.com/mohrashard/30min');
+      // 🟢 "I want MR² Labs to fix this" -> Redirect to Audit Landing Page (Section 5 / calendar focus)
+      return NextResponse.redirect(`${appUrl}/audit/${leadId}#booking`);
 
     } else if (intent === 'nurture') {
-      // 🟡 "Send over a scope/Loom"
-      // They want more info but aren't ready for a call. Send to the audit form.
-      return NextResponse.redirect('https://mr2labs.com/services#audit-form');
+      // 🟡 "Send over a Loom breakdown so my team can fix it" -> Redirect to Audit Landing Page (Form focus)
+      return NextResponse.redirect(`${appUrl}/audit/${leadId}#request-loom`);
 
     } else {
       // 🔴 "Not a priority" (intent === 'pass')
-      // Send to homepage to passively browse portfolio, triggering retargeting pixel.
+      // Send to homepage to passively browse portfolio
       const passUrl = new URL('https://mr2labs.com');
       passUrl.searchParams.set('action', 'passed');
       return NextResponse.redirect(passUrl.toString());

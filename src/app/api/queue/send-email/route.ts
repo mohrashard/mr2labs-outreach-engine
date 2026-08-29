@@ -85,11 +85,11 @@ export async function processSingleQueuedLead(leadId: string, followUpStep: numb
   if (followUpStep === 0) {
     extrasHtml = `
       <div style="margin: 30px 0;">
-        <a href="${appUrl}/api/audit/${lead.id}" target="_blank" style="text-decoration: none;">
+        <a href="${appUrl}/audit/${lead.id}" target="_blank" style="text-decoration: none;">
           <img src="${appUrl}/api/thumbnail?domain=${cleanDomain}&v=${Date.now()}" alt="Diagnostic Audit for ${cleanDomain}" style="width: 100%; max-width: 600px; border-radius: 8px; border: 1px solid #E4E4E7;" />
         </a>
         <p style="text-align: center; margin-top: 12px;">
-          <a href="${appUrl}/api/audit/${lead.id}" style="color: #2563EB; text-decoration: none; font-size: 14px; font-weight: 600;">View the free audit of your business &rarr;</a>
+          <a href="${appUrl}/audit/${lead.id}" style="color: #2563EB; text-decoration: none; font-size: 14px; font-weight: 600;">View the free audit of your business &rarr;</a>
         </p>
       </div>
       

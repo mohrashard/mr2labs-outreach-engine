@@ -167,3 +167,20 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_outreach_leads_unique_email
   ON outreach_leads(LOWER(email)) 
   WHERE email IS NOT NULL AND email != '';
 
+-- 11. Personalized Audit System 1 extensions
+ALTER TABLE outreach_leads ADD COLUMN IF NOT EXISTS audit_data JSONB;
+
+CREATE TABLE IF NOT EXISTS audit_submissions (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    lead_id UUID NOT NULL REFERENCES outreach_leads(id) ON DELETE CASCADE,
+    company_name TEXT NOT NULL,
+    domain TEXT NOT NULL,
+    email TEXT NOT NULL,
+    contact_name TEXT,
+    priority_notes TEXT,
+    created_at TIMESTAMPTZ DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_audit_submissions_lead_id ON audit_submissions(lead_id);
+
+

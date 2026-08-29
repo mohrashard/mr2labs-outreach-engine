@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { generateAuditPdf } from '@/lib/pdf/generate';
+import { normalizeAuditData, categorizeAuditIssues, buildSolutionCards } from '@/lib/audit/rules';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
@@ -13,55 +14,158 @@ export async function GET(
   try {
     const resolvedParams = await params;
     const id = resolvedParams.id;
+    const { searchParams } = new URL(request.url);
+    const format = searchParams.get('format');
 
-    // 1. Fetch the raw audit data
+    // 1. Fetch lead from Supabase
     const { data: lead, error } = await supabase
       .from('outreach_leads')
-      .select('company_name, website_url, raw_scraped_data, campaigns ( niche )')
+      .select('id, company_name, website_url, email, audit_data, raw_scraped_data, campaigns ( niche )')
       .eq('id', id)
       .single();
 
     if (error || !lead) {
-      return new NextResponse('Audit report not found or expired.', { status: 404 });
+      return NextResponse.json({ error: 'Audit report not found or expired.' }, { status: 404 });
     }
 
-    // 2. Track the open event in background without blocking response
+    // 2. Track open event in background without blocking response
     supabase
       .from('outreach_leads')
       .update({ audit_opened_at: new Date().toISOString() })
       .eq('id', id)
       .then(() => console.log(`[AUDIT] Tracked open for lead ${id}`));
 
-    // 3. Prepare Domain
+    // 3. Extract Clean Domain
     let cleanDomain = lead.website_url;
     try {
       const urlObj = new URL(lead.website_url.startsWith('http') ? lead.website_url : `https://${lead.website_url}`);
-      cleanDomain = urlObj.hostname.replace('www.', '');
+      cleanDomain = urlObj.hostname.replace(/^www\./, '');
     } catch (e) {
       console.warn(`Could not parse URL ${lead.website_url}`);
     }
 
-    // 4. Generate PDF on the fly
-    const pdfBuffer = await generateAuditPdf(
-      lead.company_name,
-      cleanDomain,
-      lead.raw_scraped_data || {},
-      false, // isTechnical
-      Array.isArray(lead.campaigns) ? lead.campaigns[0]?.niche : (lead.campaigns as any)?.niche
-    );
+    // 4. Stream PDF if explicitly requested (e.g. format=pdf)
+    if (format === 'pdf') {
+      const pdfBuffer = await generateAuditPdf(
+        lead.company_name,
+        cleanDomain,
+        lead.raw_scraped_data || {},
+        false,
+        Array.isArray(lead.campaigns) ? lead.campaigns[0]?.niche : (lead.campaigns as any)?.niche
+      );
 
-    // 5. Stream back
-    return new NextResponse(pdfBuffer as any, {
-      status: 200,
-      headers: {
-        'Content-Type': 'application/pdf',
-        'Content-Disposition': `inline; filename="${cleanDomain}_MR2Labs_Audit.pdf"`,
-        'Cache-Control': 'public, max-age=3600, s-maxage=86400',
+      return new NextResponse(pdfBuffer as any, {
+        status: 200,
+        headers: {
+          'Content-Type': 'application/pdf',
+          'Content-Disposition': `inline; filename="${cleanDomain}_MR2Labs_Audit.pdf"`,
+          'Cache-Control': 'public, max-age=3600, s-maxage=86400',
+        },
+      });
+    }
+
+    // 5. Default JSON mode for Landing Page UI
+    const auditData = normalizeAuditData(lead);
+    const issues = categorizeAuditIssues(auditData);
+    const solutions = buildSolutionCards(issues.critical, issues.moderate);
+
+    return NextResponse.json({
+      success: true,
+      lead: {
+        id: lead.id,
+        company_name: lead.company_name,
+        website_url: lead.website_url,
+        domain: cleanDomain,
+        email: lead.email || '',
       },
+      audit_data: auditData,
+      issues,
+      solutions,
     });
 
   } catch (err) {
-    console.error('[PDF Streaming Error]:', err);
-    return new NextResponse('Internal Server Error while generating report.', { status: 500 });
+    console.error('[API Audit Error]:', err);
+    return NextResponse.json({ error: 'Internal Server Error while generating audit response.' }, { status: 500 });
   }
 }
+
+export async function POST(
+  request: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const resolvedParams = await params;
+    const leadId = resolvedParams.id;
+    const body = await request.json();
+
+    const { company_name, domain, email, contact_name, priority_notes } = body;
+
+    // 1. Insert into audit_submissions
+    const { error: subErr } = await supabase
+      .from('audit_submissions')
+      .insert({
+        lead_id: leadId,
+        company_name: company_name || 'Unknown',
+        domain: domain || '',
+        email: email || '',
+        contact_name: contact_name || '',
+        priority_notes: priority_notes || '',
+      });
+
+    if (subErr) {
+      console.warn('[AUDIT SUBMIT] Warning inserting into audit_submissions:', subErr.message);
+      // Fallback: update outreach_leads audit_notes if table is pending schema creation
+      await supabase
+        .from('outreach_leads')
+        .update({
+          audit_notes: priority_notes,
+          status: 'REPLIED',
+        })
+        .eq('id', leadId);
+    } else {
+      // Mark lead status as REPLIED
+      await supabase
+        .from('outreach_leads')
+        .update({ status: 'REPLIED' })
+        .eq('id', leadId);
+    }
+
+    // 2. Trigger notification email to growth@getmr2labs.com
+    try {
+      const { sendColdEmail } = await import('@/lib/email/brevo');
+      const emailSubject = `🔥 Audit Priority Submitted: ${company_name || domain}`;
+      const emailBody = `
+        <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; color: #1e293b;">
+          <h2 style="color: #6366f1;">New Loom Video Request Submitted</h2>
+          <p><strong>Company:</strong> ${company_name} (${domain})</p>
+          <p><strong>Email:</strong> ${email}</p>
+          <p><strong>Contact Name:</strong> ${contact_name || 'N/A'}</p>
+          <hr style="border: 0; border-top: 1px solid #e2e8f0; margin: 20px 0;" />
+          <h3>Prospect's Priority Notes:</h3>
+          <blockquote style="background: #f8fafc; border-left: 4px solid #6366f1; padding: 12px 16px; margin: 0; font-style: italic;">
+            "${priority_notes || 'No custom notes provided.'}"
+          </blockquote>
+          <p style="margin-top: 24px;">
+            <a href="https://outreach.mr2labs.com/audit/${leadId}" style="background: #6366f1; color: white; padding: 10px 18px; border-radius: 6px; text-decoration: none; font-weight: bold;">
+              View Lead Audit Page →
+            </a>
+          </p>
+        </div>
+      `;
+
+      await sendColdEmail('growth@getmr2labs.com', emailSubject, emailBody);
+    } catch (emailErr) {
+      console.error('[AUDIT SUBMIT] Email notification failed:', emailErr);
+    }
+
+    return NextResponse.json({
+      success: true,
+      message: 'Submission received! We will send your custom Loom video within 48 hours.',
+    });
+  } catch (err) {
+    console.error('[AUDIT SUBMIT Error]:', err);
+    return NextResponse.json({ error: 'Failed to process audit submission.' }, { status: 500 });
+  }
+}
+
+

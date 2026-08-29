@@ -1,3 +1,5 @@
+import { AuditData } from './audit';
+
 export type LeadStatus = 
   | 'NEW' 
   | 'QUEUED' 
@@ -20,6 +22,7 @@ export interface OutreachLead {
   instagram_url?: string | null;
   linkedin_url?: string | null;
   email_subject?: string | null;
+  audit_data?: AuditData | null;
   raw_scraped_data?: Record<string, any> | string | null;
   audit_notes?: string | null;
   pitch_text?: string | null;

@@ -159,7 +159,7 @@ export default function AuditLandingPage({ params }: { params: Promise<{ id: str
       <nav className="fixed top-0 inset-x-0 z-50 border-b border-white/[0.04] bg-[#030407]/80 backdrop-blur-xl">
         <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <Image src="/mr-squared-logo.png" alt="Mr² Labs" width={140} height={36} className="h-7 w-auto object-contain brightness-0 invert opacity-90 hover:opacity-100 transition-opacity" />
+            <Image src="/mr-squared-logo.png" alt="Mr² Labs" width={140} height={36} className="h-7 w-auto object-contain opacity-90 hover:opacity-100 transition-opacity" />
           </div>
           <div className="flex items-center gap-4">
             <a href="#booking" className="hidden md:block text-xs font-medium text-zinc-400 hover:text-white transition-colors">
@@ -395,12 +395,24 @@ export default function AuditLandingPage({ params }: { params: Promise<{ id: str
                       </div>
                     </div>
                     <div className="space-y-1.5">
-                      <div className="flex items-center justify-between">
+                      <div className="flex items-center justify-between pb-1">
                         <label className="text-[11px] font-mono text-zinc-500 uppercase tracking-wide">Priority Notes (Optional)</label>
                         {selectedSolutions.length > 0 && (
                           <span className="text-[10px] font-mono text-emerald-400 uppercase">{selectedSolutions.length} selected</span>
                         )}
                       </div>
+                      
+                      {selectedSolutions.length > 0 && (
+                        <div className="flex flex-wrap gap-2 pb-2">
+                          {selectedSolutions.map(sol => (
+                            <div key={sol} className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-emerald-500/10 border border-emerald-500/20 text-[10px] font-mono text-emerald-400">
+                              <CheckCircle2 className="w-3 h-3" />
+                              {sol}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+
                       <textarea
                         rows={2}
                         value={notesInput}
@@ -456,7 +468,7 @@ export default function AuditLandingPage({ params }: { params: Promise<{ id: str
       <footer className="border-t border-white/[0.04] bg-[#030407] py-8 relative z-10">
         <div className="max-w-7xl mx-auto px-6 flex flex-col sm:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-2 opacity-70 hover:opacity-100 transition-opacity">
-            <Image src="/mr-squared-logo.png" alt="Mr² Labs" width={100} height={26} className="h-5 w-auto object-contain brightness-0 invert" />
+            <Image src="/mr-squared-logo.png" alt="Mr² Labs" width={100} height={26} className="h-5 w-auto object-contain" />
           </div>
           <p className="text-[11px] font-mono text-zinc-600 uppercase tracking-widest">
             Diagnostic Framework © {new Date().getFullYear()}

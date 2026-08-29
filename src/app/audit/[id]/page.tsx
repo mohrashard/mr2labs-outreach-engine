@@ -55,7 +55,7 @@ export default function AuditLandingPage({ params }: { params: Promise<{ id: str
   // Favicon error fallback state
   const [faviconErr, setFaviconErr] = useState(false);
 
-  useEffect(() => {
+    useEffect(() => {
     async function fetchAudit() {
       try {
         setLoading(true);
@@ -65,6 +65,14 @@ export default function AuditLandingPage({ params }: { params: Promise<{ id: str
         }
         const json: AuditApiResponse = await res.json();
         setData(json);
+
+        // Pre-fill name if missing and we can extract from email
+        if (json.lead?.email) {
+          const prefix = json.lead.email.split('@')[0];
+          if (!['info', 'contact', 'hello', 'support', 'sales', 'admin', 'team'].includes(prefix.toLowerCase())) {
+            setNameInput(prefix.charAt(0).toUpperCase() + prefix.slice(1));
+          }
+        }
       } catch (err: any) {
         setError(err.message || 'Audit report not found or expired.');
       } finally {
@@ -180,10 +188,10 @@ export default function AuditLandingPage({ params }: { params: Promise<{ id: str
               <Image
                 src="/mr-squared-logo.png"
                 alt="MR² Labs Logo"
-                width={140}
-                height={36}
+                width={180}
+                height={48}
                 priority
-                className="h-8 w-auto object-contain"
+                className="h-10 w-auto object-contain"
               />
             </a>
           </div>
@@ -210,7 +218,7 @@ export default function AuditLandingPage({ params }: { params: Promise<{ id: str
       <main className="max-w-4xl mx-auto px-4 sm:px-6 py-10 space-y-16">
         {/* SECTION 1 — HERO */}
         <section className="text-center space-y-6 pt-2">
-          <div className="inline-flex items-center gap-3 p-2.5 px-4 bg-slate-900/90 border border-slate-800 rounded-2xl shadow-xl">
+          <div className="inline-flex items-center gap-3 p-2.5 px-4 bg-slate-900/40 border border-slate-700/50 backdrop-blur-md rounded-2xl shadow-xl shadow-indigo-900/10">
             {!faviconErr ? (
               <img
                 src={faviconUrl}
@@ -230,7 +238,7 @@ export default function AuditLandingPage({ params }: { params: Promise<{ id: str
             <h1 className="text-3xl sm:text-5xl font-extrabold text-white tracking-tight leading-tight">
               We audited <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 via-purple-300 to-pink-400">{lead.company_name}</span>
             </h1>
-            <p className="text-base sm:text-lg text-slate-400 font-normal max-w-2xl mx-auto">
+            <p className="text-lg sm:text-xl text-slate-400 font-medium max-w-2xl mx-auto leading-relaxed">
               Here is what we discovered on your website, how it impacts your customer conversion, and the exact roadmap we would use to fix it.
             </p>
           </div>
@@ -280,7 +288,7 @@ export default function AuditLandingPage({ params }: { params: Promise<{ id: str
           <div className="space-y-4">
             {/* Critical Issues */}
             {issues.critical.length > 0 && (
-              <div className="bg-slate-900/90 border border-red-500/30 rounded-2xl p-5 sm:p-6 space-y-4 shadow-lg shadow-red-950/20">
+              <div className="bg-slate-900/60 border-l-4 border-y border-r border-red-500/50 border-y-red-500/10 border-r-red-500/10 rounded-2xl p-5 sm:p-6 space-y-4 shadow-lg shadow-red-950/20">
                 <div className="flex items-center gap-2 font-bold text-red-400 text-xs uppercase tracking-wider">
                   <AlertCircle className="w-4 h-4 text-red-400" />
                   <span>Critical Revenue & Security Risks ({issues.critical.length})</span>
@@ -291,7 +299,7 @@ export default function AuditLandingPage({ params }: { params: Promise<{ id: str
                       <div className="w-2.5 h-2.5 rounded-full bg-red-500 mt-1.5 shrink-0"></div>
                       <div className="space-y-1">
                         <h3 className="font-semibold text-slate-100 text-sm sm:text-base">{issue.title}</h3>
-                        <p className="text-xs sm:text-sm text-slate-400 leading-relaxed">{issue.description}</p>
+                        <p className="text-xs sm:text-sm text-slate-300 leading-relaxed">{issue.description}</p>
                       </div>
                     </div>
                   ))}
@@ -301,7 +309,7 @@ export default function AuditLandingPage({ params }: { params: Promise<{ id: str
 
             {/* Moderate Issues */}
             {issues.moderate.length > 0 && (
-              <div className="bg-slate-900/90 border border-amber-500/30 rounded-2xl p-5 sm:p-6 space-y-4 shadow-lg shadow-amber-950/20">
+              <div className="bg-slate-900/60 border-l-4 border-y border-r border-amber-500/50 border-y-amber-500/10 border-r-amber-500/10 rounded-2xl p-5 sm:p-6 space-y-4 shadow-lg shadow-amber-950/20">
                 <div className="flex items-center gap-2 font-bold text-amber-400 text-xs uppercase tracking-wider">
                   <AlertTriangle className="w-4 h-4 text-amber-400" />
                   <span>Performance & Conversion Friction ({issues.moderate.length})</span>
@@ -312,7 +320,7 @@ export default function AuditLandingPage({ params }: { params: Promise<{ id: str
                       <div className="w-2.5 h-2.5 rounded-full bg-amber-400 mt-1.5 shrink-0"></div>
                       <div className="space-y-1">
                         <h3 className="font-semibold text-slate-100 text-sm sm:text-base">{issue.title}</h3>
-                        <p className="text-xs sm:text-sm text-slate-400 leading-relaxed">{issue.description}</p>
+                        <p className="text-xs sm:text-sm text-slate-300 leading-relaxed">{issue.description}</p>
                       </div>
                     </div>
                   ))}
@@ -397,23 +405,33 @@ export default function AuditLandingPage({ params }: { params: Promise<{ id: str
 
           <div className="grid md:grid-cols-2 gap-6">
             {solutions.map((card) => (
-              <div key={card.id} className="bg-slate-900/90 border border-slate-800 hover:border-indigo-500/50 transition-all rounded-2xl p-6 flex flex-col justify-between space-y-4 group">
+              <div key={card.id} className="bg-slate-900/60 border border-slate-800 hover:border-indigo-500/60 hover:shadow-xl hover:shadow-indigo-500/10 transition-all duration-300 hover:-translate-y-1 rounded-2xl p-6 flex flex-col justify-between space-y-4 group">
                 <div className="space-y-3">
                   <div className="flex items-center justify-between">
-                    <span className="text-xs font-semibold px-2.5 py-1 bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 rounded-full">
+                    <span className="text-xs font-bold px-3 py-1.5 bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 rounded-full">
                       {card.tag}
                     </span>
-                    <span className="inline-flex items-center gap-1 text-xs font-medium text-slate-400 bg-slate-800/80 px-2.5 py-1 rounded-md">
-                      <Clock className="w-3 h-3 text-slate-400" />
+                    <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-300 bg-slate-800 px-3 py-1.5 rounded-full">
+                      <Clock className="w-3.5 h-3.5 text-slate-400" />
                       <span>{card.estimated_days} turnaround</span>
                     </span>
                   </div>
                   <h3 className="text-base sm:text-lg font-bold text-slate-100 group-hover:text-indigo-300 transition-colors">
                     {card.title}
                   </h3>
-                  <p className="text-xs sm:text-sm text-slate-400 leading-relaxed">
-                    {card.description}
-                  </p>
+                  <div className="text-xs sm:text-sm text-slate-300 leading-relaxed space-y-2">
+                    {card.description.split('\n').map((line, idx) => (
+                      <p key={idx}>
+                        {line.startsWith('Benefit:') ? (
+                          <><strong className="text-emerald-400">Benefit:</strong> {line.replace('Benefit:', '')}</>
+                        ) : line.startsWith('Prevents:') ? (
+                          <><strong className="text-amber-400">Prevents:</strong> {line.replace('Prevents:', '')}</>
+                        ) : (
+                          line
+                        )}
+                      </p>
+                    ))}
+                  </div>
                 </div>
 
                 <button
@@ -443,7 +461,7 @@ export default function AuditLandingPage({ params }: { params: Promise<{ id: str
         </section>
 
         {/* SECTION 4 — THE FORM */}
-        <section id="request-loom" className="bg-gradient-to-b from-slate-900 to-indigo-950/40 border border-indigo-500/20 rounded-3xl p-6 sm:p-8 space-y-6 shadow-2xl relative overflow-hidden">
+        <section id="request-loom" className="bg-gradient-to-b from-slate-900 to-indigo-950/40 border border-indigo-500/20 rounded-3xl p-8 sm:p-10 space-y-6 shadow-2xl relative overflow-hidden">
           <div className="space-y-2">
             <div className="inline-flex items-center gap-1.5 text-xs font-bold text-indigo-400 uppercase tracking-wider">
               <Zap className="w-3.5 h-3.5 text-indigo-400" />
@@ -540,7 +558,7 @@ export default function AuditLandingPage({ params }: { params: Promise<{ id: str
               <button
                 type="submit"
                 disabled={submitting}
-                className="w-full py-4 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white font-bold rounded-xl shadow-xl shadow-indigo-600/20 transition-all flex items-center justify-center gap-2 text-base disabled:opacity-50 cursor-pointer"
+                className="w-full py-4 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white font-bold rounded-xl shadow-xl shadow-indigo-600/20 hover:shadow-indigo-500/40 transition-all duration-300 flex items-center justify-center gap-2 text-base disabled:opacity-50 cursor-pointer"
               >
                 {submitting ? (
                   <span className="inline-block w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
@@ -564,10 +582,10 @@ export default function AuditLandingPage({ params }: { params: Promise<{ id: str
             </p>
           </div>
 
-          <div className="bg-slate-900 border border-slate-800 rounded-3xl p-2 shadow-2xl overflow-hidden min-h-[660px] flex flex-col items-center justify-center relative">
+          <div className="bg-slate-900 border border-slate-800 rounded-[24px] p-2 sm:p-4 shadow-2xl overflow-hidden min-h-[660px] flex flex-col items-center justify-center relative">
             <iframe
-              src={`https://calendly.com/mohrashard/30min?embed_domain=outreach.mr2labs.com&embed_type=Inline&background_color=0f172a&text_color=f8fafc&primary_color=6366f1`}
-              className="w-full h-[650px] rounded-2xl border-0"
+              src={`https://calendly.com/mohrashard/30min?embed_domain=outreach.mr2labs.com&embed_type=Inline&background_color=0f172a&text_color=f8fafc&primary_color=6366f1&hide_event_type_details=1&hide_gdpr_banner=1`}
+              className="w-full h-[650px] rounded-[16px] border border-slate-800/80 shadow-inner"
               title="Book a Discovery Call"
             ></iframe>
           </div>

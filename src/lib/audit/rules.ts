@@ -237,9 +237,9 @@ export function buildSolutionCards(critical: AuditIssue[], moderate: AuditIssue[
   if (activeIssueIds.has('live_chat_missing') || activeIssueIds.has('scheduler_missing')) {
     cards.push({
       id: 'sol_live_chat',
-      title: 'Live Chat + WhatsApp & Booking Integration',
+      title: 'Instant Lead Capture System (Live Chat & Booking)',
       estimated_days: '3 days',
-      description: 'Implement a high-converting instant chat widget with automated WhatsApp routing and calendar sync to capture mobile visitors before they bounce.',
+      description: 'Benefit: Instantly capture mobile traffic by letting them start a WhatsApp chat or book a call immediately.\nPrevents: High-intent visitors bouncing to a competitor because they couldn\'t get a fast answer.',
       tag: 'Lead Capture',
       mapped_issue_ids: ['live_chat_missing', 'scheduler_missing'].filter((id) => activeIssueIds.has(id)),
     });
@@ -248,10 +248,10 @@ export function buildSolutionCards(critical: AuditIssue[], moderate: AuditIssue[
   if (activeIssueIds.has('dmarc_missing') || activeIssueIds.has('spf_missing')) {
     cards.push({
       id: 'sol_dmarc',
-      title: 'DMARC + Email Security & Deliverability Hardening',
+      title: 'Email Security & Inbox Guarantee',
       estimated_days: '1 day',
-      description: 'Configure strict SPF, DMARC, and DKIM DNS records to block domain spoofing and guarantee outbound emails hit the primary inbox.',
-      tag: 'Security & DNS',
+      description: 'Benefit: Guarantees your outreach and customer emails bypass spam filters and land directly in the primary inbox.\nPrevents: Scammers spoofing your domain and ruining your company\'s email reputation.',
+      tag: 'Security',
       mapped_issue_ids: ['dmarc_missing', 'spf_missing'].filter((id) => activeIssueIds.has(id)),
     });
   }
@@ -259,9 +259,9 @@ export function buildSolutionCards(critical: AuditIssue[], moderate: AuditIssue[
   if (activeIssueIds.has('speed_low') || activeIssueIds.has('unoptimized_images')) {
     cards.push({
       id: 'sol_speed',
-      title: 'Core Web Vitals & Speed Optimization',
+      title: 'High-Performance Mobile Loading',
       estimated_days: '2 days',
-      description: 'Compress image assets into WebP format, defer non-critical JS scripts, and optimize caching to achieve 90+ mobile speed scores.',
+      description: 'Benefit: Delivers a sub-second page load speed on mobile, drastically improving Google search rankings and ad performance.\nPrevents: Visitors abandoning your site during the crucial first 3 seconds of loading.',
       tag: 'Performance',
       mapped_issue_ids: ['speed_low', 'unoptimized_images'].filter((id) => activeIssueIds.has(id)),
     });
@@ -270,9 +270,9 @@ export function buildSolutionCards(critical: AuditIssue[], moderate: AuditIssue[
   if (activeIssueIds.has('crm_missing')) {
     cards.push({
       id: 'sol_crm',
-      title: 'Automated CRM Lead Pipeline & Slack Notifications',
+      title: 'Automated CRM Pipeline & Instant Alerts',
       estimated_days: '2 days',
-      description: 'Wire lead form submissions directly to your CRM with real-time push alerts so your sales team contacts inbound leads within 5 minutes.',
+      description: 'Benefit: Routes every new lead directly to your sales team\'s phones within seconds of submission.\nPrevents: Valuable leads slipping through the cracks in a crowded email inbox.',
       tag: 'Automation',
       mapped_issue_ids: ['crm_missing'],
     });
@@ -281,10 +281,10 @@ export function buildSolutionCards(critical: AuditIssue[], moderate: AuditIssue[
   if (activeIssueIds.has('meta_desc_missing') || activeIssueIds.has('og_tags_missing')) {
     cards.push({
       id: 'sol_seo',
-      title: 'Social Share Cards & SEO Metadata Polish',
+      title: 'Branded Social & Search Previews',
       estimated_days: '1 day',
-      description: 'Install customized Open Graph tags, Twitter Cards, and search meta descriptions to ensure shared site links display high-converting previews.',
-      tag: 'Growth SEO',
+      description: 'Benefit: Displays a highly clickable, professional preview card whenever your link is shared on LinkedIn, iMessage, or Google.\nPrevents: Generic, unbranded, or broken link previews that look unprofessional to prospects.',
+      tag: 'Growth',
       mapped_issue_ids: ['meta_desc_missing', 'og_tags_missing'].filter((id) => activeIssueIds.has(id)),
     });
   }
@@ -293,10 +293,10 @@ export function buildSolutionCards(critical: AuditIssue[], moderate: AuditIssue[
   if (cards.length === 0) {
     cards.push({
       id: 'sol_growth_audit',
-      title: 'Custom Conversion Rate Optimization Audit',
+      title: 'Conversion Rate Optimization (CRO) Sprint',
       estimated_days: '2 days',
-      description: 'Deep-dive user flow analysis, landing page copywriting refinement, and A/B test setup to maximize existing visitor conversions.',
-      tag: 'CRO Optimization',
+      description: 'Benefit: Maximizes the percentage of current website visitors who turn into paying customers through targeted copywriting and layout tweaks.\nPrevents: Wasting ad spend on a landing page that isn\'t fully optimized for sales.',
+      tag: 'CRO',
       mapped_issue_ids: [],
     });
   }

@@ -44,27 +44,7 @@ export async function GET(
       console.warn(`Could not parse URL ${lead.website_url}`);
     }
 
-    // 4. Stream PDF if explicitly requested (e.g. format=pdf)
-    if (format === 'pdf') {
-      const pdfBuffer = await generateAuditPdf(
-        lead.company_name,
-        cleanDomain,
-        lead.raw_scraped_data || {},
-        false,
-        Array.isArray(lead.campaigns) ? lead.campaigns[0]?.niche : (lead.campaigns as any)?.niche
-      );
-
-      return new NextResponse(pdfBuffer as any, {
-        status: 200,
-        headers: {
-          'Content-Type': 'application/pdf',
-          'Content-Disposition': `inline; filename="${cleanDomain}_MR2Labs_Audit.pdf"`,
-          'Cache-Control': 'public, max-age=3600, s-maxage=86400',
-        },
-      });
-    }
-
-    // 5. If JSON explicitly requested by the landing page
+    // 4. If JSON explicitly requested by the landing page
     if (format === 'json') {
       const auditData = normalizeAuditData(lead);
       const issues = categorizeAuditIssues(auditData);
@@ -85,9 +65,23 @@ export async function GET(
       });
     }
 
-    // 6. DEFAULT: User clicked an old link in an email without a format.
-    // Redirect them to the new landing page.
-    return NextResponse.redirect(new URL(`/audit/${id}`, request.url));
+    // 5. DEFAULT: Stream PDF (handles old email links)
+    const pdfBuffer = await generateAuditPdf(
+      lead.company_name,
+      cleanDomain,
+      lead.raw_scraped_data || {},
+      false,
+      Array.isArray(lead.campaigns) ? lead.campaigns[0]?.niche : (lead.campaigns as any)?.niche
+    );
+
+    return new NextResponse(pdfBuffer as any, {
+      status: 200,
+      headers: {
+        'Content-Type': 'application/pdf',
+        'Content-Disposition': `inline; filename="${cleanDomain}_MR2Labs_Audit.pdf"`,
+        'Cache-Control': 'public, max-age=3600, s-maxage=86400',
+      },
+    });
   } catch (err) {
     console.error('[API Audit Error]:', err);
     return NextResponse.json({ error: 'Internal Server Error while generating audit response.' }, { status: 500 });

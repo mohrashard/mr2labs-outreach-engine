@@ -51,12 +51,18 @@ export function sanitizeGreetingAndBody(
     cleaned = `${targetGreeting}\n\n${cleaned}`;
   }
 
-  // 2. Clean up any remaining bracket placeholders and enforce correct company & sender names
+  // 2. Clean up any remaining bracket placeholders, code enums, and enforce correct company & sender names
   cleaned = cleaned
     .replace(/\[First Name\]/gi, firstName || 'there')
     .replace(/\[Name\]/gi, firstName || 'there')
     .replace(/\[Company Name\]/gi, companyName || 'your company')
     .replace(/\[Company\]/gi, companyName || 'your company')
+    .replace(/\bAI_AUTOMATION\b/g, 'AI lead automation')
+    .replace(/\bWEBSITE_REBUILD\b/g, 'website redesign')
+    .replace(/\bCUSTOM_SOFTWARE\b/g, 'custom software')
+    .replace(/\bSECURITY_REMEDIATION\b/g, 'website security remediation')
+    .replace(/\bPERFORMANCE\b/g, 'performance optimization')
+    .replace(/\bWHITE_LABEL\b/g, 'white-label engineering')
     .replace(/\bMohamed\b/g, 'Rashard')
     .replace(/MR2 LABS/gi, 'Mr² Labs')
     .replace(/MR² LABS/gi, 'Mr² Labs')

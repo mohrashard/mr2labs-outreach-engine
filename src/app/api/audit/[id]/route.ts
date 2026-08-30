@@ -28,12 +28,46 @@ export async function GET(
       return NextResponse.json({ error: 'Audit report not found or expired.' }, { status: 404 });
     }
 
-    // 2. Track open event in background without blocking response
-    supabase
-      .from('outreach_leads')
-      .update({ audit_opened_at: new Date().toISOString() })
-      .eq('id', id)
-      .then(() => console.log(`[AUDIT] Tracked open for lead ${id}`));
+    // 2. Track engagement in background (audit_open_count, audit_opened_at, status, activity_logs)
+    const nowIso = new Date().toISOString();
+    (async () => {
+      try {
+        const { data: currentLead } = await supabase
+          .from('outreach_leads')
+          .select('status, audit_open_count')
+          .eq('id', id)
+          .single();
+
+        if (currentLead) {
+          const newOpens = Math.max(currentLead.audit_open_count || 0, 1);
+          const newStatus = ['NEW', 'QUEUED', 'SENT', 'OPENED'].includes(currentLead.status) ? 'CLICKED' : currentLead.status;
+
+          await supabase
+            .from('outreach_leads')
+            .update({
+              audit_opened_at: nowIso,
+              audit_open_count: newOpens,
+              status: newStatus
+            })
+            .eq('id', id);
+
+          await supabase.from('activity_logs').insert([
+            {
+              lead_id: id,
+              event_type: 'MAGIC_LINK_CLICK',
+              payload: { type: 'AUDIT_PAGE_VIEW', received_at: nowIso }
+            },
+            {
+              lead_id: id,
+              event_type: 'EMAIL_OPENED',
+              payload: { type: 'INFERRED_FROM_AUDIT_VIEW', received_at: nowIso }
+            }
+          ]);
+        }
+      } catch (err) {
+        console.error('[AUDIT TRACK ERROR]', err);
+      }
+    })();
 
     // 3. Extract Clean Domain
     let cleanDomain = lead.website_url;

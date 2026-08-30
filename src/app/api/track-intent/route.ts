@@ -13,20 +13,49 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Missing leadId or intent' }, { status: 400 });
     }
 
-    // 1. Log the activity for telemetry
-    await supabase.from('activity_logs').insert({
-      lead_id: leadId,
-      event_type: isTest ? 'TEST_MAGIC_LINK_CLICK' : 'MAGIC_LINK_CLICK',
-      payload: { intent, isTest }
-    });
+    const nowIso = new Date().toISOString();
 
-    // 2. Determine Database Status based on Intent (Only if not a test click)
+    // 1. Log the activity for telemetry
+    await supabase.from('activity_logs').insert([
+      {
+        lead_id: leadId,
+        event_type: isTest ? 'TEST_MAGIC_LINK_CLICK' : 'MAGIC_LINK_CLICK',
+        payload: { intent, isTest, received_at: nowIso }
+      },
+      {
+        lead_id: leadId,
+        event_type: 'EMAIL_OPENED',
+        payload: { type: 'INFERRED_FROM_INTENT_CLICK', intent, received_at: nowIso }
+      }
+    ]);
+
+    // 2. Update Lead Status & Audit Open Count
     if (!isTest) {
-      if (intent === 'pass') {
-        // Respect their time, stop follow-ups
+      const { data: lead } = await supabase
+        .from('outreach_leads')
+        .select('status, audit_open_count')
+        .eq('id', leadId)
+        .single();
+
+      if (lead) {
+        const newOpens = Math.max(lead.audit_open_count || 0, 1);
+        let newStatus = lead.status;
+
+        if (intent === 'pass') {
+          newStatus = 'UNCONTACTABLE';
+        } else if (intent === 'fix') {
+          newStatus = 'INTERESTED';
+        } else if (['NEW', 'QUEUED', 'SENT', 'OPENED'].includes(lead.status)) {
+          newStatus = 'CLICKED';
+        }
+
         await supabase
           .from('outreach_leads')
-          .update({ status: 'UNCONTACTABLE' })
+          .update({
+            status: newStatus,
+            audit_open_count: newOpens,
+            audit_opened_at: nowIso
+          })
           .eq('id', leadId);
       }
     }

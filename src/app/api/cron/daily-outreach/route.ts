@@ -63,6 +63,32 @@ export async function GET(req: Request) {
       let totalEnqueued = sentToday || 0;
       console.log(`[Cron Debug] sentToday/totalEnqueued = ${totalEnqueued}`);
 
+      // Check existing QUEUED leads in DB to start after the latest scheduled_for time
+      let nextAvailableSlotMs = Date.now();
+      const { data: latestQueued } = await supabaseAdmin
+        .from('outreach_leads')
+        .select('scheduled_for')
+        .eq('status', 'QUEUED')
+        .order('scheduled_for', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (latestQueued?.scheduled_for) {
+        const latestMs = new Date(latestQueued.scheduled_for).getTime();
+        if (latestMs >= nextAvailableSlotMs) {
+          // Start 15 minutes (900 seconds) after the latest currently queued lead
+          nextAvailableSlotMs = latestMs + 900 * 1000;
+        }
+      }
+
+      interface QueueItem {
+        lead: any;
+        nextStep: number;
+        campaignName: string;
+      }
+      const eligibleFollowUps: QueueItem[] = [];
+      const eligibleNewLeads: QueueItem[] = [];
+
       for (const campaign of campaigns) {
         if (totalEnqueued >= GLOBAL_DAILY_LIMIT) {
           console.log(`[Cron Debug] GLOBAL_DAILY_LIMIT reached.`);
@@ -78,18 +104,14 @@ export async function GET(req: Request) {
         const s2Days = campaign.step_2_days || 5;
         const s3Days = campaign.step_3_days || 10;
 
-        // We subtract an additional 12 hours (0.5 days) as a buffer. 
-        // Because the cron runs once daily and dispatches can be staggered by hours, 
-        // a strict millisecond cutoff would cause leads to miss their calendar day and wait an extra 24 hours.
         const cutoff1 = new Date(Date.now() - (s1Days * 24 - 12) * 60 * 60 * 1000).toISOString();
         const cutoff2 = new Date(Date.now() - (s2Days * 24 - 12) * 60 * 60 * 1000).toISOString();
         const cutoff3 = new Date(Date.now() - (s3Days * 24 - 12) * 60 * 60 * 1000).toISOString();
 
-        // 1. First, fetch eligible follow-up leads (No limit other than global daily 290)
-        // We order by last_contacted_at to ensure a FIFO queue and only fetch leads < step 3
+        // 1. Fetch eligible follow-up leads (No limit other than global daily 290)
         const { data: sentLeads } = await supabaseAdmin
           .from('outreach_leads')
-          .select('id, email, status, follow_up_step, last_contacted_at')
+          .select('id, email, status, follow_up_step, last_contacted_at, company_name')
           .eq('campaign_id', campaign.id)
           .eq('status', 'SENT')
           .lt('follow_up_step', 3)
@@ -97,9 +119,9 @@ export async function GET(req: Request) {
           .order('last_contacted_at', { ascending: true })
           .limit(200);
 
-        let followUps: any[] = [];
+        let campaignFollowUps: any[] = [];
         if (sentLeads && sentLeads.length > 0) {
-          followUps = sentLeads.filter(l => {
+          campaignFollowUps = sentLeads.filter(l => {
             if (!l.last_contacted_at) return false;
             const lastContact = new Date(l.last_contacted_at).getTime();
             const step = l.follow_up_step || 0;
@@ -108,12 +130,14 @@ export async function GET(req: Request) {
             if (step === 2 && lastContact < new Date(cutoff3).getTime()) return true;
             return false;
           }).slice(0, globalRemaining);
+
+          for (const l of campaignFollowUps) {
+            const nextStep = (l.follow_up_step || 0) + 1;
+            eligibleFollowUps.push({ lead: l, nextStep, campaignName: campaign.name });
+          }
         }
 
-        let leads = [...followUps];
-
-        // 2. Enforce the strict 20-lead limit for NEW Step 0 emails only
-        // IMPORTANT: Only process NEW leads (Step 0) if the campaign is active!
+        // 2. Enforce the strict 20-lead limit for NEW Step 0 emails only (if campaign is active)
         let remainingNewLeadLimit = 0;
         if (campaign.is_active) {
           const { count: step0SentToday } = await supabaseAdmin
@@ -122,75 +146,82 @@ export async function GET(req: Request) {
             .eq('campaign_id', campaign.id)
             .in('status', ['QUEUED', 'SENT'])
             .eq('follow_up_step', 0)
-            .gte('updated_at', startOfDay.toISOString());
+            .gte('created_at', startOfDay.toISOString());
 
-          remainingNewLeadLimit = Math.max(0, Math.min(campaignLimit - (step0SentToday || 0), globalRemaining - followUps.length));
+          remainingNewLeadLimit = Math.max(0, Math.min(campaignLimit - (step0SentToday || 0), globalRemaining - campaignFollowUps.length));
         }
 
-        // 3. Fill remaining queue space with new leads (only if campaign is active)
+        // 3. Fill remaining queue space with new leads
         if (remainingNewLeadLimit > 0) {
           const { data: newLeads } = await supabaseAdmin
             .from('outreach_leads')
-            .select('id, email, status, follow_up_step')
+            .select('id, email, status, follow_up_step, company_name')
             .eq('campaign_id', campaign.id)
             .eq('status', 'NEW')
             .not('email', 'is', null)
             .limit(remainingNewLeadLimit);
 
           if (newLeads && newLeads.length > 0) {
-            leads = [...leads, ...newLeads];
+            for (const l of newLeads) {
+              eligibleNewLeads.push({ lead: l, nextStep: 0, campaignName: campaign.name });
+            }
           }
         }
-        
-        console.log(`[Cron Debug] Campaign "${campaign.name}" fetched ${leads.length} leads eligible for queue.`);
+      }
 
-        if (!leads || leads.length === 0) continue;
+      // Interleave/combine follow-ups and new leads across all campaigns into a single unified queue
+      const globalQueue = [...eligibleFollowUps, ...eligibleNewLeads];
+      console.log(`[Cron Debug] Unified Queue: ${globalQueue.length} leads (Follow-ups: ${eligibleFollowUps.length}, New: ${eligibleNewLeads.length}) across all campaigns.`);
 
-        for (let i = 0; i < leads.length; i++) {
-          const lead = leads[i];
+      // Dispatch to QStash with strict 15-minute (900s) spacing between every single email
+      for (const item of globalQueue) {
+        const lead = item.lead;
+        const nextStep = item.nextStep;
 
-          const isValidMx = await hasValidMxRecords(lead.email);
-          if (!isValidMx) {
-            await supabaseAdmin
-              .from('outreach_leads')
-              .update({ status: 'INVALID_DOMAIN' })
-              .eq('id', lead.id);
-            continue;
-          }
-
-          const delaySeconds = i * 900;
-          const scheduledForIso = new Date(Date.now() + delaySeconds * 1000).toISOString();
-          const isNew = lead.status === 'NEW';
-          const nextStep = isNew ? 0 : (lead.follow_up_step || 0) + 1;
-          const nowIso = new Date().toISOString();
-
-          const { error: updateError } = await supabaseAdmin
+        const isValidMx = await hasValidMxRecords(lead.email);
+        if (!isValidMx) {
+          await supabaseAdmin
             .from('outreach_leads')
-            .update({ 
-              status: 'QUEUED',
-              scheduled_for: scheduledForIso,
-              follow_up_step: nextStep,
-              last_contacted_at: nowIso
-            })
+            .update({ status: 'INVALID_DOMAIN' })
             .eq('id', lead.id);
+          continue;
+        }
 
-          if (!updateError) {
-            try {
-              await qstash.publishJSON({
-                url: sendEmailUrl,
-                body: { leadId: lead.id, followUpStep: nextStep },
-                delay: delaySeconds,
-              });
-            } catch (qstashErr: any) {
-              console.warn(`[Cron] QStash publish skipped (${qstashErr.message}).`);
-            }
-            await supabaseAdmin.from('system_logs').insert({
-              event_type: `STEP_${nextStep}_QUEUED`,
-              message: `[STEP ${nextStep}] Queued ${nextStep === 0 ? 'Initial Pitch' : `Follow-up #${nextStep}`} for ${lead.company_name || lead.email} - Scheduled for ${new Date(scheduledForIso).toLocaleTimeString()}`
+        const delaySeconds = Math.max(0, Math.round((nextAvailableSlotMs - Date.now()) / 1000));
+        const scheduledForIso = new Date(nextAvailableSlotMs).toISOString();
+        const nowIso = new Date().toISOString();
+
+        const { error: updateError } = await supabaseAdmin
+          .from('outreach_leads')
+          .update({ 
+            status: 'QUEUED',
+            scheduled_for: scheduledForIso,
+            follow_up_step: nextStep,
+            last_contacted_at: nowIso
+          })
+          .eq('id', lead.id);
+
+        if (!updateError) {
+          try {
+            await qstash.publishJSON({
+              url: sendEmailUrl,
+              body: { leadId: lead.id, followUpStep: nextStep },
+              delay: delaySeconds,
             });
-            enqueuedJobs++;
-            totalEnqueued++;
+          } catch (qstashErr: any) {
+            console.warn(`[Cron] QStash publish skipped (${qstashErr.message}).`);
           }
+          
+          await supabaseAdmin.from('system_logs').insert({
+            event_type: `STEP_${nextStep}_QUEUED`,
+            message: `[STEP ${nextStep}] Queued ${nextStep === 0 ? 'Initial Pitch' : `Follow-up #${nextStep}`} for ${lead.company_name || lead.email} - Scheduled for ${new Date(scheduledForIso).toLocaleTimeString()} (+${Math.round(delaySeconds / 60)}m)`
+          });
+          
+          enqueuedJobs++;
+          totalEnqueued++;
+
+          // ADVANCE NEXT AVAILABLE SLOT BY EXACTLY 15 MINUTES (900 seconds) FOR THE NEXT EMAIL
+          nextAvailableSlotMs += 900 * 1000;
         }
       }
     }

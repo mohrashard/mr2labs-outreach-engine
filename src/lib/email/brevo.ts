@@ -36,7 +36,7 @@ export async function sendColdEmail(toEmail: string, subject: string, htmlConten
         .replace(/(\/api\/audit\/[a-zA-Z0-9_-]+)/g, '$1?test=true')
         .replace(/(\/api\/response\?id=[a-zA-Z0-9_-]+)/g, '$1&test=true');
 
-      await fetch('https://api.brevo.com/v3/smtp/email', {
+      const bccRes = await fetch('https://api.brevo.com/v3/smtp/email', {
         method: 'POST',
         headers: {
           'api-key': apiKey,
@@ -46,12 +46,17 @@ export async function sendColdEmail(toEmail: string, subject: string, htmlConten
         body: JSON.stringify({
           sender: { email: senderEmail, name: senderName },
           to: [{ email: bccEmail }],
-          subject: `[BCC TEST COPY] ${subject}`,
+          subject: `[BCC TEST COPY → ${toEmail}] ${subject}`,
           htmlContent: bccHtmlContent
         })
       });
+
+      if (!bccRes.ok) {
+        const bccErrText = await bccRes.text();
+        console.error(`[Brevo Helper] BCC test copy send failed (${bccRes.status}):`, bccErrText);
+      }
     } catch (bccErr) {
-      console.warn('[Brevo Helper] BCC test copy send warning:', bccErr);
+      console.warn('[Brevo Helper] BCC test copy send exception:', bccErr);
     }
   }
 

@@ -584,10 +584,22 @@ export async function generateFollowUpPitch(
   let originalFinding = "technical issues";
   let originalImpact = nicheInfo.pains;
   
+  const SERVICE_HUMAN_NAMES: Record<string, string> = {
+    'AI_AUTOMATION': 'AI lead automation',
+    'WEBSITE_REBUILD': 'website redesign',
+    'CUSTOM_SOFTWARE': 'custom software',
+    'SECURITY_REMEDIATION': 'website security remediation',
+    'PERFORMANCE': 'performance optimization',
+    'WHITE_LABEL': 'white-label engineering',
+  };
+
   if (auditNotesJson) {
     try {
       const parsed = JSON.parse(auditNotesJson);
-      if (parsed.service) originalService = parsed.service;
+      if (parsed.service) {
+        const rawSvc = String(parsed.service).trim();
+        originalService = SERVICE_HUMAN_NAMES[rawSvc] || rawSvc.toLowerCase().replace(/_/g, ' ');
+      }
       if (parsed.finding) originalFinding = parsed.finding;
       if (parsed.impact) originalImpact = parsed.impact;
     } catch(e) {}

@@ -3,98 +3,93 @@ import { supabaseAdmin } from '@/lib/supabase/admin';
 
 export async function POST(request: Request) {
   try {
-    // 1. Verify Secret Token (Header or URL Query Parameter)
-    const secret = process.env.CRON_SECRET || 'mr2labs_cron_secret_key_2026';
-    const authHeader = request.headers.get('authorization');
-    const { searchParams } = new URL(request.url);
-    const tokenQuery = searchParams.get('token');
-
-    const isValidHeader = authHeader === `Bearer ${secret}`;
-    const isValidQuery = tokenQuery === secret;
-
-    if (!isValidHeader && !isValidQuery && process.env.NODE_ENV === 'production') {
-      console.warn('[Brevo Webhook] Unauthorized webhook invocation attempt detected.');
-      return NextResponse.json({ error: 'Unauthorized webhook trigger' }, { status: 401 });
-    }
-
     const payload = await request.json();
 
-    // Check if it's a Brevo Transactional Event (has an "event" property)
+    // 1. Check if it's a Brevo Transactional Event (has an "event" property)
     if (payload.event && typeof payload.event === 'string') {
-      const email = payload.email?.toLowerCase()?.trim();
+      const email = (payload.email || payload['email-id'] || payload.recipient)?.toLowerCase()?.trim();
       if (!email) {
         return NextResponse.json({ message: 'No email found in transactional payload' }, { status: 200 });
       }
 
-      const haltingEvents = ['hard_bounce', 'blocked', 'spam', 'unsubscribed', 'invalid_email'];
-      const engagementEvents = ['opened', 'click'];
-      
-      if (haltingEvents.includes(payload.event) || engagementEvents.includes(payload.event)) {
-        let newStatus = undefined;
-        let eventType = 'UNKNOWN_EVENT';
+      const haltingEvents = ['hard_bounce', 'soft_bounce', 'blocked', 'spam', 'unsubscribed', 'invalid_email'];
+      const eventName = payload.event.toLowerCase();
+      const nowIso = new Date().toISOString();
 
-        if (payload.event === 'spam' || payload.event === 'unsubscribed') {
-          newStatus = 'UNSUBSCRIBED';
-          eventType = 'DELIVERY_FAILURE';
-        } else if (['hard_bounce', 'blocked', 'invalid_email'].includes(payload.event)) {
-          newStatus = 'BOUNCED';
-          eventType = 'DELIVERY_FAILURE';
-        } else if (payload.event === 'opened') {
-          eventType = 'EMAIL_OPENED';
-        } else if (payload.event === 'click') {
-          eventType = 'MAGIC_LINK_CLICK';
-        }
-        
-        let updatedLeads;
-        let updateError;
-        
-        if (newStatus) {
-          const res = await supabaseAdmin
+      const { data: leads } = await supabaseAdmin
+        .from('outreach_leads')
+        .select('id, company_name, status, audit_open_count')
+        .ilike('email', email);
+
+      if (leads && leads.length > 0) {
+        const lead = leads[0];
+
+        if (haltingEvents.includes(eventName)) {
+          const newStatus = (eventName === 'spam' || eventName === 'unsubscribed') ? 'UNSUBSCRIBED' : 'BOUNCED';
+          await supabaseAdmin
             .from('outreach_leads')
             .update({ status: newStatus })
-            .ilike('email', email)
-            .select('id, company_name, status');
-          updatedLeads = res.data;
-          updateError = res.error;
-        } else {
-          const res = await supabaseAdmin
-            .from('outreach_leads')
-            .select('id, company_name, status')
-            .ilike('email', email);
-          updatedLeads = res.data;
-          updateError = res.error;
-        }
+            .eq('id', lead.id);
 
-        if (updateError) {
-          console.error('[Brevo Webhook] Lead atomic query error for transactional event:', updateError);
-          return NextResponse.json({ error: updateError.message }, { status: 200 });
-        }
+          await supabaseAdmin.from('activity_logs').insert({
+            lead_id: lead.id,
+            event_type: 'DELIVERY_FAILURE',
+            payload: { event: eventName, email, raw_payload: payload, received_at: nowIso }
+          });
+        } else if (eventName === 'opened' || eventName === 'unique_opened') {
+          const newOpens = (lead.audit_open_count || 0) + 1;
+          const newStatus = ['NEW', 'QUEUED', 'SENT'].includes(lead.status) ? 'OPENED' : lead.status;
 
-        if (updatedLeads && updatedLeads.length > 0) {
-          const lead = updatedLeads[0];
-          
-          // Log event in activity_logs
           await supabaseAdmin
-            .from('activity_logs')
-            .insert({
-              lead_id: lead.id,
-              event_type: eventType,
-              payload: {
-                event: payload.event,
-                email: email,
-                link: payload.link || null, // Capture clicked link if available
-                raw_payload: payload,
-                received_at: new Date().toISOString(),
-              }
-            });
+            .from('outreach_leads')
+            .update({
+              audit_open_count: newOpens,
+              audit_opened_at: nowIso,
+              status: newStatus
+            })
+            .eq('id', lead.id);
 
-          console.log(`[Brevo Webhook] Lead ${lead.id} (${lead.company_name}) logged event: ${payload.event}`);
+          await supabaseAdmin.from('activity_logs').insert({
+            lead_id: lead.id,
+            event_type: 'EMAIL_OPENED',
+            payload: { event: eventName, email, received_at: nowIso }
+          });
+
+          console.log(`[Brevo Webhook] Recorded OPEN for ${lead.company_name} (${email}). Total opens: ${newOpens}`);
+        } else if (eventName === 'click' || eventName === 'unique_click') {
+          const newOpens = Math.max(lead.audit_open_count || 0, 1);
+          const newStatus = ['NEW', 'QUEUED', 'SENT', 'OPENED'].includes(lead.status) ? 'CLICKED' : lead.status;
+
+          await supabaseAdmin
+            .from('outreach_leads')
+            .update({
+              audit_open_count: newOpens,
+              audit_opened_at: nowIso,
+              status: newStatus
+            })
+            .eq('id', lead.id);
+
+          await supabaseAdmin.from('activity_logs').insert({
+            lead_id: lead.id,
+            event_type: 'MAGIC_LINK_CLICK',
+            payload: { event: eventName, email, link: payload.link || null, received_at: nowIso }
+          });
+
+          // Ensure an EMAIL_OPENED activity log is also recorded so opens metric is never 0 on click
+          await supabaseAdmin.from('activity_logs').insert({
+            lead_id: lead.id,
+            event_type: 'EMAIL_OPENED',
+            payload: { event: 'inferred_open_from_click', email, received_at: nowIso }
+          });
+
+          console.log(`[Brevo Webhook] Recorded CLICK for ${lead.company_name} (${email}).`);
         }
       }
+
       return NextResponse.json({ success: true, event: payload.event });
     }
 
-    // Flexible extraction across Brevo inbound webhook schema variants (fallback for legacy or manual inbound tests)
+    // 2. Inbound Reply Processing
     const senderEmail = (
       payload.sender_email || 
       payload.sender?.email || 
@@ -103,52 +98,26 @@ export async function POST(request: Request) {
       payload.email
     )?.toLowerCase()?.trim();
 
-    const subject = payload.subject || payload.Subject || payload['subject-line'] || 'Inbound Reply';
+    if (senderEmail) {
+      const nowIso = new Date().toISOString();
+      const { data: updatedLeads } = await supabaseAdmin
+        .from('outreach_leads')
+        .update({ status: 'REPLIED' })
+        .ilike('email', senderEmail)
+        .select('id, company_name');
 
-    if (!senderEmail) {
-      console.warn('[Brevo Webhook] Inbound payload missing sender email:', payload);
-      return NextResponse.json({ message: 'No sender email identified in payload' }, { status: 200 });
+      if (updatedLeads && updatedLeads.length > 0) {
+        await supabaseAdmin.from('activity_logs').insert({
+          lead_id: updatedLeads[0].id,
+          event_type: 'INBOUND_REPLY',
+          payload: { sender_email: senderEmail, received_at: nowIso }
+        });
+      }
     }
 
-    // Atomically update the lead status to 'REPLIED' and select the updated record
-    const { data: updatedLeads, error: updateError } = await supabaseAdmin
-      .from('outreach_leads')
-      .update({ status: 'REPLIED' })
-      .ilike('email', senderEmail)
-      .select('id, company_name, status');
-
-    if (updateError) {
-      console.error('[Brevo Webhook] Lead status atomic update error:', updateError);
-      return NextResponse.json({ error: updateError.message }, { status: 200 });
-    }
-
-    if (!updatedLeads || updatedLeads.length === 0) {
-      console.log(`[Brevo Webhook] No matching lead found for email: ${senderEmail}`);
-      return NextResponse.json({ message: 'Lead not found for sender email' }, { status: 200 });
-    }
-
-    const lead = updatedLeads[0];
-
-    // Log event in activity_logs
-    await supabaseAdmin
-      .from('activity_logs')
-      .insert({
-        lead_id: lead.id,
-        event_type: 'INBOUND_REPLY',
-        payload: {
-          sender_email: senderEmail,
-          subject,
-          raw_payload: payload,
-          received_at: new Date().toISOString(),
-        }
-      });
-
-    console.log(`[Brevo Webhook] Inbound reply detected from ${senderEmail} (${lead.company_name}). Outreach sequence for lead ${lead.id} has been halted.`);
-
-    return NextResponse.json({ success: true, leadId: lead.id });
+    return NextResponse.json({ success: true });
   } catch (error: any) {
     console.error('[Brevo Webhook Error]:', error);
-    // Return 200 OK so Brevo does not retry failing webhooks repeatedly
     return NextResponse.json({ error: error.message }, { status: 200 });
   }
 }

@@ -354,6 +354,14 @@ export async function discoverTargetDomains(
     ...parseKeys(process.env.VALUE_SERP_API_FALLBACK)
   ]));
 
+  const firecrawlKeys = Array.from(new Set([
+    ...parseKeys(process.env.FIRECRAWL_API)
+  ]));
+
+  const scraperApiKeys = Array.from(new Set([
+    ...parseKeys(process.env.SCRAPER_API)
+  ]));
+
   // 1. Primary Provider Pool: Serper.dev
   for (const apiKey of serperKeys) {
     try {
@@ -448,6 +456,62 @@ export async function discoverTargetDomains(
       }
     } catch (err) {
       console.error(`[Discovery] ValueSERP key (${apiKey.slice(0, 6)}...) error:`, err);
+    }
+  }
+
+  // 4. Quaternary Provider Pool: Firecrawl API (Search Endpoint)
+  for (const apiKey of firecrawlKeys) {
+    try {
+      console.log(`[Discovery] Fetching Firecrawl Search (key: ${apiKey.slice(0, 6)}...) dork page ${page} (serpPage ${serpPage})...`);
+      const res = await fetch('https://api.firecrawl.dev/v1/search', {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${apiKey}`
+        },
+        body: JSON.stringify({ query: query, page: serpPage })
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.success && data.data?.length) {
+          // Firecrawl returns an array of { url, title, description }
+          const mappedResults = data.data.map((r: any) => ({
+            title: r.title,
+            link: r.url,
+            snippet: r.description
+          }));
+          serpResultMemoryCache.set(serpCacheKey, { organic: mappedResults, timestamp: Date.now() });
+          const leads = processSerpResults(mappedResults, 'title', 'link', 'snippet', dorkProfile.negativeKeywords, existingDomains, mode);
+          if (leads.length > 0) return leads;
+        }
+      } else {
+        console.warn(`[Discovery] Firecrawl key (${apiKey.slice(0, 6)}...) non-ok response (${res.status}). Cascading...`);
+      }
+    } catch (err) {
+      console.warn(`[Discovery] Firecrawl key (${apiKey.slice(0, 6)}...) error, cascading...`, err);
+    }
+  }
+
+  // 5. Quinary Provider Pool: ScraperAPI Structured Google Search
+  for (const apiKey of scraperApiKeys) {
+    try {
+      console.log(`[Discovery] Fetching ScraperAPI Search (key: ${apiKey.slice(0, 6)}...) dork page ${page} (serpPage ${serpPage})...`);
+      const start = (serpPage - 1) * 50;
+      const res = await fetch(
+        `http://api.scraperapi.com/structured/google/search?api_key=${apiKey}&query=${encodeURIComponent(query)}&num=50&start=${start}`
+      );
+      if (res.ok) {
+        const data = await res.json();
+        if (data.organic_results?.length) {
+          serpResultMemoryCache.set(serpCacheKey, { organic: data.organic_results, timestamp: Date.now() });
+          const leads = processSerpResults(data.organic_results, 'title', 'link', 'snippet', dorkProfile.negativeKeywords, existingDomains, mode);
+          if (leads.length > 0) return leads;
+        }
+      } else {
+        console.warn(`[Discovery] ScraperAPI key (${apiKey.slice(0, 6)}...) non-ok response (${res.status}). Cascading...`);
+      }
+    } catch (err) {
+      console.warn(`[Discovery] ScraperAPI key (${apiKey.slice(0, 6)}...) error, cascading...`, err);
     }
   }
 

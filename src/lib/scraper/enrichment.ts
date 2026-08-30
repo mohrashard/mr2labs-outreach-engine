@@ -109,12 +109,16 @@ function domainToTitleCase(hostname: string): string {
  * Headless browser HTML fetcher for Client-Side Rendered (CSR / SPA) applications.
  */
 async function fetchRenderedHtmlWithFallback(targetUrl: string): Promise<string | null> {
-  const browserlessKey = process.env.BROWSERLESS_API_KEY;
+  const parseKeys = (envVal?: string) => (envVal || '').split(',').map(k => k.trim()).filter(Boolean);
   
+  const browserlessKeys = parseKeys(process.env.BROWSERLESS_API_KEY);
+  const firecrawlKeys = parseKeys(process.env.FIRECRAWL_API);
+  const scraperApiKeys = parseKeys(process.env.SCRAPER_API);
+
   // 1. Primary Headless Service: Browserless.io
-  if (browserlessKey) {
+  for (const key of browserlessKeys) {
     try {
-      const res = await fetch(`https://chrome.browserless.io/content?token=${browserlessKey}`, {
+      const res = await fetch(`https://chrome.browserless.io/content?token=${key}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -127,11 +131,45 @@ async function fetchRenderedHtmlWithFallback(targetUrl: string): Promise<string 
         return await res.text();
       }
     } catch (err) {
-      console.warn('[CSR Fallback] Browserless fetch failed:', err);
+      console.warn('[CSR Fallback] Browserless fetch failed, cascading...');
     }
   }
 
-  // 2. Secondary Headless Service: Microlink API
+  // 2. Secondary Headless Service: Firecrawl API
+  for (const key of firecrawlKeys) {
+    try {
+      const res = await fetch('https://api.firecrawl.dev/v1/scrape', {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${key}`
+        },
+        body: JSON.stringify({ url: targetUrl, formats: ['html'] })
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.data?.html || data.html) {
+          return data.data?.html || data.html;
+        }
+      }
+    } catch (err) {
+      console.warn('[CSR Fallback] Firecrawl fetch failed, cascading...');
+    }
+  }
+
+  // 3. Tertiary Headless Service: ScraperAPI (Render=true)
+  for (const key of scraperApiKeys) {
+    try {
+      const res = await fetch(`http://api.scraperapi.com?api_key=${key}&url=${encodeURIComponent(targetUrl)}&render=true`);
+      if (res.ok) {
+        return await res.text();
+      }
+    } catch (err) {
+      console.warn('[CSR Fallback] ScraperAPI fetch failed, cascading...');
+    }
+  }
+
+  // 4. Last Resort Headless Service: Microlink API
   try {
     const microlinkRes = await fetch(`https://api.microlink.io?url=${encodeURIComponent(targetUrl)}&embed=html`);
     if (microlinkRes.ok) {

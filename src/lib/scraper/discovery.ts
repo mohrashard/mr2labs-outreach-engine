@@ -118,27 +118,38 @@ async function generateDorkQueryFromLLM(
   location: string
 ): Promise<DorkProfile> {
   const systemPrompt = `You are an elite B2B OSINT and SERP search engineer.
-Your task is to generate a high-precision Google search query that finds independent, owner-operated business websites for a specific niche and location.
+Your task is to generate the SINGLE STRONGEST Google search dork for finding highly-qualified sales prospects in a specific niche and location.
+
+Do not just search for websites. Search for businesses with a REASON to contact them (e.g., Growth signals, Technology signals, Team size signals, Intent signals).
+
+Use this winning formula to construct your query:
+[BUSINESS SIGNAL] + [LOCATION SIGNAL] + [INTENT / PAGE SIGNAL] + [QUALIFICATION / TECHNOLOGY SIGNAL]
+
+Examples of high-intent B2B search dorks:
+- "Med Spa" "Avondale, AZ" "Our Providers" "Book Online"
+- "Law Firm" "Austin, Texas" "Meet Our Attorneys" "Free Consultation"
+- "HVAC" "Miami, FL" "Multiple Locations" "Schedule Service"
+- "Roofing Contractor" "Denver, CO" "Careers" "Contact Us"
 
 Rules:
-1. Target ONLY local independent businesses (avoid franchises, directories, aggregators, or SaaS tools).
-2. Use native operational terms for this specific industry (e.g., for Real Estate use "brokerage", "principal broker", "our agents"; for Medical use "practice", "clinic", "our doctors"; for Legal use "attorney", "partners").
-3. NEVER use developer words like "portfolio", "website", or "small business".
-4. Ensure grammatical natural phrasing (e.g. "boutique real estate firm", not "real estate agencies firm").
+1. Target ONLY local independent businesses (avoid franchises, directories, aggregators).
+2. Use native operational terminology for the specific industry.
+3. Choose Qualification/Page signals that make sense based on the provided "Pain Points" and "Our Solution". For example, if we sell automation, look for "Book Online" or "Schedule Appointment".
+4. NEVER use developer words like "portfolio", "website", or "small business".
 5. Return JSON ONLY:
 {
-  "query": "clean search phrase under 80 characters",
-  "negative_keywords": ["directory", "top 10", "best of", "jobs", "clutch", "yelp"]
+  "query": "The single most powerful, multi-layered Google search dork (under 100 characters)",
+  "negative_keywords": ["directory", "top 10", "best of", "jobs", "hiring", "clutch", "yelp", "advisor", "magazine"]
 }`;
 
-  const userPrompt = `Generate a Google search query for this ICP:
+  const userPrompt = `Generate the ultimate Sales-Qualified Google search dork for this ICP:
 
-Niche: ${niche}
+Industry/Niche: ${niche}
 Location: ${location}
 Pain Points (what they struggle with): ${painPoints}
 Our Solution (what we sell): ${solution}
 
-The query should find local businesses in ${location} that match this niche.`;
+Apply the 4-layer formula: Business + Location + Page Intent + Qualification Signal.`;
 
   const fallbackProfile: DorkProfile = {
     queryTemplate: (n, l) => `${singularizeNiche(n)} boutique ${l}`,

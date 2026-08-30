@@ -495,7 +495,7 @@ export default function AuditLandingPage({ params }: { params: Promise<{ id: str
                         src={`${process.env.NEXT_PUBLIC_PORTFOLIO_URL || 'http://localhost:3000'}/book/${leadId}?embed=true${nameInput ? `&name=${encodeURIComponent(nameInput)}` : ''}${emailInput ? `&email=${encodeURIComponent(emailInput)}` : ''}${selectedSolutions.length > 0 ? `&notes=${encodeURIComponent(selectedSolutions.join(', '))}` : ''}`}
                         className={`absolute inset-0 w-full h-full border-none transition-opacity duration-700 ${iframeLoaded ? 'opacity-100' : 'opacity-0'}`}
                         title="Book a Discovery Call"
-                        onLoad={() => setIframeLoaded(true)}
+                        onLoad={() => setTimeout(() => setIframeLoaded(true), 800)}
                       />
                     </div>
                   </div>

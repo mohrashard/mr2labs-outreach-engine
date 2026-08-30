@@ -94,11 +94,9 @@ export async function processSingleQueuedLead(leadId: string, followUpStep: numb
       </div>
       
       <div style="margin-top: 40px; border-top: 1px solid #E4E4E7; padding-top: 20px;">
-        <p style="font-size: 13px; font-weight: bold; color: #52525B;">How would you like to handle these audit findings?</p>
-        <div style="margin-top: 12px;">
-          <p style="margin: 8px 0;"><a href="${appUrl}/api/response?id=${lead.id}&intent=fix" style="color: #2563EB; text-decoration: none; font-size: 13px; font-weight: 500;">🟢 I want Mr² Labs to fix this</a></p>
-          <p style="margin: 8px 0;"><a href="${appUrl}/api/response?id=${lead.id}&intent=nurture" style="color: #2563EB; text-decoration: none; font-size: 13px; font-weight: 500;">🟡 Send over a Loom breakdown so my team can fix it</a></p>
-          <p style="margin: 8px 0;"><a href="${appUrl}/api/response?id=${lead.id}&intent=pass" style="color: #52525B; text-decoration: none; font-size: 13px;">🔴 Not a priority right now</a></p>
+        <p style="font-size: 13px; font-weight: bold; color: #52525B; text-align: center;">How would you like to handle these audit findings?</p>
+        <div style="margin-top: 16px; text-align: center;">
+          <a href="${appUrl}/intent/${lead.id}" style="display: inline-block; padding: 12px 24px; background-color: #2563EB; color: #ffffff; text-decoration: none; border-radius: 6px; font-weight: 600; font-size: 14px;">Review Findings & Select Next Steps</a>
         </div>
       </div>
     `;

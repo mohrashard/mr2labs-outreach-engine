@@ -64,6 +64,8 @@ export async function updateSession(request: NextRequest) {
     pathname.startsWith('/api/response') ||
     pathname.startsWith('/api/audit') ||
     pathname.startsWith('/api/pdf') ||
+    pathname.startsWith('/api/track-intent') ||
+    pathname.startsWith('/intent') ||
     pathname.startsWith('/_next') ||
     pathname.startsWith('/favicon.ico')
   ) {

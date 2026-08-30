@@ -279,6 +279,13 @@ export default function AdminDashboard() {
               <Mail className="w-3.5 h-3.5 text-blue-400/80" />
               Follow-ups
             </Link>
+            <Link 
+              href="/tracker"
+              className="px-3.5 py-2 hover:bg-white/[0.04] text-slate-400 hover:text-slate-200 rounded-full font-normal text-xs transition-colors duration-200 flex items-center gap-2"
+            >
+              <Activity className="w-3.5 h-3.5 text-orange-400/80" />
+              Tracker
+            </Link>
             <a 
               href="#live-logs"
               className="px-3.5 py-2 hover:bg-white/[0.04] text-slate-400 hover:text-slate-200 rounded-full font-normal text-xs transition-colors duration-200 flex items-center gap-2"

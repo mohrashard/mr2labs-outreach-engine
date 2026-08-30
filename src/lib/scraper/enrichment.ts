@@ -67,6 +67,48 @@ function extractCleanHostname(urlStr: string): string {
 }
 
 /**
+ * Smart Email Hierarchy Scorer
+ * Prevents dropping valid leads that use Gmail or slightly mismatched domain suffixes.
+ */
+function getBestDomEmail(emailMatches: string[], rootDomain: string): string | null {
+  if (!emailMatches || emailMatches.length === 0) return null;
+
+  // Deduplicate and filter out generically invalid/vendor emails
+  const uniqueEmails = Array.from(new Set(emailMatches.map(e => e.toLowerCase().trim()))).filter(isValidLeadEmail);
+  
+  if (uniqueEmails.length === 0) return null;
+
+  const scoredEmails = uniqueEmails.map(email => {
+    let score = 0;
+    
+    // 1. Top Tier (100 pts) - Exact Domain Match
+    if (email.endsWith(`@${rootDomain}`)) {
+      score = 100;
+    }
+    // 2. Second Tier (90 pts) - Partial Domain Match
+    // (e.g. roaraesthetics.com vs roaraestheticsandwellness.com)
+    else if (email.split('@')[1] && rootDomain.includes(email.split('@')[1].split('.')[0])) {
+      score = 90;
+    }
+    // 3. Third Tier (80 pts) - Verified Public Freemail
+    else if (email.endsWith('@gmail.com') || email.endsWith('@yahoo.com') || email.endsWith('@outlook.com') || email.endsWith('@icloud.com') || email.endsWith('@hotmail.com')) {
+      score = 80;
+    }
+    // 4. Fallback (50 pts) - Any other valid email found on their site
+    else {
+      score = 50;
+    }
+
+    return { email, score };
+  });
+
+  // Sort by score descending (highest quality email wins)
+  scoredEmails.sort((a, b) => b.score - a.score);
+  
+  return scoredEmails[0].email;
+}
+
+/**
  * 1. Company Name Sanitizer Utility (Pre-Search)
  * Strips SEO keywords, pipe/hyphen separators, and common fluff words.
  */
@@ -1132,16 +1174,12 @@ export async function deepEnrichDomain(
         const emailMatches = pageHtml.match(/[a-zA-Z0-9][a-zA-Z0-9._%+-]*@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g) || [];
         const rootDomain = extractCleanHostname(domainUrl);
         
-        // Find the first valid email that belongs directly to the target company's domain
-        const matchingDomainEmail = emailMatches.find(e => {
-          const lower = e.toLowerCase().trim();
-          return isValidLeadEmail(lower) && lower.endsWith(`@${rootDomain}`);
-        });
+        const bestEmail = getBestDomEmail(emailMatches, rootDomain);
 
-        if (matchingDomainEmail) {
-          const vRes = await verifyWithSourceAwareness(matchingDomainEmail, 'DOM');
+        if (bestEmail) {
+          const vRes = await verifyWithSourceAwareness(bestEmail, 'DOM');
           if (vRes.valid) {
-            email = matchingDomainEmail.toLowerCase();
+            email = bestEmail;
             enrichment_source = 'DOM';
             verifier_used = vRes.verifier;
           }
@@ -1189,15 +1227,12 @@ export async function deepEnrichDomain(
           const emailMatches = renderedHtml.toLowerCase().match(/[a-zA-Z0-9][a-zA-Z0-9._%+-]*@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g) || [];
           const rootDomain = extractCleanHostname(domainUrl);
           
-          const matchingDomainEmail = emailMatches.find(e => {
-            const lower = e.toLowerCase().trim();
-            return isValidLeadEmail(lower) && lower.endsWith(`@${rootDomain}`);
-          });
+          const bestEmail = getBestDomEmail(emailMatches, rootDomain);
 
-          if (matchingDomainEmail) {
-            const vRes = await verifyWithSourceAwareness(matchingDomainEmail, 'DOM');
+          if (bestEmail) {
+            const vRes = await verifyWithSourceAwareness(bestEmail, 'DOM');
             if (vRes.valid) {
-              email = matchingDomainEmail.toLowerCase();
+              email = bestEmail;
               enrichment_source = 'DOM';
               verifier_used = vRes.verifier;
             }

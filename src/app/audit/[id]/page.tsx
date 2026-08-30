@@ -52,6 +52,7 @@ export default function AuditLandingPage({ params }: { params: Promise<{ id: str
   const [submitted, setSubmitted] = useState(false);
   const [faviconErr, setFaviconErr] = useState(false);
   const [activeAction, setActiveAction] = useState<'booking' | 'loom'>('booking');
+  const [iframeLoaded, setIframeLoaded] = useState(false);
 
   useEffect(() => {
     if (window.location.hash === '#request-loom') {
@@ -451,14 +452,17 @@ export default function AuditLandingPage({ params }: { params: Promise<{ id: str
                 {/* Suggestion Toggle to Booking */}
                 <button 
                   onClick={() => setActiveAction('booking')}
-                  className="w-full p-6 rounded-2xl border border-emerald-500/20 bg-emerald-500/[0.02] hover:bg-emerald-500/[0.05] transition-colors flex items-center justify-between group text-left"
+                  className="w-full p-6 rounded-2xl border border-emerald-500/20 bg-emerald-500/[0.02] hover:bg-emerald-500/[0.08] hover:border-emerald-500/40 hover:-translate-y-1 hover:shadow-xl hover:shadow-emerald-500/5 transition-all duration-300 flex items-center justify-between group text-left cursor-pointer"
                 >
                   <div className="space-y-1">
-                    <div className="text-lg font-medium text-emerald-400">Ah it's fine, Mr² Labs can fix it</div>
-                    <div className="text-sm text-emerald-500/70">Skip the video and schedule a working session</div>
+                    <div className="text-lg font-medium text-emerald-400 group-hover:text-emerald-300 transition-colors">Ah it's fine, Mr² Labs can fix it</div>
+                    <div className="text-sm text-emerald-500/70 group-hover:text-emerald-400/90 transition-colors">Skip the video and schedule a working session</div>
                   </div>
-                  <div className="w-10 h-10 rounded-full bg-emerald-500/10 flex items-center justify-center group-hover:scale-110 transition-transform shrink-0 ml-4">
-                    <Calendar className="w-5 h-5 text-emerald-400" />
+                  <div className="flex items-center gap-4">
+                    <span className="text-xs font-mono text-emerald-500/50 group-hover:text-emerald-400 uppercase tracking-wider opacity-0 group-hover:opacity-100 transition-opacity hidden sm:block">Switch to Calendar</span>
+                    <div className="w-10 h-10 rounded-full bg-emerald-500/10 flex items-center justify-center group-hover:scale-110 group-hover:bg-emerald-500/20 transition-all shrink-0">
+                      <Calendar className="w-5 h-5 text-emerald-400 group-hover:text-emerald-300" />
+                    </div>
                   </div>
                 </button>
               </div>
@@ -481,10 +485,17 @@ export default function AuditLandingPage({ params }: { params: Promise<{ id: str
                     </div>
 
                     <div className="flex-1 rounded-2xl border border-white/10 bg-black overflow-hidden relative min-h-[500px]">
+                      {!iframeLoaded && (
+                        <div className="absolute inset-0 flex flex-col items-center justify-center bg-black z-20">
+                          <div className="w-8 h-8 border-2 border-emerald-500/20 border-t-emerald-500 rounded-full animate-spin mb-4" />
+                          <p className="text-xs font-mono text-emerald-500/50 uppercase tracking-widest">Loading Calendar...</p>
+                        </div>
+                      )}
                       <iframe
                         src={`${process.env.NEXT_PUBLIC_PORTFOLIO_URL || 'http://localhost:3000'}/book/${leadId}?embed=true${nameInput ? `&name=${encodeURIComponent(nameInput)}` : ''}${emailInput ? `&email=${encodeURIComponent(emailInput)}` : ''}${selectedSolutions.length > 0 ? `&notes=${encodeURIComponent(selectedSolutions.join(', '))}` : ''}`}
-                        className="absolute inset-0 w-full h-full border-none"
+                        className={`absolute inset-0 w-full h-full border-none transition-opacity duration-700 ${iframeLoaded ? 'opacity-100' : 'opacity-0'}`}
                         title="Book a Discovery Call"
+                        onLoad={() => setIframeLoaded(true)}
                       />
                     </div>
                   </div>
@@ -493,14 +504,17 @@ export default function AuditLandingPage({ params }: { params: Promise<{ id: str
                 {/* Suggestion Toggle to Loom */}
                 <button 
                   onClick={() => setActiveAction('loom')}
-                  className="w-full p-6 rounded-2xl border border-indigo-500/20 bg-indigo-500/[0.02] hover:bg-indigo-500/[0.05] transition-colors flex items-center justify-between group text-left"
+                  className="w-full p-6 rounded-2xl border border-indigo-500/20 bg-indigo-500/[0.02] hover:bg-indigo-500/[0.08] hover:border-indigo-500/40 hover:-translate-y-1 hover:shadow-xl hover:shadow-indigo-500/5 transition-all duration-300 flex items-center justify-between group text-left cursor-pointer"
                 >
                   <div className="space-y-1">
-                    <div className="text-lg font-medium text-indigo-400">Let Mr² Labs send the audit to check they are worthy</div>
-                    <div className="text-sm text-indigo-400/70">Request a custom Loom video breakdown</div>
+                    <div className="text-lg font-medium text-indigo-400 group-hover:text-indigo-300 transition-colors">Let Mr² Labs send the audit to check they are worthy</div>
+                    <div className="text-sm text-indigo-400/70 group-hover:text-indigo-400/90 transition-colors">Request a custom Loom video breakdown</div>
                   </div>
-                  <div className="w-10 h-10 rounded-full bg-indigo-500/10 flex items-center justify-center group-hover:scale-110 transition-transform shrink-0 ml-4">
-                    <Video className="w-5 h-5 text-indigo-400" />
+                  <div className="flex items-center gap-4">
+                    <span className="text-xs font-mono text-indigo-500/50 group-hover:text-indigo-400 uppercase tracking-wider opacity-0 group-hover:opacity-100 transition-opacity hidden sm:block">Switch to Audit</span>
+                    <div className="w-10 h-10 rounded-full bg-indigo-500/10 flex items-center justify-center group-hover:scale-110 group-hover:bg-indigo-500/20 transition-all shrink-0">
+                      <Video className="w-5 h-5 text-indigo-400 group-hover:text-indigo-300" />
+                    </div>
                   </div>
                 </button>
               </div>

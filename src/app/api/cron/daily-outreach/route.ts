@@ -79,17 +79,23 @@ export async function GET(req: Request) {
         const s2Days = campaign.step_2_days || 5;
         const s3Days = campaign.step_3_days || 10;
 
-        const cutoff1 = new Date(Date.now() - s1Days * 24 * 60 * 60 * 1000).toISOString();
-        const cutoff2 = new Date(Date.now() - s2Days * 24 * 60 * 60 * 1000).toISOString();
-        const cutoff3 = new Date(Date.now() - s3Days * 24 * 60 * 60 * 1000).toISOString();
+        // We subtract an additional 12 hours (0.5 days) as a buffer. 
+        // Because the cron runs once daily and dispatches can be staggered by hours, 
+        // a strict millisecond cutoff would cause leads to miss their calendar day and wait an extra 24 hours.
+        const cutoff1 = new Date(Date.now() - (s1Days * 24 - 12) * 60 * 60 * 1000).toISOString();
+        const cutoff2 = new Date(Date.now() - (s2Days * 24 - 12) * 60 * 60 * 1000).toISOString();
+        const cutoff3 = new Date(Date.now() - (s3Days * 24 - 12) * 60 * 60 * 1000).toISOString();
 
         // 1. First, fetch eligible follow-up leads (No limit other than global daily 290)
+        // We order by last_contacted_at to ensure a FIFO queue and only fetch leads < step 3
         const { data: sentLeads } = await supabaseAdmin
           .from('outreach_leads')
           .select('id, email, status, follow_up_step, last_contacted_at')
           .eq('campaign_id', campaign.id)
           .eq('status', 'SENT')
+          .lt('follow_up_step', 3)
           .not('email', 'is', null)
+          .order('last_contacted_at', { ascending: true })
           .limit(200);
 
         let followUps: any[] = [];

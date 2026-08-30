@@ -27,19 +27,46 @@ export async function POST(request: Request) {
       }
 
       const haltingEvents = ['hard_bounce', 'blocked', 'spam', 'unsubscribed', 'invalid_email'];
+      const engagementEvents = ['opened', 'click'];
       
-      if (haltingEvents.includes(payload.event)) {
-        // Mark lead as BOUNCED (or UNSUBSCRIBED based on event)
-        const newStatus = (payload.event === 'spam' || payload.event === 'unsubscribed') ? 'UNSUBSCRIBED' : 'BOUNCED';
+      if (haltingEvents.includes(payload.event) || engagementEvents.includes(payload.event)) {
+        let newStatus = undefined;
+        let eventType = 'UNKNOWN_EVENT';
+
+        if (payload.event === 'spam' || payload.event === 'unsubscribed') {
+          newStatus = 'UNSUBSCRIBED';
+          eventType = 'DELIVERY_FAILURE';
+        } else if (['hard_bounce', 'blocked', 'invalid_email'].includes(payload.event)) {
+          newStatus = 'BOUNCED';
+          eventType = 'DELIVERY_FAILURE';
+        } else if (payload.event === 'opened') {
+          eventType = 'EMAIL_OPENED';
+        } else if (payload.event === 'click') {
+          eventType = 'MAGIC_LINK_CLICK';
+        }
         
-        const { data: updatedLeads, error: updateError } = await supabaseAdmin
-          .from('outreach_leads')
-          .update({ status: newStatus })
-          .ilike('email', email)
-          .select('id, company_name, status');
+        let updatedLeads;
+        let updateError;
+        
+        if (newStatus) {
+          const res = await supabaseAdmin
+            .from('outreach_leads')
+            .update({ status: newStatus })
+            .ilike('email', email)
+            .select('id, company_name, status');
+          updatedLeads = res.data;
+          updateError = res.error;
+        } else {
+          const res = await supabaseAdmin
+            .from('outreach_leads')
+            .select('id, company_name, status')
+            .ilike('email', email);
+          updatedLeads = res.data;
+          updateError = res.error;
+        }
 
         if (updateError) {
-          console.error('[Brevo Webhook] Lead status atomic update error for transactional event:', updateError);
+          console.error('[Brevo Webhook] Lead atomic query error for transactional event:', updateError);
           return NextResponse.json({ error: updateError.message }, { status: 200 });
         }
 
@@ -51,16 +78,17 @@ export async function POST(request: Request) {
             .from('activity_logs')
             .insert({
               lead_id: lead.id,
-              event_type: 'DELIVERY_FAILURE',
+              event_type: eventType,
               payload: {
                 event: payload.event,
                 email: email,
+                link: payload.link || null, // Capture clicked link if available
                 raw_payload: payload,
                 received_at: new Date().toISOString(),
               }
             });
 
-          console.log(`[Brevo Webhook] Lead ${lead.id} (${lead.company_name}) marked as ${newStatus} due to event: ${payload.event}`);
+          console.log(`[Brevo Webhook] Lead ${lead.id} (${lead.company_name}) logged event: ${payload.event}`);
         }
       }
       return NextResponse.json({ success: true, event: payload.event });

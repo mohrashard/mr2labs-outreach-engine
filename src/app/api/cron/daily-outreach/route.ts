@@ -32,15 +32,14 @@ export async function GET(req: Request) {
       await supabaseAdmin.from('system_logs').delete().lt('created_at', sevenDaysAgo);
     } catch (e) {}
 
-    // 1. Fetch active campaigns
+    // 1. Fetch ALL campaigns (so follow-ups can continue even if paused)
     const { data: campaigns, error: campaignError } = await supabaseAdmin
       .from('campaigns')
-      .select('*')
-      .eq('is_active', true);
+      .select('*');
 
     if (campaignError) throw campaignError;
     if (!campaigns || campaigns.length === 0) {
-      return NextResponse.json({ status: 'No active campaigns' });
+      return NextResponse.json({ status: 'No campaigns found' });
     }
 
     const startOfDay = new Date();
@@ -114,17 +113,21 @@ export async function GET(req: Request) {
         let leads = [...followUps];
 
         // 2. Enforce the strict 20-lead limit for NEW Step 0 emails only
-        const { count: step0SentToday } = await supabaseAdmin
-          .from('outreach_leads')
-          .select('id', { count: 'exact', head: true })
-          .eq('campaign_id', campaign.id)
-          .in('status', ['QUEUED', 'SENT'])
-          .eq('follow_up_step', 0)
-          .gte('updated_at', startOfDay.toISOString());
+        // IMPORTANT: Only process NEW leads (Step 0) if the campaign is active!
+        let remainingNewLeadLimit = 0;
+        if (campaign.is_active) {
+          const { count: step0SentToday } = await supabaseAdmin
+            .from('outreach_leads')
+            .select('id', { count: 'exact', head: true })
+            .eq('campaign_id', campaign.id)
+            .in('status', ['QUEUED', 'SENT'])
+            .eq('follow_up_step', 0)
+            .gte('updated_at', startOfDay.toISOString());
 
-        const remainingNewLeadLimit = Math.max(0, Math.min(campaignLimit - (step0SentToday || 0), globalRemaining - followUps.length));
+          remainingNewLeadLimit = Math.max(0, Math.min(campaignLimit - (step0SentToday || 0), globalRemaining - followUps.length));
+        }
 
-        // 3. Fill remaining queue space with new leads
+        // 3. Fill remaining queue space with new leads (only if campaign is active)
         if (remainingNewLeadLimit > 0) {
           const { data: newLeads } = await supabaseAdmin
             .from('outreach_leads')
@@ -206,6 +209,9 @@ export async function GET(req: Request) {
     // 2. DISCOVERY & ENRICHMENT NEXT (Slow)
     if (action === 'scrape' || !action) {
       for (const campaign of campaigns) {
+        // Only run discovery and enrichment for ACTIVE campaigns
+        if (!campaign.is_active) continue;
+
         // Auto-expiry check
         if (campaign.end_date && new Date(campaign.end_date) < now) {
           await supabaseAdmin

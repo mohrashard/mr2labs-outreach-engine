@@ -51,6 +51,15 @@ export default function AuditLandingPage({ params }: { params: Promise<{ id: str
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [faviconErr, setFaviconErr] = useState(false);
+  const [activeAction, setActiveAction] = useState<'booking' | 'loom'>('booking');
+
+  useEffect(() => {
+    if (window.location.hash === '#request-loom') {
+      setActiveAction('loom');
+    } else if (window.location.hash === '#booking') {
+      setActiveAction('booking');
+    }
+  }, []);
 
   useEffect(() => {
     async function fetchAudit() {
@@ -113,6 +122,11 @@ export default function AuditLandingPage({ params }: { params: Promise<{ id: str
     );
   };
 
+  const scrollToActions = (action: 'booking' | 'loom') => {
+    setActiveAction(action);
+    document.getElementById('action-area')?.scrollIntoView({ behavior: 'smooth' });
+  };
+
   if (loading) {
     return (
       <div className="min-h-[100dvh] bg-[#030407] text-white flex flex-col items-center justify-center p-6">
@@ -162,12 +176,12 @@ export default function AuditLandingPage({ params }: { params: Promise<{ id: str
             <Image src="/mr-squared-logo.png" alt="Mr² Labs" width={140} height={36} className="h-7 w-auto object-contain opacity-90 hover:opacity-100 transition-opacity" />
           </div>
           <div className="flex items-center gap-4">
-            <a href="#booking" className="hidden md:block text-xs font-medium text-zinc-400 hover:text-white transition-colors">
+            <button onClick={() => scrollToActions('booking')} className="hidden md:block text-xs font-medium text-zinc-400 hover:text-white transition-colors">
               Book Call
-            </a>
-            <a href="#request-loom" className="h-8 px-4 inline-flex items-center justify-center text-xs font-medium bg-white text-black rounded-full hover:bg-zinc-200 transition-colors">
+            </button>
+            <button onClick={() => scrollToActions('loom')} className="h-8 px-4 inline-flex items-center justify-center text-xs font-medium bg-white text-black rounded-full hover:bg-zinc-200 transition-colors">
               Get Audit
-            </a>
+            </button>
           </div>
         </div>
       </nav>
@@ -202,14 +216,14 @@ export default function AuditLandingPage({ params }: { params: Promise<{ id: str
               </div>
 
               <div className="flex flex-wrap items-center gap-4">
-                <a href="#issues" className="h-12 px-6 inline-flex items-center justify-center gap-2 text-sm font-medium bg-white text-black rounded-xl hover:bg-zinc-200 transition-colors">
+                <button onClick={() => scrollToActions('loom')} className="h-12 px-6 inline-flex items-center justify-center gap-2 text-sm font-medium bg-white text-black rounded-xl hover:bg-zinc-200 transition-colors">
                   View Audit
                   <ArrowRight className="w-4 h-4" />
-                </a>
-                <a href="#booking" className="h-12 px-6 inline-flex items-center justify-center gap-2 text-sm font-medium border border-white/10 bg-white/[0.02] rounded-xl hover:bg-white/[0.05] transition-colors">
+                </button>
+                <button onClick={() => scrollToActions('booking')} className="h-12 px-6 inline-flex items-center justify-center gap-2 text-sm font-medium border border-white/10 bg-white/[0.02] rounded-xl hover:bg-white/[0.05] transition-colors">
                   <Calendar className="w-4 h-4 text-zinc-400" />
                   Book Call
-                </a>
+                </button>
               </div>
             </div>
 
@@ -344,121 +358,153 @@ export default function AuditLandingPage({ params }: { params: Promise<{ id: str
             </div>
           </section>
 
-          {/* Action Area: Loom / Booking Split */}
-          <section className="grid lg:grid-cols-2 gap-4">
-            
-            {/* Loom Form */}
-            <div id="request-loom" className="p-8 rounded-3xl border border-white/10 bg-white/[0.02] relative overflow-hidden flex flex-col justify-between">
-              <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-500/10 blur-[80px] rounded-full pointer-events-none" />
-              
-              <div className="relative z-10 space-y-6">
-                <div className="space-y-2">
-                  <div className="inline-flex items-center gap-2 text-indigo-400 mb-2">
-                    <Video className="w-4 h-4" />
-                    <span className="text-[10px] font-mono uppercase tracking-wider">Video Walkthrough</span>
+          {/* Action Area: Toggled View */}
+          <section id="action-area" className="max-w-3xl mx-auto w-full">
+            {activeAction === 'loom' ? (
+              <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                {/* Loom Form */}
+                <div id="request-loom" className="p-8 rounded-3xl border border-white/10 bg-white/[0.02] relative overflow-hidden flex flex-col justify-between">
+                  <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-500/10 blur-[80px] rounded-full pointer-events-none" />
+                  
+                  <div className="relative z-10 space-y-6">
+                    <div className="space-y-2">
+                      <div className="inline-flex items-center gap-2 text-indigo-400 mb-2">
+                        <Video className="w-4 h-4" />
+                        <span className="text-[10px] font-mono uppercase tracking-wider">Video Walkthrough</span>
+                      </div>
+                      <h3 className="text-2xl font-medium text-white">Get your video audit</h3>
+                      <p className="text-sm text-zinc-400 leading-relaxed">
+                        We will record a custom video auditing {lead.domain} in depth, delivered to your inbox within 48 hours.
+                      </p>
+                    </div>
+
+                    {submitted ? (
+                      <div className="p-6 rounded-2xl border border-emerald-500/20 bg-emerald-500/10 text-center space-y-3 mt-8">
+                        <CheckCircle2 className="w-8 h-8 text-emerald-500 mx-auto" />
+                        <div className="text-emerald-400 font-medium">Request Confirmed</div>
+                        <p className="text-sm text-zinc-400">Your video will be sent to {lead.email}</p>
+                      </div>
+                    ) : (
+                      <form onSubmit={handleSubmitForm} className="space-y-4 mt-8">
+                        <div className="grid sm:grid-cols-2 gap-4">
+                          <div className="space-y-1.5">
+                            <label className="text-[11px] font-mono text-zinc-500 uppercase tracking-wide">Name</label>
+                            <input
+                              type="text"
+                              required
+                              value={nameInput}
+                              onChange={(e) => setNameInput(e.target.value)}
+                              className="w-full h-11 px-4 bg-black border border-white/10 rounded-xl text-sm text-white focus:border-indigo-500 focus:outline-none transition-colors"
+                              placeholder="Your name"
+                            />
+                          </div>
+                          <div className="space-y-1.5">
+                            <label className="text-[11px] font-mono text-zinc-500 uppercase tracking-wide">Email</label>
+                            <input
+                              type="email"
+                              required
+                              value={emailInput}
+                              onChange={(e) => setEmailInput(e.target.value)}
+                              className="w-full h-11 px-4 bg-black border border-white/10 rounded-xl text-sm text-white focus:border-indigo-500 focus:outline-none transition-colors"
+                            />
+                          </div>
+                        </div>
+                        <div className="space-y-1.5">
+                          <div className="flex items-center justify-between pb-1">
+                            <label className="text-[11px] font-mono text-zinc-500 uppercase tracking-wide">Priority Notes (Optional)</label>
+                            {selectedSolutions.length > 0 && (
+                              <span className="text-[10px] font-mono text-emerald-400 uppercase">{selectedSolutions.length} selected</span>
+                            )}
+                          </div>
+                          
+                          {selectedSolutions.length > 0 && (
+                            <div className="flex flex-wrap gap-2 pb-2">
+                              {selectedSolutions.map(sol => (
+                                <div key={sol} className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-emerald-500/10 border border-emerald-500/20 text-[10px] font-mono text-emerald-400">
+                                  <CheckCircle2 className="w-3 h-3" />
+                                  {sol}
+                                </div>
+                              ))}
+                            </div>
+                          )}
+
+                          <textarea
+                            rows={2}
+                            value={notesInput}
+                            onChange={(e) => setNotesInput(e.target.value)}
+                            className="w-full p-4 bg-black border border-white/10 rounded-xl text-sm text-white focus:border-indigo-500 focus:outline-none transition-colors resize-none"
+                            placeholder={selectedSolutions.length > 0 ? "Any additional context..." : "What should we focus on?"}
+                          />
+                        </div>
+                        <button
+                          type="submit"
+                          disabled={submitting}
+                          className="w-full h-12 inline-flex items-center justify-center gap-2 bg-white text-black text-sm font-medium rounded-xl hover:bg-zinc-200 transition-colors disabled:opacity-50 mt-2"
+                        >
+                          {submitting ? 'Sending request...' : 'Send Video Audit'}
+                        </button>
+                      </form>
+                    )}
                   </div>
-                  <h3 className="text-2xl font-medium text-white">Get your video audit</h3>
-                  <p className="text-sm text-zinc-400 leading-relaxed">
-                    We will record a custom video auditing {lead.domain} in depth, delivered to your inbox within 48 hours.
-                  </p>
                 </div>
 
-                {submitted ? (
-                  <div className="p-6 rounded-2xl border border-emerald-500/20 bg-emerald-500/10 text-center space-y-3 mt-8">
-                    <CheckCircle2 className="w-8 h-8 text-emerald-500 mx-auto" />
-                    <div className="text-emerald-400 font-medium">Request Confirmed</div>
-                    <p className="text-sm text-zinc-400">Your video will be sent to {lead.email}</p>
+                {/* Suggestion Toggle to Booking */}
+                <button 
+                  onClick={() => setActiveAction('booking')}
+                  className="w-full p-6 rounded-2xl border border-emerald-500/20 bg-emerald-500/[0.02] hover:bg-emerald-500/[0.05] transition-colors flex items-center justify-between group text-left"
+                >
+                  <div className="space-y-1">
+                    <div className="text-lg font-medium text-emerald-400">Ah it's fine, Mr² Labs can fix it</div>
+                    <div className="text-sm text-emerald-500/70">Skip the video and schedule a working session</div>
                   </div>
-                ) : (
-                  <form onSubmit={handleSubmitForm} className="space-y-4 mt-8">
-                    <div className="grid sm:grid-cols-2 gap-4">
-                      <div className="space-y-1.5">
-                        <label className="text-[11px] font-mono text-zinc-500 uppercase tracking-wide">Name</label>
-                        <input
-                          type="text"
-                          required
-                          value={nameInput}
-                          onChange={(e) => setNameInput(e.target.value)}
-                          className="w-full h-11 px-4 bg-black border border-white/10 rounded-xl text-sm text-white focus:border-indigo-500 focus:outline-none transition-colors"
-                          placeholder="Your name"
-                        />
+                  <div className="w-10 h-10 rounded-full bg-emerald-500/10 flex items-center justify-center group-hover:scale-110 transition-transform shrink-0 ml-4">
+                    <Calendar className="w-5 h-5 text-emerald-400" />
+                  </div>
+                </button>
+              </div>
+            ) : (
+              <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                {/* Booking Embed */}
+                <div id="booking" className="p-8 rounded-3xl border border-white/10 bg-white/[0.02] relative overflow-hidden flex flex-col">
+                  <div className="absolute bottom-0 left-0 w-64 h-64 bg-emerald-500/10 blur-[80px] rounded-full pointer-events-none" />
+                  
+                  <div className="relative z-10 flex-1 flex flex-col space-y-6">
+                    <div className="space-y-2">
+                      <div className="inline-flex items-center gap-2 text-emerald-400 mb-2">
+                        <Calendar className="w-4 h-4" />
+                        <span className="text-[10px] font-mono uppercase tracking-wider">Strategy Call</span>
                       </div>
-                      <div className="space-y-1.5">
-                        <label className="text-[11px] font-mono text-zinc-500 uppercase tracking-wide">Email</label>
-                        <input
-                          type="email"
-                          required
-                          value={emailInput}
-                          onChange={(e) => setEmailInput(e.target.value)}
-                          className="w-full h-11 px-4 bg-black border border-white/10 rounded-xl text-sm text-white focus:border-indigo-500 focus:outline-none transition-colors"
-                        />
-                      </div>
+                      <h3 className="text-2xl font-medium text-white">Book a strategy call</h3>
+                      <p className="text-sm text-zinc-400 leading-relaxed">
+                        Skip the video and schedule a working session to review the plan.
+                      </p>
                     </div>
-                    <div className="space-y-1.5">
-                      <div className="flex items-center justify-between pb-1">
-                        <label className="text-[11px] font-mono text-zinc-500 uppercase tracking-wide">Priority Notes (Optional)</label>
-                        {selectedSolutions.length > 0 && (
-                          <span className="text-[10px] font-mono text-emerald-400 uppercase">{selectedSolutions.length} selected</span>
-                        )}
-                      </div>
-                      
-                      {selectedSolutions.length > 0 && (
-                        <div className="flex flex-wrap gap-2 pb-2">
-                          {selectedSolutions.map(sol => (
-                            <div key={sol} className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-emerald-500/10 border border-emerald-500/20 text-[10px] font-mono text-emerald-400">
-                              <CheckCircle2 className="w-3 h-3" />
-                              {sol}
-                            </div>
-                          ))}
-                        </div>
-                      )}
 
-                      <textarea
-                        rows={2}
-                        value={notesInput}
-                        onChange={(e) => setNotesInput(e.target.value)}
-                        className="w-full p-4 bg-black border border-white/10 rounded-xl text-sm text-white focus:border-indigo-500 focus:outline-none transition-colors resize-none"
-                        placeholder={selectedSolutions.length > 0 ? "Any additional context..." : "What should we focus on?"}
+                    <div className="flex-1 rounded-2xl border border-white/10 bg-black overflow-hidden relative min-h-[500px]">
+                      <iframe
+                        src={`${process.env.NEXT_PUBLIC_PORTFOLIO_URL || 'http://localhost:3000'}/book/${leadId}?embed=true${nameInput ? `&name=${encodeURIComponent(nameInput)}` : ''}${emailInput ? `&email=${encodeURIComponent(emailInput)}` : ''}${selectedSolutions.length > 0 ? `&notes=${encodeURIComponent(selectedSolutions.join(', '))}` : ''}`}
+                        className="absolute inset-0 w-full h-full border-none"
+                        title="Book a Discovery Call"
                       />
                     </div>
-                    <button
-                      type="submit"
-                      disabled={submitting}
-                      className="w-full h-12 inline-flex items-center justify-center gap-2 bg-white text-black text-sm font-medium rounded-xl hover:bg-zinc-200 transition-colors disabled:opacity-50 mt-2"
-                    >
-                      {submitting ? 'Sending request...' : 'Send Video Audit'}
-                    </button>
-                  </form>
-                )}
-              </div>
-            </div>
-
-            {/* Booking Embed */}
-            <div id="booking" className="p-8 rounded-3xl border border-white/10 bg-white/[0.02] relative overflow-hidden flex flex-col">
-              <div className="absolute bottom-0 left-0 w-64 h-64 bg-emerald-500/10 blur-[80px] rounded-full pointer-events-none" />
-              
-              <div className="relative z-10 flex-1 flex flex-col space-y-6">
-                <div className="space-y-2">
-                  <div className="inline-flex items-center gap-2 text-emerald-400 mb-2">
-                    <Calendar className="w-4 h-4" />
-                    <span className="text-[10px] font-mono uppercase tracking-wider">Strategy Call</span>
                   </div>
-                  <h3 className="text-2xl font-medium text-white">Book a strategy call</h3>
-                  <p className="text-sm text-zinc-400 leading-relaxed">
-                    Skip the video and schedule a working session to review the plan.
-                  </p>
                 </div>
 
-                <div className="flex-1 rounded-2xl border border-white/10 bg-black overflow-hidden relative min-h-[500px]">
-                  <iframe
-                    src={`${process.env.NEXT_PUBLIC_PORTFOLIO_URL || 'http://localhost:3000'}/book/${leadId}?embed=true${nameInput ? `&name=${encodeURIComponent(nameInput)}` : ''}${emailInput ? `&email=${encodeURIComponent(emailInput)}` : ''}${selectedSolutions.length > 0 ? `&notes=${encodeURIComponent(selectedSolutions.join(', '))}` : ''}`}
-                    className="absolute inset-0 w-full h-full border-none"
-                    title="Book a Discovery Call"
-                  />
-                </div>
+                {/* Suggestion Toggle to Loom */}
+                <button 
+                  onClick={() => setActiveAction('loom')}
+                  className="w-full p-6 rounded-2xl border border-indigo-500/20 bg-indigo-500/[0.02] hover:bg-indigo-500/[0.05] transition-colors flex items-center justify-between group text-left"
+                >
+                  <div className="space-y-1">
+                    <div className="text-lg font-medium text-indigo-400">Let Mr² Labs send the audit to check they are worthy</div>
+                    <div className="text-sm text-indigo-400/70">Request a custom Loom video breakdown</div>
+                  </div>
+                  <div className="w-10 h-10 rounded-full bg-indigo-500/10 flex items-center justify-center group-hover:scale-110 transition-transform shrink-0 ml-4">
+                    <Video className="w-5 h-5 text-indigo-400" />
+                  </div>
+                </button>
               </div>
-            </div>
-
+            )}
           </section>
 
         </div>

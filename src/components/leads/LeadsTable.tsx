@@ -23,12 +23,16 @@ export function LeadsTable({ leads, onSelectLead }: LeadsTableProps) {
     if (statusFilter === 'new' && lead.status !== 'NEW') return false;
     if (statusFilter === 'queued' && lead.status !== 'QUEUED') return false;
 
-    // Date filter logic (using UTC ISO YYYY-MM-DD to avoid timezone mismatch hiding leads)
+    // Date filter logic (timezone resilient: matches local date, UTC date, or last 24h batch)
     if (dateFilter === 'today') {
       try {
-        const leadDateStr = new Date(lead.created_at).toISOString().split('T')[0];
-        const todayStr = new Date().toISOString().split('T')[0];
-        if (leadDateStr !== todayStr) return false;
+        const leadDate = new Date(lead.created_at);
+        const now = new Date();
+        const isSameLocalDate = leadDate.toLocaleDateString() === now.toLocaleDateString();
+        const isSameUtcDate = leadDate.toISOString().split('T')[0] === now.toISOString().split('T')[0];
+        const isWithin24Hours = (now.getTime() - leadDate.getTime()) < 24 * 60 * 60 * 1000;
+
+        if (!isSameLocalDate && !isSameUtcDate && !isWithin24Hours) return false;
       } catch {
         return true;
       }

@@ -100,10 +100,12 @@ export async function POST(request: Request) {
     const subject = email_subject || 'quick note';
     const filename = `${company_name.replace(/[^a-zA-Z0-9]/g, '_')}_MR2Labs_Audit.pdf`;
 
+    const textContent = `${sanitizedPitch.replace(/<[^>]*>/g, '').trim()}\n\nView the free audit of ${cleanDomain}: ${appUrl}/audit/${id}`;
+
     console.log(`[DISPATCH] Sending email via Brevo to ${email}...`);
     
-    // 6. Send Email via Brevo API
-    await sendColdEmail(email, subject, htmlContent);
+    // 6. Send Email via Brevo API with both HTML and plain text MIME formats
+    await sendColdEmail(email, subject, htmlContent, textContent);
 
     // 7. Update Lead Status to SENT
     console.log(`[DISPATCH] Email sent successfully. Updating status to SENT.`);

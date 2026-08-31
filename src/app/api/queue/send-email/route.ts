@@ -98,8 +98,10 @@ export async function processSingleQueuedLead(leadId: string, followUpStep: numb
     </div>
   `;
 
-  // Trigger sendColdEmail
-  await sendColdEmail(lead.email, subject, htmlContent);
+  const textContent = `${sanitizedPitch.replace(/<[^>]*>/g, '').trim()}\n\nView the free audit of ${cleanDomain}: ${appUrl}/audit/${lead.id}`;
+
+  // Trigger sendColdEmail with both HTML and plain text MIME formats
+  await sendColdEmail(lead.email, subject, htmlContent, textContent);
 
   // Update lead status to 'SENT' and record sent_at
   await supabaseAdmin

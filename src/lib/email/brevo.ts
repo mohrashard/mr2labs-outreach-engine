@@ -1,4 +1,9 @@
-export async function sendColdEmail(toEmail: string, subject: string, htmlContent: string) {
+export async function sendColdEmail(
+  toEmail: string,
+  subject: string,
+  htmlContent: string,
+  textContent?: string
+) {
   const apiKey = process.env.BREVO_API_KEY;
   if (!apiKey) {
     throw new Error('Missing BREVO_API_KEY environment variable');
@@ -7,7 +12,10 @@ export async function sendColdEmail(toEmail: string, subject: string, htmlConten
   const senderEmail = process.env.SENDER_EMAIL || 'growth@getmr2labs.com';
   const senderName = process.env.SENDER_NAME || 'Rashard';
 
-  // Send primary email to recipient ONLY (BCC completely removed)
+  // Derived plain text fallback if textContent is not explicitly passed
+  const derivedText = textContent || htmlContent.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
+
+  // Send primary email with both HTML and plain text MIME formats (multipart/alternative)
   const response = await fetch('https://api.brevo.com/v3/smtp/email', {
     method: 'POST',
     headers: {
@@ -19,7 +27,8 @@ export async function sendColdEmail(toEmail: string, subject: string, htmlConten
       sender: { email: senderEmail, name: senderName },
       to: [{ email: toEmail }],
       subject: subject,
-      htmlContent: htmlContent
+      htmlContent: htmlContent,
+      textContent: derivedText
     })
   });
 

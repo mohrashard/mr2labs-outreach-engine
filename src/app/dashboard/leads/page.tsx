@@ -22,6 +22,7 @@ import {
   AlertTriangle
 } from 'lucide-react';
 import Image from 'next/image';
+import Link from 'next/link';
 import PauseSendingButton from '@/components/PauseSendingButton';
 
 interface LeadLog {
@@ -238,11 +239,49 @@ export default function LeadsDashboardPage() {
             </div>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 flex-wrap justify-end">
             <PauseSendingButton />
+
+            <Link 
+              href="/"
+              className="px-3 py-2 bg-white/5 hover:bg-white/10 text-zinc-300 rounded-full font-medium text-xs transition-colors flex items-center gap-1.5 border border-white/10"
+            >
+              <span>⚡ Main Engine</span>
+            </Link>
+            <Link 
+              href="/startups"
+              className="px-3 py-2 bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-300 rounded-full font-medium text-xs transition-colors flex items-center gap-1.5 border border-indigo-500/20"
+            >
+              <span>🚀 Startup Engine</span>
+            </Link>
+            <Link 
+              href="/campaigns"
+              className="px-3 py-2 hover:bg-white/5 text-zinc-400 hover:text-zinc-200 rounded-full font-normal text-xs transition-colors"
+            >
+              Campaigns
+            </Link>
+            <Link 
+              href="/templates"
+              className="px-3 py-2 hover:bg-white/5 text-zinc-400 hover:text-zinc-200 rounded-full font-normal text-xs transition-colors"
+            >
+              Templates
+            </Link>
+            <Link 
+              href="/followups"
+              className="px-3 py-2 hover:bg-white/5 text-zinc-400 hover:text-zinc-200 rounded-full font-normal text-xs transition-colors"
+            >
+              Follow-ups
+            </Link>
+            <Link 
+              href="/tracker"
+              className="px-3 py-2 hover:bg-white/5 text-zinc-400 hover:text-zinc-200 rounded-full font-normal text-xs transition-colors"
+            >
+              Tracker
+            </Link>
+
             <button
               onClick={fetchLeads}
-              className="h-10 px-4 inline-flex items-center gap-2 bg-zinc-900 border border-white/10 text-zinc-300 text-xs font-medium rounded-xl hover:bg-zinc-800 transition-colors cursor-pointer"
+              className="h-9 px-3.5 inline-flex items-center gap-1.5 bg-zinc-900 border border-white/10 text-zinc-300 text-xs font-medium rounded-full hover:bg-zinc-800 transition-colors cursor-pointer"
             >
               <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
               Refresh

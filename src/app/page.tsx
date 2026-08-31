@@ -14,6 +14,7 @@ import { LeadDetailDrawer } from '@/components/leads/LeadDetailDrawer';
 import { CampaignSetupForm } from '@/components/campaigns/CampaignSetupForm';
 import { createClient } from '@/lib/supabase/client';
 import { LiveLogs } from '@/components/dashboard/LiveLogs';
+import PauseSendingButton from '@/components/PauseSendingButton';
 
 export default function AdminDashboard() {
   const router = useRouter();
@@ -258,6 +259,14 @@ export default function AdminDashboard() {
               </div>
             )}
 
+            <PauseSendingButton />
+
+            <Link 
+              href="/dashboard/leads"
+              className="px-3.5 py-2 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-300 rounded-full font-medium text-xs transition-colors duration-200 flex items-center gap-1.5 border border-emerald-500/20"
+            >
+              <span>🎯 Leads Desk</span>
+            </Link>
             <Link 
               href="/startups"
               className="px-3.5 py-2 bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-300 rounded-full font-medium text-xs transition-colors duration-200 flex items-center gap-1.5 border border-indigo-500/20"

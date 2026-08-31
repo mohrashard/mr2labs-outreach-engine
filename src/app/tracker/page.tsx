@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { Download, Search, Activity, Clock, ArrowRight, ChevronDown, ChevronUp, Mail, Eye, MousePointer, CheckCircle2 } from 'lucide-react';
 import Image from 'next/image';
+import Link from 'next/link';
 import PauseSendingButton from '@/components/PauseSendingButton';
 
 interface SequenceEvent {
@@ -156,10 +157,36 @@ export default function ProspectTracker() {
               <p className="text-sm text-zinc-400 mt-1">Multi-step sequence telemetry, engagement sync, & intent tracking.</p>
             </div>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 flex-wrap justify-end">
             <PauseSendingButton />
-            <button onClick={downloadCsv} className="h-10 px-4 inline-flex items-center gap-2 bg-white text-black text-sm font-medium rounded-xl hover:bg-zinc-200 transition-colors">
-              <Download className="w-4 h-4" />
+
+            <Link 
+              href="/"
+              className="px-3 py-2 bg-white/5 hover:bg-white/10 text-zinc-300 rounded-full font-medium text-xs transition-colors flex items-center gap-1 border border-white/10"
+            >
+              <span>⚡ Main Engine</span>
+            </Link>
+            <Link 
+              href="/dashboard/leads"
+              className="px-3 py-2 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-300 rounded-full font-medium text-xs transition-colors flex items-center gap-1 border border-emerald-500/20"
+            >
+              <span>🎯 Leads Desk</span>
+            </Link>
+            <Link 
+              href="/startups"
+              className="px-3 py-2 bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-300 rounded-full font-medium text-xs transition-colors flex items-center gap-1 border border-indigo-500/20"
+            >
+              <span>🚀 Startup Engine</span>
+            </Link>
+            <Link 
+              href="/campaigns"
+              className="px-3 py-2 hover:bg-white/5 text-zinc-400 hover:text-zinc-200 rounded-full font-normal text-xs transition-colors"
+            >
+              Campaigns
+            </Link>
+
+            <button onClick={downloadCsv} className="h-9 px-3.5 inline-flex items-center gap-1.5 bg-white text-black text-xs font-medium rounded-full hover:bg-zinc-200 transition-colors">
+              <Download className="w-3.5 h-3.5" />
               Export CSV
             </button>
           </div>

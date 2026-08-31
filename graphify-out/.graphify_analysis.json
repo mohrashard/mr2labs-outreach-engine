@@ -1,0 +1,647 @@
+{
+  "communities": {
+    "0": [
+      "src_app_api_auth_login_route",
+      "src_app_api_auth_login_route_post",
+      "src_app_api_campaigns_route",
+      "src_app_api_campaigns_route_delete",
+      "src_app_api_campaigns_route_dynamic",
+      "src_app_api_campaigns_route_get",
+      "src_app_api_campaigns_route_patch",
+      "src_app_api_campaigns_route_post",
+      "src_app_api_campaigns_route_revalidate",
+      "src_app_api_dashboard_route",
+      "src_app_api_dashboard_route_dynamic",
+      "src_app_api_dashboard_route_get",
+      "src_app_api_dashboard_route_revalidate",
+      "src_app_api_followups_route",
+      "src_app_api_followups_route_dynamic",
+      "src_app_api_followups_route_get",
+      "src_app_api_followups_route_post",
+      "src_app_api_followups_route_revalidate",
+      "src_app_api_leads_logs_route",
+      "src_app_api_leads_logs_route_dynamic",
+      "src_app_api_leads_logs_route_get",
+      "src_app_api_leads_logs_route_revalidate",
+      "src_app_api_leads_update_route",
+      "src_app_api_leads_update_route_post",
+      "src_app_api_logs_route",
+      "src_app_api_logs_route_dynamic",
+      "src_app_api_logs_route_get",
+      "src_app_api_logs_route_revalidate",
+      "src_app_api_queue_process_lead_route",
+      "src_app_api_queue_process_lead_route_maxduration",
+      "src_app_api_queue_process_lead_route_post",
+      "src_app_api_queue_process_lead_route_post_logevent",
+      "src_app_api_templates_route",
+      "src_app_api_templates_route_delete",
+      "src_app_api_templates_route_get",
+      "src_app_api_templates_route_niche_fallback_templates",
+      "src_app_api_templates_route_post",
+      "src_app_api_templates_route_put",
+      "src_app_api_webhooks_brevo_route",
+      "src_app_api_webhooks_brevo_route_post",
+      "src_app_api_webhooks_reply_route",
+      "src_app_api_webhooks_reply_route_post",
+      "src_lib_queue_auto_dispatcher_autodispatchpastdueleads",
+      "src_lib_supabase_admin",
+      "src_lib_supabase_admin_supabaseadmin"
+    ],
+    "1": [
+      "docref_rfc_1918",
+      "src_app_api_pdf_test_route",
+      "src_app_api_pdf_test_route_get",
+      "src_lib_email_validator",
+      "src_lib_email_validator_catchallcache",
+      "src_lib_email_validator_checkgravatar",
+      "src_lib_email_validator_detailedverificationresult",
+      "src_lib_email_validator_emailconfidenceresult",
+      "src_lib_email_validator_hasvalidmxrecords",
+      "src_lib_email_validator_scoreemailconfidence",
+      "src_lib_email_validator_scoremxrecords",
+      "src_lib_email_validator_verifyemailhttpbridge",
+      "src_lib_email_validator_verifyemailwithdetails",
+      "src_lib_email_validator_verifylinkedinprofileexists",
+      "src_lib_scraper_audit",
+      "src_lib_scraper_audit_auditresult",
+      "src_lib_scraper_audit_checkdnsrecords",
+      "src_lib_scraper_audit_getbasedomain",
+      "src_lib_scraper_audit_runtechnicalaudit",
+      "src_lib_scraper_enrichment",
+      "src_lib_scraper_enrichment_deepenrichdomain",
+      "src_lib_scraper_enrichment_disambiguatedfounder",
+      "src_lib_scraper_enrichment_disambiguatefounderwithgroq",
+      "src_lib_scraper_enrichment_domaintotitlecase",
+      "src_lib_scraper_enrichment_emailsource",
+      "src_lib_scraper_enrichment_enrichedcontactdata",
+      "src_lib_scraper_enrichment_enrichleademail",
+      "src_lib_scraper_enrichment_extractcleanhostname",
+      "src_lib_scraper_enrichment_fetchemailfromanymailfinder",
+      "src_lib_scraper_enrichment_fetchemailfromapollo",
+      "src_lib_scraper_enrichment_fetchemailfromhunter",
+      "src_lib_scraper_enrichment_fetchemailfromprospeo",
+      "src_lib_scraper_enrichment_fetchemailfromsnov",
+      "src_lib_scraper_enrichment_fetchemailviadorking",
+      "src_lib_scraper_enrichment_fetchrenderedhtmlwithfallback",
+      "src_lib_scraper_enrichment_getbestdomemail",
+      "src_lib_scraper_enrichment_isvalidleademail",
+      "src_lib_scraper_enrichment_qualifytargetcompany",
+      "src_lib_scraper_enrichment_sanitizecompanyname",
+      "src_lib_scraper_enrichment_verifywithsourceawareness",
+      "src_lib_scraper_pagespeed",
+      "src_lib_scraper_pagespeed_fetchgooglepagespeed",
+      "src_lib_scraper_pagespeed_psimetrics"
+    ],
+    "2": [
+      "src_app_api_audit_id_route",
+      "src_app_api_audit_id_route_get",
+      "src_app_api_audit_id_route_post",
+      "src_app_api_audit_id_route_supabase",
+      "src_app_audit_id_page",
+      "src_app_audit_id_page_auditapiresponse",
+      "src_app_audit_id_page_auditlandingpage",
+      "src_app_audit_id_page_auditlandingpage_fetchaudit",
+      "src_app_audit_id_page_leadinfo",
+      "src_lib_audit_rules",
+      "src_lib_audit_rules_buildsolutioncards",
+      "src_lib_audit_rules_categorizeauditissues",
+      "src_lib_audit_rules_normalizeauditdata",
+      "src_lib_audit_rules_safejsonparse",
+      "src_lib_email_brevo",
+      "src_lib_pdf_diagnosticdashboard",
+      "src_lib_pdf_diagnosticdashboard_auditcheck",
+      "src_lib_pdf_diagnosticdashboard_auditrow",
+      "src_lib_pdf_diagnosticdashboard_auditsection",
+      "src_lib_pdf_diagnosticdashboard_diagnosticdashboard",
+      "src_lib_pdf_diagnosticdashboard_diagnosticdashboardprops",
+      "src_lib_pdf_diagnosticdashboard_sectiontype",
+      "src_lib_pdf_diagnosticdashboard_severitylevel",
+      "src_lib_pdf_diagnosticdashboard_styles",
+      "src_lib_pdf_diagnosticdashboard_t",
+      "src_lib_pdf_generate",
+      "src_lib_pdf_generate_generateauditpdf",
+      "src_types_audit",
+      "src_types_audit_auditcodequality",
+      "src_types_audit_auditdata",
+      "src_types_audit_auditissue",
+      "src_types_audit_auditleadcapture",
+      "src_types_audit_auditperformance",
+      "src_types_audit_auditsecurity",
+      "src_types_audit_auditseo",
+      "src_types_audit_auditsubmissionpayload",
+      "src_types_audit_auditsubmissionrecord",
+      "src_types_audit_issueseverity",
+      "src_types_audit_solutioncard"
+    ],
+    "3": [
+      "src_app_followups_page",
+      "src_app_followups_page_followupsdashboard",
+      "src_app_login_page",
+      "src_app_login_page_loginpage",
+      "src_app_page",
+      "src_app_page_admindashboard",
+      "src_app_page_admindashboard_safefetchjson",
+      "src_app_templates_page",
+      "src_app_templates_page_templatespage",
+      "src_components_campaigns_campaignsetupform",
+      "src_components_campaigns_campaignsetupform_campaignsetupform",
+      "src_components_campaigns_campaignsetupform_campaignsetupformprops",
+      "src_components_csvimporter",
+      "src_components_csvimporter_csvimporter",
+      "src_components_csvimporter_csvimporter_fetchcampaigns",
+      "src_components_dashboard_livelogs",
+      "src_components_dashboard_livelogs_livelogs",
+      "src_components_dashboard_livelogs_systemlog",
+      "src_components_leads_leaddetaildrawer",
+      "src_components_leads_leaddetaildrawer_leaddetaildrawer",
+      "src_components_leads_leaddetaildrawer_leaddetaildrawerprops",
+      "src_components_leads_leadstable",
+      "src_components_leads_leadstable_leadstable",
+      "src_components_leads_leadstable_leadstableprops",
+      "src_lib_supabase_client",
+      "src_lib_supabase_client_createclient",
+      "src_lib_supabase_client_supabase",
+      "src_types_database",
+      "src_types_database_database",
+      "src_types_database_pitchtemplate",
+      "src_types_database_pitchtemplateinsert",
+      "src_types_database_pitchtemplateupdate",
+      "src_types_lead",
+      "src_types_lead_leadstatus",
+      "src_types_lead_outreachlead"
+    ],
+    "4": [
+      "src_app_api_campaigns_import_route",
+      "src_app_api_campaigns_import_route_cleandomain",
+      "src_app_api_campaigns_import_route_dynamic",
+      "src_app_api_campaigns_import_route_maxduration",
+      "src_app_api_campaigns_import_route_post",
+      "src_app_api_queue_dispatch_route",
+      "src_app_api_queue_dispatch_route_post",
+      "src_app_api_queue_dispatch_route_supabase",
+      "src_app_api_queue_send_email_route",
+      "src_app_api_queue_send_email_route_maxduration",
+      "src_app_api_queue_send_email_route_post",
+      "src_app_api_queue_send_email_route_processsinglequeuedlead",
+      "src_lib_ai_pitch",
+      "src_lib_ai_pitch_auditresult",
+      "src_lib_ai_pitch_cleanandrepairjson",
+      "src_lib_ai_pitch_generateauditandpitch",
+      "src_lib_ai_pitch_generatefollowuppitch",
+      "src_lib_ai_pitch_getnichecontext",
+      "src_lib_ai_pitch_getnichecontextasync",
+      "src_lib_ai_pitch_mr2_services",
+      "src_lib_ai_pitch_niche_templates",
+      "src_lib_ai_pitch_pitchgenerationparams",
+      "src_lib_email_brevo_sendcoldemail",
+      "src_lib_email_formatter",
+      "src_lib_email_formatter_formatpitchhtml",
+      "src_lib_email_formatter_sanitizegreetingandbody",
+      "src_lib_queue_auto_dispatcher",
+      "test_pitch",
+      "test_pitch_envcontent",
+      "test_pitch_run"
+    ],
+    "5": [
+      "src_app_api_campaigns_scrape_route",
+      "src_app_api_campaigns_scrape_route_maxduration",
+      "src_app_api_campaigns_scrape_route_post",
+      "src_app_api_cron_daily_outreach_route",
+      "src_app_api_cron_daily_outreach_route_dynamic",
+      "src_app_api_cron_daily_outreach_route_get",
+      "src_app_api_cron_daily_outreach_route_maxduration",
+      "src_app_api_cron_daily_outreach_route_post",
+      "src_app_api_cron_daily_outreach_route_revalidate",
+      "src_lib_scraper_cities",
+      "src_lib_scraper_cities_getcoordinates",
+      "src_lib_scraper_cities_getnearbycities",
+      "src_lib_scraper_cities_getnextcitydynamic",
+      "src_lib_scraper_cities_osmnode",
+      "src_lib_scraper_cities_top_us_metros",
+      "src_lib_scraper_discovery",
+      "src_lib_scraper_discovery_blacklisted_domains",
+      "src_lib_scraper_discovery_cleandomainurl",
+      "src_lib_scraper_discovery_discoveredlead",
+      "src_lib_scraper_discovery_discovertargetdomains",
+      "src_lib_scraper_discovery_dorkprofile",
+      "src_lib_scraper_discovery_dorkquerycache",
+      "src_lib_scraper_discovery_generatedorkqueryfromllm",
+      "src_lib_scraper_discovery_inmemorybatchseendomains",
+      "src_lib_scraper_discovery_processserpresults",
+      "src_lib_scraper_discovery_root_platform_domains",
+      "src_lib_scraper_discovery_sanitizequeryforserper",
+      "src_lib_scraper_discovery_serpcacheentry",
+      "src_lib_scraper_discovery_serpresultmemorycache",
+      "src_lib_scraper_discovery_singularizeniche"
+    ],
+    "6": [
+      "ref_dom",
+      "ref_dom_iterable",
+      "ref_esnext",
+      "ref_mts",
+      "ref_next_dev_types_ts",
+      "ref_next_env_d_ts",
+      "ref_next_types_ts",
+      "ref_node_modules",
+      "ref_ts",
+      "ref_tsx",
+      "tsconfig",
+      "tsconfig_compileroptions",
+      "tsconfig_compileroptions_allowjs",
+      "tsconfig_compileroptions_esmoduleinterop",
+      "tsconfig_compileroptions_incremental",
+      "tsconfig_compileroptions_isolatedmodules",
+      "tsconfig_compileroptions_jsx",
+      "tsconfig_compileroptions_lib",
+      "tsconfig_compileroptions_module",
+      "tsconfig_compileroptions_moduleresolution",
+      "tsconfig_compileroptions_noemit",
+      "tsconfig_compileroptions_paths",
+      "tsconfig_compileroptions_plugins",
+      "tsconfig_compileroptions_resolvejsonmodule",
+      "tsconfig_compileroptions_skiplibcheck",
+      "tsconfig_compileroptions_strict",
+      "tsconfig_compileroptions_target",
+      "tsconfig_exclude",
+      "tsconfig_include"
+    ],
+    "7": [
+      "eslint",
+      "eslint_config_next",
+      "package",
+      "package_devdependencies",
+      "package_devdependencies_eslint",
+      "package_devdependencies_eslint_config_next",
+      "package_devdependencies_tailwindcss",
+      "package_devdependencies_tailwindcss_postcss",
+      "package_devdependencies_types_node",
+      "package_devdependencies_types_papaparse",
+      "package_devdependencies_types_react",
+      "package_devdependencies_types_react_dom",
+      "package_devdependencies_typescript",
+      "package_name",
+      "package_private",
+      "package_scripts",
+      "package_scripts_build",
+      "package_scripts_dev",
+      "package_scripts_lint",
+      "package_scripts_start",
+      "package_version",
+      "tailwindcss",
+      "tailwindcss_postcss",
+      "types_node",
+      "types_papaparse",
+      "types_react",
+      "types_react_dom",
+      "typescript"
+    ],
+    "8": [
+      "cheerio",
+      "lucide_react",
+      "next",
+      "openai",
+      "package_dependencies",
+      "package_dependencies_cheerio",
+      "package_dependencies_lucide_react",
+      "package_dependencies_next",
+      "package_dependencies_openai",
+      "package_dependencies_papaparse",
+      "package_dependencies_react",
+      "package_dependencies_react_dom",
+      "package_dependencies_react_pdf_renderer",
+      "package_dependencies_supabase_ssr",
+      "package_dependencies_supabase_supabase_js",
+      "package_dependencies_upstash_qstash",
+      "package_dependencies_verifalia",
+      "papaparse",
+      "react",
+      "react_dom",
+      "react_pdf_renderer",
+      "supabase_ssr",
+      "supabase_supabase_js",
+      "upstash_qstash",
+      "verifalia"
+    ],
+    "9": [
+      "src_app_api_webhooks_brevo_inbound_route",
+      "src_app_api_webhooks_brevo_inbound_route_post",
+      "src_lib_ai_groq",
+      "src_lib_ai_groq_auditresult",
+      "src_lib_ai_groq_callaiwithfallback",
+      "src_lib_ai_groq_classifyemailresponse",
+      "src_lib_ai_groq_cleanandrepairjson",
+      "src_lib_ai_groq_generateleadauditandpitch",
+      "src_lib_ai_groq_getgroqclient",
+      "src_lib_ai_groq_getopenrouterclient",
+      "src_lib_ai_groq_responseintent"
+    ],
+    "10": [
+      "scratch_taste_skill_scripts_convert_readme_assets_webp",
+      "scratch_taste_skill_scripts_convert_readme_assets_webp_emilbadgetowebp",
+      "scratch_taste_skill_scripts_convert_readme_assets_webp_getbounds",
+      "scratch_taste_skill_scripts_convert_readme_assets_webp_isbackground",
+      "scratch_taste_skill_scripts_convert_readme_assets_webp_pngfiletowebp",
+      "scratch_taste_skill_scripts_convert_readme_assets_webp_pngtowebp",
+      "scratch_taste_skill_scripts_convert_readme_assets_webp_removeouterbackground",
+      "scratch_taste_skill_scripts_convert_readme_assets_webp_root",
+      "scratch_taste_skill_scripts_convert_readme_assets_webp_sponsorlogotowebp"
+    ],
+    "11": [
+      "scratch_taste_skill_scripts_process_readme_buttons",
+      "scratch_taste_skill_scripts_process_readme_buttons_getbounds",
+      "scratch_taste_skill_scripts_process_readme_buttons_isbackground",
+      "scratch_taste_skill_scripts_process_readme_buttons_mapping",
+      "scratch_taste_skill_scripts_process_readme_buttons_outdir",
+      "scratch_taste_skill_scripts_process_readme_buttons_processone",
+      "scratch_taste_skill_scripts_process_readme_buttons_removeouterbackground"
+    ],
+    "12": [
+      "scratch_taste_skill_scripts_process_sponsor_badge",
+      "scratch_taste_skill_scripts_process_sponsor_badge_bounds",
+      "scratch_taste_skill_scripts_process_sponsor_badge_getbounds",
+      "scratch_taste_skill_scripts_process_sponsor_badge_isbackground",
+      "scratch_taste_skill_scripts_process_sponsor_badge_out",
+      "scratch_taste_skill_scripts_process_sponsor_badge_removeouterbackground",
+      "scratch_taste_skill_scripts_process_sponsor_badge_rgba"
+    ],
+    "13": [
+      "src_lib_scrapers_cheerio",
+      "src_lib_scrapers_cheerio_checkmxrecords",
+      "src_lib_scrapers_cheerio_deepscrapesite",
+      "src_lib_scrapers_cheerio_scraperesult",
+      "src_lib_scrapers_utils",
+      "src_lib_scrapers_utils_isvalidleademail"
+    ],
+    "14": [
+      "src_lib_supabase_middleware",
+      "src_lib_supabase_middleware_getuserfromcookies",
+      "src_lib_supabase_middleware_updatesession",
+      "src_proxy",
+      "src_proxy_config",
+      "src_proxy_proxy"
+    ],
+    "15": [
+      "src_app_layout",
+      "src_app_layout_geistmono",
+      "src_app_layout_geistsans",
+      "src_app_layout_metadata",
+      "src_app_layout_rootlayout"
+    ],
+    "16": [
+      "src_app_login_actions",
+      "src_app_login_actions_login",
+      "src_app_login_actions_signout",
+      "src_lib_supabase_server",
+      "src_lib_supabase_server_createclient"
+    ],
+    "17": [
+      "src_app_tracker_page",
+      "src_app_tracker_page_prospecttracker",
+      "src_app_tracker_page_sequenceevent",
+      "src_app_tracker_page_trackerdata"
+    ],
+    "18": [
+      "scratch_taste_skill_scripts_build_emil_sponsor_row",
+      "scratch_taste_skill_scripts_build_emil_sponsor_row_out",
+      "scratch_taste_skill_scripts_build_emil_sponsor_row_root"
+    ],
+    "19": [
+      "scratch_taste_skill_skill",
+      "scratch_taste_skill_skill_sh__entry",
+      "scratch_taste_skill_skill_skills"
+    ],
+    "20": [
+      "src_app_api_thumbnail_route",
+      "src_app_api_thumbnail_route_get",
+      "src_app_api_thumbnail_route_runtime"
+    ],
+    "21": [
+      "src_app_api_track_intent_route",
+      "src_app_api_track_intent_route_post",
+      "src_app_api_track_intent_route_supabase"
+    ],
+    "22": [
+      "src_app_api_tracker_route",
+      "src_app_api_tracker_route_get",
+      "src_app_api_tracker_route_supabase"
+    ],
+    "23": [
+      "src_app_campaigns_page",
+      "src_app_campaigns_page_campaign",
+      "src_app_campaigns_page_campaignmanagerpage"
+    ],
+    "24": [
+      "src_lib_scrapers_serper",
+      "src_lib_scrapers_serper_discoverleads",
+      "src_lib_scrapers_serper_serperlead"
+    ],
+    "25": [
+      "eslint_config",
+      "eslint_config_eslintconfig"
+    ],
+    "26": [
+      "next_config",
+      "next_config_nextconfig"
+    ],
+    "27": [
+      "postcss_config",
+      "postcss_config_config"
+    ],
+    "28": [
+      "src_app_api_response_route",
+      "src_app_api_response_route_get"
+    ],
+    "29": [
+      "src_app_intent_id_page",
+      "src_app_intent_id_page_intentselectionpage"
+    ],
+    "30": [
+      "src_lib_scraper_cleaner",
+      "src_lib_scraper_cleaner_cleancompanyname"
+    ],
+    "31": [
+      "vercel",
+      "vercel_crons"
+    ]
+  },
+  "cohesion": {
+    "0": 0.05858585858585859,
+    "1": 0.10077519379844961,
+    "2": 0.08232118758434548,
+    "3": 0.0907563025210084,
+    "4": 0.1310344827586207,
+    "5": 0.10114942528735632,
+    "6": 0.06896551724137931,
+    "7": 0.07142857142857142,
+    "8": 0.08,
+    "9": 0.3090909090909091,
+    "10": 0.3055555555555556,
+    "11": 0.42857142857142855,
+    "12": 0.3333333333333333,
+    "13": 0.5333333333333333,
+    "14": 0.5333333333333333,
+    "15": 0.4,
+    "16": 0.7,
+    "17": 0.5,
+    "18": 0.6666666666666666,
+    "19": 0.6666666666666666,
+    "20": 0.6666666666666666,
+    "21": 0.6666666666666666,
+    "22": 0.6666666666666666,
+    "23": 0.6666666666666666,
+    "24": 0.6666666666666666,
+    "25": 1.0,
+    "26": 1.0,
+    "27": 1.0,
+    "28": 1.0,
+    "29": 1.0,
+    "30": 1.0,
+    "31": 1.0
+  },
+  "gods": [
+    {
+      "id": "src_lib_scraper_enrichment_deepenrichdomain",
+      "label": "deepEnrichDomain()",
+      "degree": 24
+    },
+    {
+      "id": "src_lib_supabase_admin_supabaseadmin",
+      "label": "supabaseAdmin",
+      "degree": 20
+    },
+    {
+      "id": "tsconfig_compileroptions",
+      "label": "compilerOptions",
+      "degree": 16
+    },
+    {
+      "id": "src_lib_ai_pitch_generateauditandpitch",
+      "label": "generateAuditAndPitch()",
+      "degree": 12
+    },
+    {
+      "id": "src_app_api_queue_send_email_route_processsinglequeuedlead",
+      "label": "processSingleQueuedLead()",
+      "degree": 9
+    },
+    {
+      "id": "src_lib_scraper_discovery_discovertargetdomains",
+      "label": "discoverTargetDomains()",
+      "degree": 9
+    },
+    {
+      "id": "src_lib_scraper_enrichment_isvalidleademail",
+      "label": "isValidLeadEmail()",
+      "degree": 8
+    },
+    {
+      "id": "src_lib_email_formatter_sanitizegreetingandbody",
+      "label": "sanitizeGreetingAndBody()",
+      "degree": 8
+    },
+    {
+      "id": "src_types_lead_outreachlead",
+      "label": "OutreachLead",
+      "degree": 7
+    },
+    {
+      "id": "src_lib_email_validator_scoreemailconfidence",
+      "label": "scoreEmailConfidence()",
+      "degree": 7
+    }
+  ],
+  "surprises": [
+    {
+      "source": "OutreachLead",
+      "target": "AuditData",
+      "source_files": [
+        "src/types/lead.ts",
+        "src/types/audit.ts"
+      ],
+      "confidence": "EXTRACTED",
+      "relation": "references",
+      "why": "bridges separate communities"
+    },
+    {
+      "source": "LeadDetailDrawerProps",
+      "target": "OutreachLead",
+      "source_files": [
+        "src/components/leads/LeadDetailDrawer.tsx",
+        "src/types/lead.ts"
+      ],
+      "confidence": "EXTRACTED",
+      "relation": "references",
+      "why": "peripheral node `LeadDetailDrawerProps` unexpectedly reaches hub `OutreachLead`"
+    },
+    {
+      "source": "LeadsTableProps",
+      "target": "OutreachLead",
+      "source_files": [
+        "src/components/leads/LeadsTable.tsx",
+        "src/types/lead.ts"
+      ],
+      "confidence": "EXTRACTED",
+      "relation": "references",
+      "why": "peripheral node `LeadsTableProps` unexpectedly reaches hub `OutreachLead`"
+    },
+    {
+      "source": "GET()",
+      "target": "autoDispatchPastDueLeads()",
+      "source_files": [
+        "src/app/api/followups/route.ts",
+        "src/lib/queue/auto-dispatcher.ts"
+      ],
+      "confidence": "EXTRACTED",
+      "relation": "calls",
+      "why": "peripheral node `GET()` unexpectedly reaches hub `autoDispatchPastDueLeads()`"
+    },
+    {
+      "source": "GET()",
+      "target": "autoDispatchPastDueLeads()",
+      "source_files": [
+        "src/app/api/logs/route.ts",
+        "src/lib/queue/auto-dispatcher.ts"
+      ],
+      "confidence": "EXTRACTED",
+      "relation": "calls",
+      "why": "peripheral node `GET()` unexpectedly reaches hub `autoDispatchPastDueLeads()`"
+    }
+  ],
+  "questions": [
+    {
+      "type": "bridge_node",
+      "question": "Why does `supabaseAdmin` connect `admin.ts` to `groq.ts`, `pitch.ts`, `discovery.ts`?",
+      "why": "High betweenness centrality (0.073) - this node is a cross-community bridge."
+    },
+    {
+      "type": "bridge_node",
+      "question": "Why does `AuditData` connect `types/audit.ts` to `app/page.tsx`?",
+      "why": "High betweenness centrality (0.060) - this node is a cross-community bridge."
+    },
+    {
+      "type": "bridge_node",
+      "question": "Why does `OutreachLead` connect `app/page.tsx` to `types/audit.ts`?",
+      "why": "High betweenness centrality (0.029) - this node is a cross-community bridge."
+    },
+    {
+      "type": "isolated_nodes",
+      "question": "What connects `DetailedVerificationResult`, `EmailConfidenceResult`, `DisambiguatedFounder` to the rest of the system?",
+      "why": "140 weakly-connected nodes found - possible documentation gaps or missing edges."
+    },
+    {
+      "type": "low_cohesion",
+      "question": "Should `admin.ts` be split into smaller, more focused modules?",
+      "why": "Cohesion score 0.05858585858585859 - nodes in this community are weakly interconnected."
+    },
+    {
+      "type": "low_cohesion",
+      "question": "Should `enrichment.ts` be split into smaller, more focused modules?",
+      "why": "Cohesion score 0.10077519379844961 - nodes in this community are weakly interconnected."
+    },
+    {
+      "type": "low_cohesion",
+      "question": "Should `types/audit.ts` be split into smaller, more focused modules?",
+      "why": "Cohesion score 0.08232118758434548 - nodes in this community are weakly interconnected."
+    }
+  ]
+}

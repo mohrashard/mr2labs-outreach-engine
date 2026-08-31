@@ -259,6 +259,12 @@ export default function AdminDashboard() {
             )}
 
             <Link 
+              href="/startups"
+              className="px-3.5 py-2 bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-300 rounded-full font-medium text-xs transition-colors duration-200 flex items-center gap-1.5 border border-indigo-500/20"
+            >
+              <span>🚀 Startup Engine</span>
+            </Link>
+            <Link 
               href="/campaigns"
               className="px-3.5 py-2 hover:bg-white/[0.04] text-slate-400 hover:text-slate-200 rounded-full font-normal text-xs transition-colors duration-200 flex items-center gap-2"
             >

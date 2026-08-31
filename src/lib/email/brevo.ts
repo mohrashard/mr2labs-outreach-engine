@@ -15,7 +15,7 @@ export async function sendColdEmail(
   // Derived plain text fallback if textContent is not explicitly passed
   const derivedText = textContent || htmlContent.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
 
-  // Send primary email with both HTML and plain text MIME formats (multipart/alternative)
+  // Send primary email with both HTML and plain text MIME formats + disable Brevo tracking pixel injection
   const response = await fetch('https://api.brevo.com/v3/smtp/email', {
     method: 'POST',
     headers: {
@@ -28,7 +28,11 @@ export async function sendColdEmail(
       to: [{ email: toEmail }],
       subject: subject,
       htmlContent: htmlContent,
-      textContent: derivedText
+      textContent: derivedText,
+      headers: {
+        'X-Mailin-no-tracking': '1',
+        'X-Mailin-track-opens': '0'
+      }
     })
   });
 

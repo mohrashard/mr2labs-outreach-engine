@@ -220,18 +220,21 @@ Scan the audit JSON. Select ONE specific finding only. Not two. Not three. ONE.
 Reference ONE specific finding only, not a list of problems.
 
 ## STEP 2 — GENERATE THE EMAIL SUBJECT LINE
-Write a 2-4 word subject line that looks like an internal forwarded email.
+Write a 2-4 word subject line that looks like a casual, human email from a peer.
 HARD RULES:
 - All lowercase. No punctuation. No question marks. No exclamation marks.
-- NO benefit-driven copy ("Lost Leads", "Fix That", "Costing You")
-- NO prospect name in subject
-- Must look like something a colleague forwarded internally
-- ONLY use these patterns:
-  * The specific finding: "lead intake gap", "booking flow missing", "domain auth gap"
-  * The domain: "${domain}"
-  * The service area: "lead response setup", "intake automation"
-- BAD examples (never do this): "Lost Leads? Let's Fix That", "Missed Leads Costing You Sales", "Slow lead follow-ups hurting conversions"
-- GOOD examples: "lead intake gap", "quick site find", "response automation", "booking gap"
+- NO spam trigger words: NEVER use "gap", "leakage", "missing", "lost leads", "security flaw", "fix that", "costing you".
+- NO prospect name in subject.
+- Must look like a casual internal email or friendly inquiry.
+- ONLY use conversational patterns like:
+  * "quick question"
+  * "quick question about your website"
+  * "website observation"
+  * "question about your booking page"
+  * "quick note for ${domain}"
+  * "lead response workflow"
+- BAD examples (never do this): "Lead Capture Gap", "Lost Leads? Let's Fix That", "Security Gap", "Missed Leads Costing You Sales"
+- GOOD examples: "quick question", "website observation", "quick note regarding your site"
 
 ## STEP 3 — GENERATE THE EMAIL BODY
 Write a cold email using this EXACT structure. Each section is a separate paragraph.

@@ -52,7 +52,9 @@ export async function GET(req: Request) {
     let enqueuedJobs = 0;
     if (qstash && (action === 'dispatch' || !action)) {
       const sendEmailUrl = `${baseUrl}/api/queue/send-email`;
-      const GLOBAL_DAILY_LIMIT = Number(process.env.DAILY_EMAIL_LIMIT) || 290;
+      
+      // STRICT OVERALL LIMIT: 30 emails total per day across all steps combined
+      const GLOBAL_DAILY_LIMIT = Number(process.env.DAILY_EMAIL_LIMIT) || 30;
 
       const { count: sentToday } = await supabaseAdmin
         .from('outreach_leads')
@@ -60,8 +62,10 @@ export async function GET(req: Request) {
         .in('status', ['QUEUED', 'SENT'])
         .gte('updated_at', startOfDay.toISOString());
 
-      let totalEnqueued = sentToday || 0;
-      console.log(`[Cron Debug] sentToday/totalEnqueued = ${totalEnqueued}`);
+      let totalEnqueuedToday = sentToday || 0;
+      const remainingGlobalQuota = Math.max(0, GLOBAL_DAILY_LIMIT - totalEnqueuedToday);
+
+      console.log(`[Cron Queue] sentToday=${totalEnqueuedToday}, remainingGlobalQuota=${remainingGlobalQuota}`);
 
       // Check existing QUEUED leads in DB to start after the latest scheduled_for time
       let nextAvailableSlotMs = Date.now();
@@ -86,94 +90,89 @@ export async function GET(req: Request) {
         nextStep: number;
         campaignName: string;
       }
+
+      const eligibleStep0: QueueItem[] = [];
       const eligibleFollowUps: QueueItem[] = [];
-      const eligibleNewLeads: QueueItem[] = [];
 
-      for (const campaign of campaigns) {
-        if (totalEnqueued >= GLOBAL_DAILY_LIMIT) {
-          console.log(`[Cron Debug] GLOBAL_DAILY_LIMIT reached.`);
-          break;
-        }
-
-        const campaignLimit = campaign.daily_lead_limit || 20;
-        const globalRemaining = GLOBAL_DAILY_LIMIT - totalEnqueued;
-        
-        if (globalRemaining <= 0) break;
-
-        const s1Days = campaign.step_1_days || 3;
-        const s2Days = campaign.step_2_days || 5;
-        const s3Days = campaign.step_3_days || 10;
-
-        const cutoff1 = new Date(Date.now() - (s1Days * 24 - 12) * 60 * 60 * 1000).toISOString();
-        const cutoff2 = new Date(Date.now() - (s2Days * 24 - 12) * 60 * 60 * 1000).toISOString();
-        const cutoff3 = new Date(Date.now() - (s3Days * 24 - 12) * 60 * 60 * 1000).toISOString();
-
-        // 1. Fetch eligible follow-up leads (No limit other than global daily 290)
-        const { data: sentLeads } = await supabaseAdmin
+      if (remainingGlobalQuota > 0) {
+        // Calculate Step 0 cap for today (up to 20 max for Step 0, bounded by remaining global quota)
+        const { count: step0SentToday } = await supabaseAdmin
           .from('outreach_leads')
-          .select('id, email, status, follow_up_step, last_contacted_at, company_name')
-          .eq('campaign_id', campaign.id)
-          .eq('status', 'SENT')
-          .lt('follow_up_step', 3)
-          .not('email', 'is', null)
-          .order('last_contacted_at', { ascending: true })
-          .limit(200);
+          .select('id', { count: 'exact', head: true })
+          .in('status', ['QUEUED', 'SENT'])
+          .eq('follow_up_step', 0)
+          .gte('created_at', startOfDay.toISOString());
 
-        let campaignFollowUps: any[] = [];
-        if (sentLeads && sentLeads.length > 0) {
-          campaignFollowUps = sentLeads.filter(l => {
-            if (!l.last_contacted_at) return false;
-            const lastContact = new Date(l.last_contacted_at).getTime();
-            const step = l.follow_up_step || 0;
-            if (step === 0 && lastContact < new Date(cutoff1).getTime()) return true;
-            if (step === 1 && lastContact < new Date(cutoff2).getTime()) return true;
-            if (step === 2 && lastContact < new Date(cutoff3).getTime()) return true;
-            return false;
-          }).slice(0, globalRemaining);
+        const step0CapToday = Math.max(0, Math.min(20 - (step0SentToday || 0), remainingGlobalQuota));
 
-          for (const l of campaignFollowUps) {
-            const nextStep = (l.follow_up_step || 0) + 1;
-            eligibleFollowUps.push({ lead: l, nextStep, campaignName: campaign.name });
+        for (const campaign of campaigns) {
+          // 1. Collect Step 0 leads (Priority 1: up to step0CapToday across active campaigns)
+          if (campaign.is_active && eligibleStep0.length < step0CapToday) {
+            const neededStep0 = step0CapToday - eligibleStep0.length;
+            const { data: newLeads } = await supabaseAdmin
+              .from('outreach_leads')
+              .select('id, email, status, follow_up_step, company_name')
+              .eq('campaign_id', campaign.id)
+              .eq('status', 'NEW')
+              .not('email', 'is', null)
+              .limit(neededStep0);
+
+            if (newLeads && newLeads.length > 0) {
+              for (const l of newLeads) {
+                eligibleStep0.push({ lead: l, nextStep: 0, campaignName: campaign.name });
+              }
+            }
           }
-        }
 
-        // 2. Enforce the strict 20-lead limit for NEW Step 0 emails only (if campaign is active)
-        let remainingNewLeadLimit = 0;
-        if (campaign.is_active) {
-          const { count: step0SentToday } = await supabaseAdmin
+          // 2. Collect Follow-up leads across all campaigns (Priority 2: Step 1, Priority 3: Step 2, Priority 4: Step 3)
+          const s1Days = campaign.step_1_days || 3;
+          const s2Days = campaign.step_2_days || 5;
+          const s3Days = campaign.step_3_days || 10;
+
+          const cutoff1 = new Date(Date.now() - (s1Days * 24 - 12) * 60 * 60 * 1000).toISOString();
+          const cutoff2 = new Date(Date.now() - (s2Days * 24 - 12) * 60 * 60 * 1000).toISOString();
+          const cutoff3 = new Date(Date.now() - (s3Days * 24 - 12) * 60 * 60 * 1000).toISOString();
+
+          const { data: sentLeads } = await supabaseAdmin
             .from('outreach_leads')
-            .select('id', { count: 'exact', head: true })
+            .select('id, email, status, follow_up_step, last_contacted_at, company_name')
             .eq('campaign_id', campaign.id)
-            .in('status', ['QUEUED', 'SENT'])
-            .eq('follow_up_step', 0)
-            .gte('created_at', startOfDay.toISOString());
-
-          remainingNewLeadLimit = Math.max(0, Math.min(campaignLimit - (step0SentToday || 0), globalRemaining - campaignFollowUps.length));
-        }
-
-        // 3. Fill remaining queue space with new leads
-        if (remainingNewLeadLimit > 0) {
-          const { data: newLeads } = await supabaseAdmin
-            .from('outreach_leads')
-            .select('id, email, status, follow_up_step, company_name')
-            .eq('campaign_id', campaign.id)
-            .eq('status', 'NEW')
+            .eq('status', 'SENT')
+            .lt('follow_up_step', 3)
             .not('email', 'is', null)
-            .limit(remainingNewLeadLimit);
+            .order('last_contacted_at', { ascending: true })
+            .limit(100);
 
-          if (newLeads && newLeads.length > 0) {
-            for (const l of newLeads) {
-              eligibleNewLeads.push({ lead: l, nextStep: 0, campaignName: campaign.name });
+          if (sentLeads && sentLeads.length > 0) {
+            for (const l of sentLeads) {
+              if (!l.last_contacted_at) continue;
+              const lastContact = new Date(l.last_contacted_at).getTime();
+              const step = l.follow_up_step || 0;
+              let isEligible = false;
+              if (step === 0 && lastContact < new Date(cutoff1).getTime()) isEligible = true;
+              if (step === 1 && lastContact < new Date(cutoff2).getTime()) isEligible = true;
+              if (step === 2 && lastContact < new Date(cutoff3).getTime()) isEligible = true;
+
+              if (isEligible) {
+                const nextStep = step + 1;
+                eligibleFollowUps.push({ lead: l, nextStep, campaignName: campaign.name });
+              }
             }
           }
         }
       }
 
-      // Interleave/combine follow-ups and new leads across all campaigns into a single unified queue
-      const globalQueue = [...eligibleFollowUps, ...eligibleNewLeads];
-      console.log(`[Cron Debug] Unified Queue: ${globalQueue.length} leads (Follow-ups: ${eligibleFollowUps.length}, New: ${eligibleNewLeads.length}) across all campaigns.`);
+      // Sort follow-ups strictly by step priority (Step 1 first, then Step 2, then Step 3)
+      eligibleFollowUps.sort((a, b) => a.nextStep - b.nextStep);
 
-      // Dispatch to QStash with strict 15-minute (900s) spacing between every single email
+      // Unified Global Queue: Priority 1 = Step 0 (up to 20), Priority 2 = Follow-ups (filling remaining of 30)
+      const remainingFollowUpQuota = Math.max(0, remainingGlobalQuota - eligibleStep0.length);
+      const selectedFollowUps = eligibleFollowUps.slice(0, remainingFollowUpQuota);
+
+      const globalQueue = [...eligibleStep0, ...selectedFollowUps];
+      console.log(`[Cron Queue] Total Enqueued Target: ${globalQueue.length} (Step 0: ${eligibleStep0.length}, Follow-ups: ${selectedFollowUps.length})`);
+
+      // Dispatch to QStash with STRICT 15-minute (900s) human cooldown spacing between every single email
       for (const item of globalQueue) {
         const lead = item.lead;
         const nextStep = item.nextStep;
@@ -218,9 +217,8 @@ export async function GET(req: Request) {
           });
           
           enqueuedJobs++;
-          totalEnqueued++;
 
-          // ADVANCE NEXT AVAILABLE SLOT BY EXACTLY 15 MINUTES (900 seconds) FOR THE NEXT EMAIL
+          // STRICT HUMAN SPACING: EXACTLY 15 MINUTES (900 seconds) COOLDOWN BETWEEN EVERY SINGLE EMAIL
           nextAvailableSlotMs += 900 * 1000;
         }
       }

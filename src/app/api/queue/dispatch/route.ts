@@ -87,32 +87,17 @@ export async function POST(request: Request) {
     );
     const formattedHtmlBody = formatPitchHtml(sanitizedPitch);
 
-    // 5. Construct Brevo Email Payload
-    // Wrap the plain text pitch in a clean HTML structure
+    // 5. Construct Brevo Email Payload (Option C: 100% human email format, single link)
     const htmlContent = `
       <div style="font-family: sans-serif; font-size: 14px; color: #333; line-height: 1.6; max-width: 600px;">
         ${formattedHtmlBody}
-        
-        <p style="text-align: center; margin: 24px 0 16px 0;">
-          <a href="${appUrl}/audit/${id}" style="color: #2563eb; text-decoration: none; font-weight: 600; font-size: 15px;">View the free audit of your business &rarr;</a>
+        <p style="margin-top: 20px;">
+          <a href="${appUrl}/audit/${id}" style="color: #2563eb; text-decoration: underline;">View the free audit of ${cleanDomain} &rarr;</a>
         </p>
-        
-        <div style="margin-top: 32px; border-top: 1px solid #e4e4e7; padding-top: 20px;">
-          <p style="font-size: 14px; font-weight: 600; color: #374151; margin-bottom: 12px;">How would you like to handle these audit findings?</p>
-          <p style="margin: 8px 0; font-size: 14px;">
-            🟢 <a href="${appUrl}/api/response?id=${id}&action=fix" style="color: #2563eb; text-decoration: none;">I want Mr² Labs to fix this</a>
-          </p>
-          <p style="margin: 8px 0; font-size: 14px;">
-            🟡 <a href="${appUrl}/api/response?id=${id}&action=nurture" style="color: #2563eb; text-decoration: none;">Send over a Loom breakdown so my team can fix it</a>
-          </p>
-          <p style="margin: 8px 0; font-size: 14px;">
-            🔴 <a href="${appUrl}/api/response?id=${id}&action=reject" style="color: #4b5563; text-decoration: none;">Not a priority right now</a>
-          </p>
-        </div>
       </div>
     `;
 
-    const subject = email_subject || `Private Audit: ${company_name}`;
+    const subject = email_subject || 'quick note';
     const filename = `${company_name.replace(/[^a-zA-Z0-9]/g, '_')}_MR2Labs_Audit.pdf`;
 
     console.log(`[DISPATCH] Sending email via Brevo to ${email}...`);

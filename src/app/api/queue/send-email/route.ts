@@ -43,7 +43,7 @@ export async function processSingleQueuedLead(leadId: string, followUpStep: numb
     return { skipped: true, reason: 'INVALID_DOMAIN', leadId: lead.id };
   }
 
-  let subject = lead.email_subject || `Quick question regarding ${lead.company_name}`;
+  let subject = lead.email_subject || 'quick note';
   let pitchText = lead.pitch_text;
 
   // Dynamically generate AI Follow-Up if step > 0
@@ -84,22 +84,9 @@ export async function processSingleQueuedLead(leadId: string, followUpStep: numb
   let extrasHtml = '';
   if (followUpStep === 0) {
     extrasHtml = `
-      <p style="text-align: center; margin: 24px 0 16px 0;">
-        <a href="${appUrl}/audit/${lead.id}" style="color: #2563eb; text-decoration: none; font-weight: 600; font-size: 15px;">View the free audit of your business &rarr;</a>
+      <p style="margin-top: 20px;">
+        <a href="${appUrl}/audit/${lead.id}" style="color: #2563eb; text-decoration: underline;">View the free audit of ${cleanDomain} &rarr;</a>
       </p>
-      
-      <div style="margin-top: 32px; border-top: 1px solid #e4e4e7; padding-top: 20px;">
-        <p style="font-size: 14px; font-weight: 600; color: #374151; margin-bottom: 12px;">How would you like to handle these audit findings?</p>
-        <p style="margin: 8px 0; font-size: 14px;">
-          🟢 <a href="${appUrl}/api/response?id=${lead.id}&action=fix" style="color: #2563eb; text-decoration: none;">I want Mr² Labs to fix this</a>
-        </p>
-        <p style="margin: 8px 0; font-size: 14px;">
-          🟡 <a href="${appUrl}/api/response?id=${lead.id}&action=nurture" style="color: #2563eb; text-decoration: none;">Send over a Loom breakdown so my team can fix it</a>
-        </p>
-        <p style="margin: 8px 0; font-size: 14px;">
-          🔴 <a href="${appUrl}/api/response?id=${lead.id}&action=reject" style="color: #4b5563; text-decoration: none;">Not a priority right now</a>
-        </p>
-      </div>
     `;
   }
 

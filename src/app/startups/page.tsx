@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { StartupLead } from '@/types/startup';
 import { StartupLauncher } from '@/components/startups/StartupLauncher';
 import { StartupLeadsTable } from '@/components/startups/StartupLeadsTable';
+import PauseSendingButton from '@/components/PauseSendingButton';
 import { Rocket, Target, Send, CheckCircle, RefreshCw, Zap } from 'lucide-react';
 
 export default function StartupsDashboardPage() {
@@ -54,13 +55,16 @@ export default function StartupsDashboardPage() {
           </div>
         </div>
 
-        <button
-          onClick={fetchLeads}
-          className="self-start md:self-auto bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-800 font-medium px-4 py-2 rounded-lg text-xs flex items-center gap-2 transition-all shadow-sm"
-        >
-          <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
-          Refresh Pipeline
-        </button>
+        <div className="flex items-center gap-3">
+          <PauseSendingButton />
+          <button
+            onClick={fetchLeads}
+            className="self-start md:self-auto bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-800 font-medium px-4 py-2 rounded-lg text-xs flex items-center gap-2 transition-all shadow-sm"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
+            Refresh Pipeline
+          </button>
+        </div>
       </div>
 
       {/* Metrics Bar */}

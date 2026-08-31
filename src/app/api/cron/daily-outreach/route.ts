@@ -50,7 +50,19 @@ export async function GET(req: Request) {
 
     // 1. DISPATCH EMAILS FIRST (Fast)
     let enqueuedJobs = 0;
-    if (qstash && (action === 'dispatch' || !action)) {
+
+    // CHECK GLOBAL SENDING PAUSE TOGGLE
+    const { data: pauseSetting } = await supabaseAdmin
+      .from('system_settings')
+      .select('value')
+      .eq('key', 'GLOBAL_SENDING_PAUSED')
+      .maybeSingle();
+
+    const isGlobalSendingPaused = pauseSetting?.value === true || pauseSetting?.value === 'true';
+
+    if (isGlobalSendingPaused) {
+      console.log('[Cron Queue] ⏸️ GLOBAL EMAIL SENDING IS PAUSED. Skipping Step 0, 1, 2, 3 dispatches. Scraping will continue.');
+    } else if (qstash && (action === 'dispatch' || !action)) {
       const sendEmailUrl = `${baseUrl}/api/queue/send-email`;
       
       // STRICT OVERALL LIMIT: 30 emails total per day across all steps combined

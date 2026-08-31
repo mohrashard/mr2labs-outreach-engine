@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { Download, Search, Activity, Clock, ArrowRight, ChevronDown, ChevronUp, Mail, Eye, MousePointer, CheckCircle2 } from 'lucide-react';
 import Image from 'next/image';
+import PauseSendingButton from '@/components/PauseSendingButton';
 
 interface SequenceEvent {
   step: number;
@@ -155,10 +156,13 @@ export default function ProspectTracker() {
               <p className="text-sm text-zinc-400 mt-1">Multi-step sequence telemetry, engagement sync, & intent tracking.</p>
             </div>
           </div>
-          <button onClick={downloadCsv} className="h-10 px-4 inline-flex items-center gap-2 bg-white text-black text-sm font-medium rounded-xl hover:bg-zinc-200 transition-colors">
-            <Download className="w-4 h-4" />
-            Export CSV
-          </button>
+          <div className="flex items-center gap-3">
+            <PauseSendingButton />
+            <button onClick={downloadCsv} className="h-10 px-4 inline-flex items-center gap-2 bg-white text-black text-sm font-medium rounded-xl hover:bg-zinc-200 transition-colors">
+              <Download className="w-4 h-4" />
+              Export CSV
+            </button>
+          </div>
         </div>
 
         {/* Filters */}

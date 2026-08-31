@@ -165,7 +165,7 @@ export async function POST(
 
     // 2. Trigger notification email to growth@getmr2labs.com
     try {
-      const { sendColdEmail } = await import('@/lib/email/brevo');
+      const { sendColdEmail } = await import('@/lib/email/resend');
       const emailSubject = `🔥 Audit Priority Submitted: ${company_name || domain}`;
       const emailBody = `
         <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; color: #1e293b;">
@@ -194,7 +194,7 @@ export async function POST(
     // 3. Trigger automated confirmation email directly to prospect
     if (email) {
       try {
-        const { sendColdEmail } = await import('@/lib/email/brevo');
+        const { sendColdEmail } = await import('@/lib/email/resend');
         const prospectSubject = `We received your audit request for ${domain} — Mr² Labs`;
         const prospectBody = `
           <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; color: #1e293b; line-height: 1.6;">

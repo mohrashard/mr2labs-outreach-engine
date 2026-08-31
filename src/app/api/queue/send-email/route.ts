@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { Receiver } from '@upstash/qstash';
 import { supabaseAdmin } from '@/lib/supabase/admin';
-import { sendColdEmail } from '@/lib/email/brevo';
+import { sendColdEmail } from '@/lib/email/resend';
 import { hasValidMxRecords } from '@/lib/email/validator';
 import { generateFollowUpPitch } from '@/lib/ai/pitch';
 import { sanitizeGreetingAndBody, formatPitchHtml } from '@/lib/email/formatter';
@@ -16,6 +16,18 @@ const receiver = process.env.QSTASH_CURRENT_SIGNING_KEY && process.env.QSTASH_NE
 export const maxDuration = 60;
 
 export async function processSingleQueuedLead(leadId: string, followUpStep: number = 0) {
+  // Global Sending Pause Check
+  const { data: pauseSetting } = await supabaseAdmin
+    .from('system_settings')
+    .select('value')
+    .eq('key', 'GLOBAL_SENDING_PAUSED')
+    .maybeSingle();
+
+  if (pauseSetting?.value === true || pauseSetting?.value === 'true') {
+    console.log(`[Queue Send Email] ⏸️ Execution skipped for lead ${leadId} — Global Email Sending is PAUSED.`);
+    return { paused: true, message: 'Global email sending is currently paused.' };
+  }
+
   // Fetch lead details
   const { data: lead, error: leadError } = await supabaseAdmin
     .from('outreach_leads')
@@ -29,6 +41,19 @@ export async function processSingleQueuedLead(leadId: string, followUpStep: numb
 
   if (!lead.email) {
     throw new Error(`Lead has no email: ${leadId}`);
+  }
+
+  // Check suppression list before sending
+  const { data: suppressed } = await supabaseAdmin
+    .from('suppression_list')
+    .select('email')
+    .eq('email', lead.email.trim().toLowerCase())
+    .maybeSingle();
+
+  if (suppressed) {
+    console.warn(`[Queue Send Email] Email ${lead.email} is on suppression list. Skipping and marking STOP.`);
+    await supabaseAdmin.from('outreach_leads').update({ status: 'STOP', reply_status: 'STOP' }).eq('id', leadId);
+    return { suppressed: true, message: `Email ${lead.email} is on suppression list.` };
   }
 
   // DNS MX Validation Guard
@@ -62,7 +87,7 @@ export async function processSingleQueuedLead(leadId: string, followUpStep: numb
     pitchText = aiFollowUp.generated_pitch;
   }
 
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://outreach.mr2labs.com';
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://outreach.getmr2labs.com';
   let cleanDomain = lead.website_url;
   try {
     if (cleanDomain) {
@@ -81,26 +106,76 @@ export async function processSingleQueuedLead(leadId: string, followUpStep: numb
   );
   const formattedHtmlBody = formatPitchHtml(sanitizedPitch);
 
-  let extrasHtml = '';
-  if (followUpStep === 0) {
-    extrasHtml = `
-      <p style="margin-top: 20px;">
-        <a href="${appUrl}/audit/${lead.id}" style="color: #2563eb; text-decoration: underline;">View the free audit of ${cleanDomain} &rarr;</a>
-      </p>
+  const stepNum = (followUpStep || 0);
+
+  let htmlContent = '';
+  let textContent = '';
+
+  if (stepNum === 0) {
+    // Step 0 (Initial Cold Email) - Zero external links, permission CTA & opt-out footer
+    htmlContent = `
+      <div style="font-family: sans-serif; font-size: 14px; color: #333; line-height: 1.6; max-width: 600px;">
+        ${formattedHtmlBody}
+        <p style="margin-top: 16px; font-size: 14px; line-height: 1.6; color: #333333;">
+          I put together a quick 2-minute diagnostic for your team. Mind if I send it over?
+        </p>
+        <p style="margin-top: 24px; font-size: 11px; color: #888888; border-top: 1px solid #eeeeee; padding-top: 12px;">
+          If you'd prefer not to hear from me, reply with 'stop' and I'll remove you immediately.
+        </p>
+      </div>
     `;
+
+    textContent = `${sanitizedPitch
+      .replace(/<[^>]*>/g, '')
+      .replace(/&rarr;/g, '→')
+      .replace(/&amp;/g, '&')
+      .replace(/\s+/g, ' ')
+      .trim()}\n\nI put together a quick 2-minute diagnostic for your team. Mind if I send it over?\n\nIf you'd prefer not to hear from me, reply with 'stop' and I'll remove you immediately.`;
+  } else if (stepNum === 1) {
+    // Step 1 Follow-up - Zero links
+    htmlContent = `
+      <div style="font-family: sans-serif; font-size: 14px; color: #333; line-height: 1.6; max-width: 600px;">
+        <p style="margin: 0 0 16px 0;">Hi,</p>
+        <p style="margin: 0 0 16px 0;">Quick follow-up on my note below regarding the 2-minute diagnostic report for <strong>${cleanDomain}</strong>. Would you like me to send it over?</p>
+        <p style="margin: 20px 0 0 0;">Best,<br/>Rashard</p>
+        <p style="margin-top: 24px; font-size: 11px; color: #888888; border-top: 1px solid #eeeeee; padding-top: 12px;">
+          If you'd prefer not to hear from me, reply with 'stop' and I'll remove you immediately.
+        </p>
+      </div>
+    `;
+
+    textContent = `Hi,\n\nQuick follow-up on my note below regarding the 2-minute diagnostic report for ${cleanDomain}. Would you like me to send it over?\n\nBest,\nRashard\n\nIf you'd prefer not to hear from me, reply with 'stop' and I'll remove you immediately.`;
+  } else if (stepNum === 2) {
+    // Step 2 Follow-up - Zero links
+    htmlContent = `
+      <div style="font-family: sans-serif; font-size: 14px; color: #333; line-height: 1.6; max-width: 600px;">
+        <p style="margin: 0 0 16px 0;">Hi,</p>
+        <p style="margin: 0 0 16px 0;">Thought I'd bump this once more in case it got buried. Should I forward over the diagnostic breakdown for <strong>${cleanDomain}</strong>?</p>
+        <p style="margin: 20px 0 0 0;">Best,<br/>Rashard</p>
+        <p style="margin-top: 24px; font-size: 11px; color: #888888; border-top: 1px solid #eeeeee; padding-top: 12px;">
+          If you'd prefer not to hear from me, reply with 'stop' and I'll remove you immediately.
+        </p>
+      </div>
+    `;
+
+    textContent = `Hi,\n\nThought I'd bump this once more in case it got buried. Should I forward over the diagnostic breakdown for ${cleanDomain}?\n\nBest,\nRashard\n\nIf you'd prefer not to hear from me, reply with 'stop' and I'll remove you immediately.`;
+  } else {
+    // Step 3 Break-up - Zero links
+    htmlContent = `
+      <div style="font-family: sans-serif; font-size: 14px; color: #333; line-height: 1.6; max-width: 600px;">
+        <p style="margin: 0 0 16px 0;">Hi,</p>
+        <p style="margin: 0 0 16px 0;">Assuming this isn't a priority right now, I'll close your file. Let me know if you ever want me to send over the diagnostic breakdown for <strong>${cleanDomain}</strong>.</p>
+        <p style="margin: 20px 0 0 0;">Best,<br/>Rashard</p>
+        <p style="margin-top: 24px; font-size: 11px; color: #888888; border-top: 1px solid #eeeeee; padding-top: 12px;">
+          If you'd prefer not to hear from me, reply with 'stop' and I'll remove you immediately.
+        </p>
+      </div>
+    `;
+
+    textContent = `Hi,\n\nAssuming this isn't a priority right now, I'll close your file. Let me know if you ever want me to send over the diagnostic breakdown for ${cleanDomain}.\n\nBest,\nRashard\n\nIf you'd prefer not to hear from me, reply with 'stop' and I'll remove you immediately.`;
   }
 
-  // Prepare email
-  const htmlContent = `
-    <div style="font-family: sans-serif; font-size: 14px; color: #333; line-height: 1.6; max-width: 600px;">
-      ${formattedHtmlBody}
-      ${extrasHtml}
-    </div>
-  `;
-
-  const textContent = `${sanitizedPitch.replace(/<[^>]*>/g, '').trim()}\n\nView the free audit of ${cleanDomain}: ${appUrl}/audit/${lead.id}`;
-
-  // Trigger sendColdEmail with both HTML and plain text MIME formats
+  // Trigger sendColdEmail via Resend API
   await sendColdEmail(lead.email, subject, htmlContent, textContent);
 
   // Update lead status to 'SENT' and record sent_at

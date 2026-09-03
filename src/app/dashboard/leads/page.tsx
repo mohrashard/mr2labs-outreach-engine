@@ -210,6 +210,68 @@ export default function LeadsDashboardPage() {
     }
   };
 
+  const handleExportCsv = () => {
+    if (filteredLeads.length === 0) return;
+
+    const escapeCsv = (val: any) => {
+      if (val === null || val === undefined) return '""';
+      const str = String(val);
+      return `"${str.replace(/"/g, '""')}"`;
+    };
+
+    const headers = [
+      'Company Name',
+      'Website URL',
+      'Email',
+      'Status',
+      'Reply Status',
+      'Reply Snippet',
+      'Engagement Score',
+      'Opens',
+      'Clicks',
+      'Follow-up Step',
+      'Campaign',
+      'Email Subject',
+      'Pitch Text',
+      'Sent At',
+      'Last Contacted At',
+      'Replied At',
+      'Created At'
+    ];
+
+    const rows = filteredLeads.map(lead => [
+      escapeCsv(lead.company_name || ''),
+      escapeCsv(lead.website_url || ''),
+      escapeCsv(lead.email || ''),
+      escapeCsv(lead.status || ''),
+      escapeCsv(lead.reply_status || ''),
+      escapeCsv(lead.reply_snippet || ''),
+      escapeCsv(lead.score),
+      escapeCsv(lead.opens),
+      escapeCsv(lead.clicks),
+      escapeCsv(lead.follow_up_step),
+      escapeCsv(lead.campaign_name || ''),
+      escapeCsv(lead.email_subject || ''),
+      escapeCsv(lead.pitch_text || ''),
+      escapeCsv(lead.sent_at || ''),
+      escapeCsv(lead.last_contacted_at || ''),
+      escapeCsv(lead.replied_at || ''),
+      escapeCsv(lead.created_at || '')
+    ]);
+
+    const csvContent = '\uFEFF' + [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    const dateStr = new Date().toISOString().split('T')[0];
+    link.setAttribute('download', `leads_desk_${statusFilter.toLowerCase()}_${dateStr}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
   return (
     <div className="min-h-screen bg-[#030407] text-zinc-100 p-6 md:p-10 font-sans">
       <div className="max-w-[1500px] mx-auto space-y-8">
@@ -278,6 +340,16 @@ export default function LeadsDashboardPage() {
             >
               Tracker
             </Link>
+
+            <button
+              onClick={handleExportCsv}
+              disabled={filteredLeads.length === 0}
+              className="h-9 px-3.5 inline-flex items-center gap-1.5 bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-500/30 text-emerald-300 text-xs font-medium rounded-full transition-colors cursor-pointer disabled:opacity-40"
+              title="Export CSV of filtered leads with all details"
+            >
+              <Download className="w-3.5 h-3.5 text-emerald-400" />
+              Export CSV ({filteredLeads.length})
+            </button>
 
             <button
               onClick={fetchLeads}

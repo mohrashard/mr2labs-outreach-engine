@@ -63,29 +63,49 @@ export default function ProspectTracker() {
   });
 
   const downloadCsv = () => {
+    if (filteredData.length === 0) return;
+
+    const escapeCsv = (val: any) => {
+      if (val === null || val === undefined) return '""';
+      const str = String(val);
+      return `"${str.replace(/"/g, '""')}"`;
+    };
+
     const headers = [
-      'company_name', 'email', 'subject', 'sent_at', 'status',
-      'opens', 'clicks', 'intent', 'score', 'last_active_at',
-      'follow_up_step', 'campaign', 'website_url'
+      'Company Name',
+      'Website URL',
+      'Email',
+      'Subject',
+      'Status',
+      'Engagement Score',
+      'Intent Selected',
+      'Opens',
+      'Clicks',
+      'Follow-up Step',
+      'Campaign',
+      'Sent At',
+      'Last Active At',
+      'Days Since Contact'
     ];
     
     const rows = filteredData.map(row => [
-      `"${row.company_name || ''}"`,
-      row.email || '',
-      `"${row.subject || ''}"`,
-      row.sent_at || '',
-      row.status || '',
-      row.times_opened,
-      row.times_clicked,
-      row.intent_selected || '',
-      row.engagement_score,
-      row.last_active_at || '',
-      row.follow_up_step,
-      `"${row.campaign || ''}"`,
-      row.website_url || ''
+      escapeCsv(row.company_name || ''),
+      escapeCsv(row.website_url || ''),
+      escapeCsv(row.email || ''),
+      escapeCsv(row.subject || ''),
+      escapeCsv(row.status || ''),
+      escapeCsv(row.engagement_score),
+      escapeCsv(row.intent_selected || ''),
+      escapeCsv(row.times_opened),
+      escapeCsv(row.times_clicked),
+      escapeCsv(row.follow_up_step),
+      escapeCsv(row.campaign || ''),
+      escapeCsv(row.sent_at || ''),
+      escapeCsv(row.last_active_at || ''),
+      escapeCsv(row.days_since_contact ?? '')
     ]);
 
-    const csvContent = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+    const csvContent = '\uFEFF' + [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
@@ -94,6 +114,7 @@ export default function ProspectTracker() {
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+    URL.revokeObjectURL(url);
   };
 
   const getIntentBadge = (intent: string | null) => {

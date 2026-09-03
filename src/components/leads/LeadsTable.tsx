@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import { 
   ExternalLink, Copy, Check, Sparkles, 
-  Phone, Camera, Briefcase, ChevronRight, Mail, AlertCircle, ShieldCheck, Filter
+  Phone, Camera, Briefcase, ChevronRight, Mail, AlertCircle, ShieldCheck, Filter, Download
 } from 'lucide-react';
 import { OutreachLead, LeadStatus } from '@/types/lead';
 
@@ -76,6 +76,112 @@ export function LeadsTable({ leads, onSelectLead }: LeadsTableProps) {
     };
   };
 
+  const handleExportCsv = () => {
+    if (filteredLeads.length === 0) return;
+
+    const escapeCsv = (val: any) => {
+      if (val === null || val === undefined) return '""';
+      const str = String(val);
+      return `"${str.replace(/"/g, '""')}"`;
+    };
+
+    const headers = [
+      'Company Name',
+      'Website URL',
+      'Email',
+      'Status',
+      'Verification Score',
+      'Verifier / Source',
+      'Phone',
+      'WhatsApp',
+      'LinkedIn URL',
+      'Instagram URL',
+      'AI Audit Status',
+      'Audit Finding',
+      'Business Impact',
+      'Recommended Service',
+      'Service Pitch',
+      'Email Subject',
+      'Pitch Text / Email Body',
+      'Follow-up Step',
+      'Scheduled For',
+      'Sent At',
+      'Last Contacted At',
+      'Created At',
+      'Campaign ID',
+      'Scraped Domain',
+      'Scraped Niche',
+      'Scraped Location'
+    ];
+
+    const rows = filteredLeads.map(lead => {
+      const vInfo = getVerificationDetails(lead);
+      const rawData = typeof lead.raw_scraped_data === 'object' && lead.raw_scraped_data ? lead.raw_scraped_data : {};
+      
+      let auditFinding = '';
+      let auditImpact = '';
+      let recommendedService = '';
+      let servicePitch = '';
+
+      if (lead.audit_notes) {
+        try {
+          const parsed = JSON.parse(lead.audit_notes);
+          if (parsed && typeof parsed === 'object') {
+            auditFinding = parsed.finding || '';
+            auditImpact = parsed.impact || '';
+            recommendedService = parsed.service || '';
+            servicePitch = parsed.pitch || '';
+          } else {
+            auditFinding = lead.audit_notes;
+          }
+        } catch {
+          auditFinding = lead.audit_notes;
+        }
+      }
+
+      return [
+        escapeCsv(lead.company_name),
+        escapeCsv(lead.website_url),
+        escapeCsv(lead.email || ''),
+        escapeCsv(lead.status),
+        escapeCsv(vInfo.score !== null ? `${vInfo.score}/100` : ''),
+        escapeCsv(vInfo.verifierName || ''),
+        escapeCsv(lead.phone || ''),
+        escapeCsv(lead.whatsapp || ''),
+        escapeCsv(lead.linkedin_url || ''),
+        escapeCsv(lead.instagram_url || ''),
+        escapeCsv(lead.audit_notes ? 'Audit Ready' : 'Pending'),
+        escapeCsv(auditFinding),
+        escapeCsv(auditImpact),
+        escapeCsv(recommendedService),
+        escapeCsv(servicePitch),
+        escapeCsv(lead.email_subject || ''),
+        escapeCsv(lead.pitch_text || ''),
+        escapeCsv(lead.follow_up_step ?? 1),
+        escapeCsv(lead.scheduled_for || ''),
+        escapeCsv(lead.sent_at || ''),
+        escapeCsv(lead.last_contacted_at || ''),
+        escapeCsv(lead.created_at || ''),
+        escapeCsv(lead.campaign_id || ''),
+        escapeCsv((rawData as any)?.domain || (rawData as any)?.root_domain || ''),
+        escapeCsv((rawData as any)?.niche || (rawData as any)?.target_niche || ''),
+        escapeCsv((rawData as any)?.location || (rawData as any)?.target_location || '')
+      ].join(',');
+    });
+
+    const csvString = '\uFEFF' + [headers.join(','), ...rows].join('\n');
+    const blob = new Blob([csvString], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    const dateStr = new Date().toISOString().split('T')[0];
+    link.setAttribute('download', `scraped_leads_${statusFilter}_${dateFilter}_${dateStr}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
   const getStatusBadge = (status: LeadStatus) => {
     switch (status) {
       case 'NEW':
@@ -128,7 +234,7 @@ export function LeadsTable({ leads, onSelectLead }: LeadsTableProps) {
           </span>
         </div>
 
-        {/* Filter Controls */}
+        {/* Filter Controls & Export CSV */}
         <div className="flex flex-wrap items-center gap-3">
           {/* Status Filter Tabs */}
           <div className="flex items-center bg-black/40 rounded-lg p-1 ring-1 ring-white/5">
@@ -174,6 +280,17 @@ export function LeadsTable({ leads, onSelectLead }: LeadsTableProps) {
               All Time
             </button>
           </div>
+
+          {/* Export CSV Button */}
+          <button
+            onClick={handleExportCsv}
+            disabled={filteredLeads.length === 0}
+            className="px-3.5 py-1.5 rounded-lg text-xs font-medium bg-emerald-500/15 hover:bg-emerald-500/25 disabled:opacity-40 text-emerald-300 border border-emerald-500/30 transition-all flex items-center gap-1.5 shadow-sm active:scale-95 cursor-pointer"
+            title="Download CSV of current filtered leads with all business details"
+          >
+            <Download className="w-3.5 h-3.5 text-emerald-400" />
+            <span>Export CSV ({filteredLeads.length})</span>
+          </button>
         </div>
       </div>
 

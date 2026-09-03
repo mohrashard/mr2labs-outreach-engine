@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { StartupLead } from '@/types/startup';
-import { ExternalLink, Globe, Mail, Search, CheckCircle2, Clock, XCircle, Tag, Send } from 'lucide-react';
+import { ExternalLink, Globe, Mail, Search, CheckCircle2, Clock, XCircle, Tag, Send, Download } from 'lucide-react';
 
 interface StartupLeadsTableProps {
   leads: StartupLead[];
@@ -27,6 +27,58 @@ export function StartupLeadsTable({ leads, onRefresh }: StartupLeadsTableProps) 
 
     return matchesSearch && matchesStatus && matchesSource;
   });
+
+  const handleExportCsv = () => {
+    if (filteredLeads.length === 0) return;
+
+    const escapeCsv = (val: any) => {
+      if (val === null || val === undefined) return '""';
+      const str = String(val);
+      return `"${str.replace(/"/g, '""')}"`;
+    };
+
+    const headers = [
+      'Company Name',
+      'Website URL',
+      'Founder Name',
+      'Work Email',
+      'LinkedIn URL',
+      'Source Type',
+      'YC Batch',
+      'Tech Stack',
+      'Intent Snippet',
+      'Status',
+      'Sent At',
+      'Created At'
+    ];
+
+    const rows = filteredLeads.map(lead => [
+      escapeCsv(lead.company_name || ''),
+      escapeCsv(lead.website_url || ''),
+      escapeCsv(lead.founder_name || ''),
+      escapeCsv(lead.work_email || ''),
+      escapeCsv(lead.linkedin_url || ''),
+      escapeCsv(lead.source_type || ''),
+      escapeCsv(lead.yc_batch || ''),
+      escapeCsv((lead.tech_stack || []).join('; ')),
+      escapeCsv(lead.intent_snippet || ''),
+      escapeCsv(lead.status || ''),
+      escapeCsv(lead.sent_at || ''),
+      escapeCsv(lead.created_at || '')
+    ]);
+
+    const csvContent = '\uFEFF' + [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    const dateStr = new Date().toISOString().split('T')[0];
+    link.setAttribute('download', `startup_leads_${sourceFilter.toLowerCase()}_${dateStr}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -59,7 +111,7 @@ export function StartupLeadsTable({ leads, onRefresh }: StartupLeadsTableProps) 
           />
         </div>
 
-        <div className="flex gap-2 w-full md:w-auto">
+        <div className="flex gap-2 w-full md:w-auto items-center">
           <select
             value={sourceFilter}
             onChange={(e) => setSourceFilter(e.target.value)}
@@ -81,6 +133,16 @@ export function StartupLeadsTable({ leads, onRefresh }: StartupLeadsTableProps) 
             <option value="SENT">Sent</option>
             <option value="REPLIED">Replied</option>
           </select>
+
+          <button
+            onClick={handleExportCsv}
+            disabled={filteredLeads.length === 0}
+            className="px-3 py-2 rounded-lg text-xs font-medium bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-500/30 text-emerald-300 transition-colors flex items-center gap-1.5 cursor-pointer disabled:opacity-40"
+            title="Export CSV of filtered startup leads"
+          >
+            <Download className="w-3.5 h-3.5 text-emerald-400" />
+            <span>Export CSV</span>
+          </button>
         </div>
       </div>
 

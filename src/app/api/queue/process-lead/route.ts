@@ -1,8 +1,20 @@
+export const runtime = 'nodejs';
+
 import { NextResponse } from 'next/server';
 import { Receiver } from '@upstash/qstash';
 import { supabaseAdmin } from '@/lib/supabase/admin';
 import { deepEnrichDomain } from '@/lib/scraper/enrichment';
 import { generateAuditAndPitch } from '@/lib/ai/pitch';
+import { verifyEmailQuality } from '@/lib/verification/email-quality';
+import { verifyBusinessIdentity } from '@/lib/verification/business-identity';
+import { scanBusinessFeatures } from '@/lib/verification/features';
+import { evaluateConflicts } from '@/lib/verification/conflicts';
+import { identifyOpportunity } from '@/lib/opportunity/engine';
+import { calculateSendability } from '@/lib/verification/sendability';
+import { persistEvidenceBatch } from '@/lib/verification/evidence-ledger';
+import { buildPitchGuardContext } from '@/lib/ai/pitch-guard';
+
+const PIPELINE_VERSION = 'v1.0.0';
 
 const receiver = process.env.QSTASH_CURRENT_SIGNING_KEY && process.env.QSTASH_NEXT_SIGNING_KEY
   ? new Receiver({
@@ -48,19 +60,50 @@ export async function POST(request: Request) {
 
     console.log(`[Background Worker] Processing lead: ${target.websiteUrl} for campaign: ${campaignId || 'default'}`);
 
-    // 1. Deduplicate against database
-    const { data: existing } = await supabaseAdmin
+    // ------------------------------------------------------------------------
+    // 1. Idempotency Lock Check (Prevents duplicate work on QStash retries)
+    // ------------------------------------------------------------------------
+    const idempotencyKey = `${target.websiteUrl.toLowerCase().trim()}:${campaignId || 'default'}:${PIPELINE_VERSION}`;
+    const { data: existingRun } = await supabaseAdmin
+      .from('pipeline_runs')
+      .select('id, processing_status, lead_id')
+      .eq('idempotency_key', idempotencyKey)
+      .maybeSingle();
+
+    if (existingRun && existingRun.processing_status === 'COMPLETED') {
+      console.log(`[Idempotency Guard] Skipping: Job ${idempotencyKey} already completed.`);
+      return NextResponse.json({ skipped: true, reason: 'IDEMPOTENT_ALREADY_COMPLETED', leadId: existingRun.lead_id });
+    }
+
+    // Insert or update pipeline run to PROCESSING
+    if (!existingRun) {
+      await supabaseAdmin.from('pipeline_runs').insert({
+        idempotency_key: idempotencyKey,
+        pipeline_version: PIPELINE_VERSION,
+        processing_status: 'PROCESSING',
+        started_at: new Date().toISOString(),
+      });
+    }
+
+    // 1.1 Deduplicate against existing leads
+    const { data: existingLead } = await supabaseAdmin
       .from('outreach_leads')
       .select('id')
       .eq('website_url', target.websiteUrl)
       .maybeSingle();
 
-    if (existing) {
+    if (existingLead) {
       console.log(`[Background Worker] Lead already exists: ${target.websiteUrl}`);
-      return NextResponse.json({ skipped: true, reason: 'ALREADY_EXISTS', leadId: existing.id });
+      await supabaseAdmin.from('pipeline_runs').update({
+        processing_status: 'COMPLETED',
+        completed_at: new Date().toISOString(),
+        lead_id: existingLead.id,
+      }).eq('idempotency_key', idempotencyKey);
+
+      return NextResponse.json({ skipped: true, reason: 'ALREADY_EXISTS', leadId: existingLead.id });
     }
 
-    // 1.5. Check daily quota before spending API credits
+    // 1.2 Check daily quota before spending API credits
     let dailyLimit = 20;
     if (campaignId) {
       const { data: campaign } = await supabaseAdmin
@@ -78,7 +121,6 @@ export async function POST(request: Request) {
       .from('outreach_leads')
       .select('*', { count: 'exact', head: true })
       .eq('campaign_id', campaignId)
-      .eq('status', 'NEW')
       .gte('created_at', startOfDay.toISOString());
 
     async function logEvent(type: string, msg: string, meta: any = {}) {
@@ -90,135 +132,268 @@ export async function POST(request: Request) {
     }
 
     if ((createdToday || 0) >= dailyLimit) {
-      console.log(`[Background Worker] Quota met (${createdToday}/${dailyLimit}) for campaign: ${campaignId}. Skipping enrichment to save credits.`);
+      console.log(`[Background Worker] Quota met (${createdToday}/${dailyLimit}) for campaign: ${campaignId}. Skipping enrichment.`);
       await logEvent('QUOTA_MET', `Skipped ${target.websiteUrl} - Daily quota reached.`, { url: target.websiteUrl, campaignId });
       return NextResponse.json({ skipped: true, reason: 'QUOTA_MET' });
     }
 
-    // 2. Deep enrich contact data via Waterfall (DOM -> Bouncer -> Serper Dork -> Hunter -> Apollo -> Snov)
+    // ------------------------------------------------------------------------
+    // 2. Raw Enrichment: Fast DOM Scrape & Contact Discovery
+    // ------------------------------------------------------------------------
     const contactData = await deepEnrichDomain(target.websiteUrl, target.companyName, niche);
 
     if (contactData.is_rejected) {
       console.log(`[Background Worker - Bouncer] Rejected: ${target.websiteUrl}`);
-      await supabaseAdmin.from('outreach_leads').insert({
+      const { data: rejLead } = await supabaseAdmin.from('outreach_leads').insert({
         campaign_id: campaignId || null,
         company_name: target.companyName,
         website_url: target.websiteUrl,
         status: 'REJECTED',
         audit_notes: 'Rejected by Niche Bouncer criteria.'
-      });
+      }).select('id').single();
+
+      await supabaseAdmin.from('pipeline_runs').update({
+        processing_status: 'COMPLETED',
+        completed_at: new Date().toISOString(),
+        lead_id: rejLead?.id,
+      }).eq('idempotency_key', idempotencyKey);
+
       await logEvent('BOUNCER_REJECTED', `Rejected ${target.websiteUrl} - Bouncer validation failed.`, { url: target.websiteUrl });
       return NextResponse.json({ skipped: true, reason: 'REJECTED_BY_BOUNCER' });
     }
 
-    if (!contactData.email) {
-      console.log(`[Background Worker - Enrichment] No verified email found for: ${target.websiteUrl}`);
-      await supabaseAdmin.from('outreach_leads').insert({
-        campaign_id: campaignId || null,
-        company_name: target.companyName,
-        website_url: target.websiteUrl,
-        status: 'REJECTED',
-        audit_notes: 'No valid verified email found in pipeline.'
-      });
-      await logEvent('NO_EMAIL', `Skipped ${target.websiteUrl} - No valid email found.`, { url: target.websiteUrl });
-      return NextResponse.json({ skipped: true, reason: 'NO_VERIFIED_EMAIL' });
-    }
+    // ------------------------------------------------------------------------
+    // 3. Deterministic Data Trust Pipeline
+    // ------------------------------------------------------------------------
+    const rawEmail = contactData.email || '';
+    const domHtml = contactData.dom_snippet || '';
 
-    // Table-wide Email Uniqueness Check across ALL lead statuses
-    const cleanEmail = contactData.email.toLowerCase().trim();
-    const { data: existingEmailMatch } = await supabaseAdmin
-      .from('outreach_leads')
-      .select('id, status')
-      .eq('email', cleanEmail)
-      .limit(1);
+    // Step A: Email Quality & Deliverability Verification
+    const emailResult = await verifyEmailQuality(rawEmail, target.websiteUrl);
 
-    if (existingEmailMatch && existingEmailMatch.length > 0) {
-      console.log(`[Background Worker] Duplicate email detected across outreach table: ${cleanEmail}`);
-      await supabaseAdmin.from('outreach_leads').insert({
-        campaign_id: campaignId || null,
-        company_name: target.companyName,
-        website_url: target.websiteUrl,
-        status: 'REJECTED',
-        audit_notes: `Duplicate email already present in outreach database (${cleanEmail}).`
-      });
-      await logEvent('DUPLICATE_EMAIL', `Skipped ${target.websiteUrl} - Email ${cleanEmail} already exists in database.`, { url: target.websiteUrl, email: cleanEmail });
-      return NextResponse.json({ skipped: true, reason: 'DUPLICATE_EMAIL' });
-    }
-
-    // 3. Generate AI audit, pitch, and email subject line using Niche Matrix
-    const aiResult = await generateAuditAndPitch(
+    // Step B: Business Identity, Multi-Location & Location Consistency
+    const identityResult = verifyBusinessIdentity(
+      domHtml,
+      { city: target.city, state: target.state },
       target.companyName,
-      target.websiteUrl,
-      contactData.dom_snippet,
-      niche,
-      {
-        linkedinUrl: contactData.linkedin_url,
-        instagramUrl: contactData.instagram_url,
-        rawAuditData: contactData.raw_scraped_data
-      }
+      contactData.instagram_url,
+      contactData.linkedin_url
     );
+
+    // Step C: Feature Evidence Scanner (JaneApp, Mindbody, Tidio, WhatsApp, etc.)
+    const featuresResult = scanBusinessFeatures(domHtml, target.websiteUrl);
+
+    // Step D: Conflict Engine Evaluation
+    const combinedConflicts = [...identityResult.conflicts];
+    if (!emailResult.matchesBusinessDomain && !emailResult.isFreeProvider && emailResult.syntaxValid) {
+      combinedConflicts.push({
+        lead_id: 'temp',
+        conflict_type: 'DOMAIN_MISMATCH',
+        severity: 'MEDIUM',
+        values: [emailResult.normalizedEmail, target.websiteUrl],
+        sources: ['Scraped Email', 'Target Website'],
+        resolved: false,
+        resolution_notes: 'Email domain differs from company website root domain.',
+        created_at: new Date().toISOString(),
+      });
+    }
+    const conflictResult = evaluateConflicts(combinedConflicts);
+
+    // Step E: Strategic Opportunity Matrix (doNotPitch & forbiddenClaims generation)
+    const opportunityResult = identifyOpportunity(featuresResult, niche);
+
+    // Step F: Sendability Decision & Composite Scoring
+    const sendabilityDecision = calculateSendability({
+      emailResult,
+      identityResult,
+      opportunityResult,
+      conflictResult,
+    });
+
+    console.log(`[Data Trust Result] ${target.websiteUrl} -> Score: ${sendabilityDecision.sendabilityScore}/100 | Status: ${sendabilityDecision.status}`);
 
     const screenshotUrl = `https://api.microlink.io?url=${encodeURIComponent(target.websiteUrl)}&screenshot=true`;
 
-    if (aiResult.error) {
-      console.log(`[Background Worker] Rejected: ${target.websiteUrl} - ${aiResult.error}`);
-      await supabaseAdmin.from('outreach_leads').insert({
-        campaign_id: campaignId || null,
-        company_name: target.companyName,
-        website_url: target.websiteUrl,
-        status: 'REJECTED',
-        audit_notes: aiResult.error
-      });
-      await logEvent('NO_FINDING', `Skipped ${target.websiteUrl} - ${aiResult.error}`, { url: target.websiteUrl });
-      return NextResponse.json({ skipped: true, reason: 'NO_VERIFIED_FINDING' });
-    }
-
-    // 4. Persist to Supabase
+    // ------------------------------------------------------------------------
+    // 4. Persistence: Write Lead with Verified Trust Data
+    // ------------------------------------------------------------------------
     const { data: insertedLead, error: insertError } = await supabaseAdmin
       .from('outreach_leads')
       .insert({
         campaign_id: campaignId || null,
-        company_name: target.companyName,
+        company_name: identityResult.companyName,
         website_url: target.websiteUrl,
-        email: contactData.email,
-        phone: contactData.phone,
-        whatsapp: contactData.whatsapp,
-        instagram_url: contactData.instagram_url,
-        linkedin_url: contactData.linkedin_url,
-        email_subject: aiResult.email_subject,
-        audit_notes: aiResult.audit_notes,
-        pitch_text: aiResult.generated_pitch,
-        status: 'NEW',
+        email: emailResult.normalizedEmail || null,
+        email_raw: rawEmail || null,
+        email_normalized: emailResult.normalizedEmail || null,
+        email_verified: emailResult.status === 'VERIFIED' ? emailResult.normalizedEmail : null,
+        email_category: emailResult.emailCategory,
+        phone: identityResult.phone || contactData.phone || null,
+        whatsapp: featuresResult.whatsapp.status === 'CONFIRMED_PRESENT' ? (contactData.whatsapp || 'CONFIRMED') : null,
+        instagram_url: identityResult.cleanedInstagramUrl,
+        linkedin_url: identityResult.cleanedLinkedinUrl,
+        founder_name: contactData.contact_name || null,
+        founder_role: contactData.contact_role || null,
+        founder_confidence: contactData.contact_confidence || 0,
+        founder_source: contactData.contact_source || null,
+        deliverability_score: emailResult.deliverabilityScore,
+        targeting_score: emailResult.targetingScore,
+        identity_score: identityResult.identityScore,
+        opportunity_score: opportunityResult.opportunityScore,
+        sendability_score: sendabilityDecision.sendabilityScore,
+        recommended_service: opportunityResult.recommendedService,
+        opportunity_rationale: opportunityResult.opportunityRationale,
+        do_not_pitch: opportunityResult.doNotPitch,
+        status: sendabilityDecision.status,
         screenshot_url: screenshotUrl,
-        raw_scraped_data: { 
-          snippet: target.snippet, 
+        audit_notes: sendabilityDecision.decisionReason,
+        trust_pipeline_version: PIPELINE_VERSION,
+        raw_scraped_data: {
           dom_snippet: contactData.dom_snippet,
           enrichment_source: contactData.enrichment_source,
           verifier_used: contactData.verifier_used,
-          site_type: target.siteType || 'LEGACY',
-          audit_data: contactData.raw_scraped_data
-        }
+          hard_blockers: sendabilityDecision.hardBlockers,
+          score_breakdown: sendabilityDecision.scoreBreakdown,
+        },
       })
       .select('id')
       .single();
 
-    if (insertError) {
-      throw insertError;
+    if (insertError || !insertedLead) {
+      throw insertError || new Error('Failed to insert lead');
     }
 
-    const finderTool = contactData.enrichment_source || 'DOM';
-    const verifierTool = contactData.verifier_used || 'Verifalia';
-    const logMsg = `Verified ${target.websiteUrl} [Found via: ${finderTool} | Verified by: ${verifierTool}] (${contactData.email})`;
+    const leadId = insertedLead.id;
 
-    console.log(`[Background Worker Success] Created lead ID ${insertedLead.id} - ${logMsg}`);
-    await logEvent('SUCCESS', logMsg, { url: target.websiteUrl, email: contactData.email, finderTool, verifierTool, leadId: insertedLead.id });
-    return NextResponse.json({ success: true, leadId: insertedLead.id });
+    // ------------------------------------------------------------------------
+    // 5. Relational Ledger Persistence: Evidence & Conflicts
+    // ------------------------------------------------------------------------
+    const allEvidence = [
+      ...emailResult.evidence,
+      ...identityResult.evidence,
+      ...featuresResult.evidence,
+      ...opportunityResult.evidence,
+    ].map((ev) => ({ ...ev, lead_id: leadId }));
+
+    if (contactData.contact_name) {
+      allEvidence.push({
+        lead_id: leadId,
+        category: 'IDENTITY',
+        claim: 'founder_identified',
+        value: {
+          name: contactData.contact_name,
+          role: contactData.contact_role,
+        },
+        confidence: contactData.contact_confidence || 85,
+        source_type: contactData.contact_source === 'NPI_REGISTRY' ? 'DIRECTORY' : 'OFFICIAL_WEBSITE',
+        evidence_text: `Discovered decision maker: ${contactData.contact_name} (${contactData.contact_role || 'Owner'}) via ${contactData.contact_source}`,
+        freshness_status: 'FRESH',
+        expires_at: new Date(Date.now() + 60 * 24 * 60 * 60 * 1000).toISOString(),
+        verification_version: PIPELINE_VERSION,
+        verified_at: new Date().toISOString(),
+      });
+    }
+
+    await persistEvidenceBatch(supabaseAdmin, leadId, allEvidence);
+
+    if (combinedConflicts.length > 0) {
+      const conflictPayload = combinedConflicts.map((c) => ({
+        lead_id: leadId,
+        conflict_type: c.conflict_type,
+        severity: c.severity,
+        values: c.values,
+        sources: c.sources,
+        resolved: c.resolved,
+        resolution_notes: c.resolution_notes || null,
+      }));
+      await supabaseAdmin.from('lead_conflicts').insert(conflictPayload);
+    }
+
+    // ------------------------------------------------------------------------
+    // 6. AI Drafting Gate (Only if status is READY_TO_DRAFT)
+    // ------------------------------------------------------------------------
+    if (sendabilityDecision.isReadyForDraft) {
+      console.log(`[AI Drafting Gate] Lead ${leadId} passed Trust Gate. Proceeding to SDR pitch generation...`);
+      
+      const aiResult = await generateAuditAndPitch(
+        identityResult.companyName,
+        target.websiteUrl,
+        contactData.dom_snippet,
+        niche,
+        {
+          founderName: contactData.contact_name,
+          founderConfidence: contactData.contact_confidence,
+          linkedinUrl: identityResult.cleanedLinkedinUrl,
+          instagramUrl: identityResult.cleanedInstagramUrl,
+          rawAuditData: contactData.raw_scraped_data,
+          pitchGuardContext: buildPitchGuardContext(opportunityResult, featuresResult, allEvidence),
+          verifiedFeatures: featuresResult,
+        }
+      );
+
+      if (aiResult && !aiResult.error && aiResult.claim_validation_status !== 'FAILED') {
+        await supabaseAdmin.from('outreach_leads').update({
+          email_subject: aiResult.email_subject,
+          pitch_text: aiResult.generated_pitch,
+          status: 'READY_TO_SEND',
+          claim_validation_status: 'PASSED',
+          claim_validation_notes: aiResult.claim_validation_notes || 'All claims verified against Evidence Ledger',
+        }).eq('id', leadId);
+      } else {
+        console.warn(`[AI Drafting Gate] Pitch generation or claim validation failed for lead ${leadId}: ${aiResult?.error || aiResult?.claim_validation_notes}`);
+        await supabaseAdmin.from('outreach_leads').update({
+          status: 'NEEDS_REVIEW',
+          claim_validation_status: 'FAILED',
+          claim_validation_notes: aiResult?.claim_validation_notes || aiResult?.error || 'Claim validation contradiction caught',
+        }).eq('id', leadId);
+
+        if (aiResult?.claim_validation_status === 'FAILED') {
+          await supabaseAdmin.from('lead_conflicts').insert({
+            lead_id: leadId,
+            conflict_type: 'CLAIM_CONTRADICTION',
+            severity: 'HIGH',
+            values: [aiResult?.claim_validation_notes || 'Claim contradiction detected'],
+            sources: ['POST_GENERATION_CLAIM_VALIDATOR'],
+            resolved: false,
+          });
+        }
+      }
+    } else {
+      console.log(`[AI Drafting Gate] Lead ${leadId} routed to ${sendabilityDecision.status}: ${sendabilityDecision.decisionReason}`);
+    }
+
+    // ------------------------------------------------------------------------
+    // 7. Mark Pipeline Run Completed
+    // ------------------------------------------------------------------------
+    await supabaseAdmin.from('pipeline_runs').update({
+      processing_status: 'COMPLETED',
+      completed_at: new Date().toISOString(),
+      lead_id: leadId,
+    }).eq('idempotency_key', idempotencyKey);
+
+    await logEvent('TRUST_PIPELINE_COMPLETE', `Processed ${target.websiteUrl} -> ${sendabilityDecision.status} (Score: ${sendabilityDecision.sendabilityScore})`, {
+      leadId,
+      status: sendabilityDecision.status,
+      score: sendabilityDecision.sendabilityScore,
+    });
+
+    return NextResponse.json({
+      success: true,
+      leadId,
+      status: sendabilityDecision.status,
+      sendabilityScore: sendabilityDecision.sendabilityScore,
+      decisionReason: sendabilityDecision.decisionReason,
+    });
+
   } catch (error: any) {
     console.error('[Background Worker Error]:', error);
     try {
-      await supabaseAdmin.from('system_logs').insert({ event_type: 'ERROR', message: `Worker crashed: ${error.message}`, metadata: { error: error.message } });
+      await supabaseAdmin.from('system_logs').insert({
+        event_type: 'ERROR',
+        message: `Trust Worker crashed: ${error.message}`,
+        metadata: { error: error.message },
+      });
     } catch (e) {}
-    // Returning 500 status code triggers automatic QStash retry for failed jobs
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }

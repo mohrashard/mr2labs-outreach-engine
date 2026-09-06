@@ -103,8 +103,12 @@ export async function GET() {
 
     deduped.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
 
+    const hasTodayLogs = (systemLogs && systemLogs.length > 0) || (activityLogs && activityLogs.length > 0);
+    const isHistorical = !hasTodayLogs && deduped.length > 0;
+
     return NextResponse.json({ 
       date: now.toISOString().split('T')[0],
+      isHistorical,
       logs: deduped 
     });
   } catch (error: any) {

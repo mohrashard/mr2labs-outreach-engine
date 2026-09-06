@@ -170,7 +170,7 @@ export default function AdminDashboard() {
           'Authorization': `Bearer ${process.env.NEXT_PUBLIC_CRON_SECRET || 'mr2labs_cron_secret_key_2026'}`
         }
       });
-      showAlert('success', `Queue flushed! Enqueued ${data.enqueuedJobs || 0} emails to Brevo.`);
+      showAlert('success', `Queue flushed! Enqueued ${data.enqueuedJobs || 0} emails to Resend.`);
       fetchData();
     } catch (err: any) {
       showAlert('error', err.message);
@@ -247,7 +247,7 @@ export default function AdminDashboard() {
                   v2.0 Autonomous
                 </span>
               </h1>
-              <p className="text-[11px] text-slate-500 mt-0.5 font-normal">Multi-provider discovery, AI auditing & Brevo dispatch</p>
+              <p className="text-[11px] text-slate-500 mt-0.5 font-normal">Multi-provider discovery, AI auditing & Resend dispatch</p>
             </div>
           </div>
 
@@ -405,7 +405,7 @@ export default function AdminDashboard() {
               </div>
             </div>
             <div className="mt-4 flex items-center text-[11px] text-slate-500 font-normal">
-              <span className="text-purple-300/80 font-normal">Brevo inbound</span>
+              <span className="text-purple-300/80 font-normal">Resend inbound</span>
               <span className="ml-1 text-slate-500">webhooks live</span>
             </div>
           </div>

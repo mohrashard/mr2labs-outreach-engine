@@ -14,7 +14,7 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "MR² Labs - Autonomous Outreach Engine",
-  description: "B2B discovery, AI tech auditing & Brevo dispatch engine",
+  description: "B2B discovery, AI tech auditing & Resend dispatch engine",
   icons: {
     icon: "/mr-squared-logo.png",
     shortcut: "/mr-squared-logo.png",

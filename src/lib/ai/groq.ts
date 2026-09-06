@@ -1,4 +1,5 @@
 import OpenAI from 'openai';
+import { GROQ_MODELS, GEMINI_MODELS, MISTRAL_MODELS, DEEPSEEK_MODELS, OPENROUTER_MODELS } from './models';
 
 export interface AuditResult {
   audit_notes: string;
@@ -53,7 +54,7 @@ async function callAIWithFallback(
     try {
       const guardedSystemPrompt = `${systemPrompt}\n\nCRITICAL INSTRUCTION: Do NOT generate or attempt to invoke any tool calls or function calls. Return RAW JSON ONLY.`;
       const response = await groq.chat.completions.create({
-        model: 'openai/gpt-oss-120b',
+        model: GROQ_MODELS.PRIMARY,
         messages: [
           { role: 'system', content: guardedSystemPrompt },
           { role: 'user', content: userPrompt },
@@ -77,7 +78,7 @@ async function callAIWithFallback(
         baseURL: 'https://generativelanguage.googleapis.com/v1beta/openai/',
       });
       const response = await gemini.chat.completions.create({
-        model: 'gemini-3.7-flash',
+        model: GEMINI_MODELS.PRIMARY,
         messages: [
           { role: 'system', content: `${systemPrompt}\n\nCRITICAL INSTRUCTION: Do NOT generate or attempt to invoke any tool calls or function calls. Return RAW JSON ONLY.` },
           { role: 'user', content: userPrompt },
@@ -101,7 +102,7 @@ async function callAIWithFallback(
         baseURL: 'https://api.mistral.ai/v1',
       });
       const response = await mistral.chat.completions.create({
-        model: 'mistral-small-2506',
+        model: MISTRAL_MODELS.PRIMARY,
         messages: [
           { role: 'system', content: `${systemPrompt}\n\nCRITICAL INSTRUCTION: Do NOT generate or attempt to invoke any tool calls or function calls. Return RAW JSON ONLY.` },
           { role: 'user', content: userPrompt },
@@ -125,7 +126,7 @@ async function callAIWithFallback(
         baseURL: 'https://api.deepseek.com',
       });
       const response = await deepseek.chat.completions.create({
-        model: 'deepseek-chat',
+        model: DEEPSEEK_MODELS.PRIMARY,
         messages: [
           { role: 'system', content: `${systemPrompt}\n\nCRITICAL INSTRUCTION: Do NOT generate or attempt to invoke any tool calls or function calls. Return RAW JSON ONLY.` },
           { role: 'user', content: userPrompt },
@@ -145,7 +146,7 @@ async function callAIWithFallback(
   if (openrouter) {
     try {
       const response = await openrouter.chat.completions.create({
-        model: 'meta-llama/llama-3.3-70b-instruct:free',
+        model: OPENROUTER_MODELS.PRIMARY_FREE,
         messages: [
           { role: 'system', content: `${systemPrompt}\n\nCRITICAL INSTRUCTION: Do NOT generate or attempt to invoke any tool calls or function calls. Return RAW JSON ONLY.` },
           { role: 'user', content: userPrompt },

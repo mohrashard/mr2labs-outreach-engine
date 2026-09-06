@@ -4,7 +4,8 @@ import React, { useState, useEffect } from 'react';
 import { 
   X, Sparkles, Send, Save, ExternalLink, Copy, Check, 
   FileText, Code2, Clock, Phone, Camera, Briefcase, 
-  MessageSquare, Globe, Mail, ShieldAlert, ImageIcon
+  MessageSquare, Globe, Mail, ShieldAlert, ImageIcon,
+  Eye, CheckCircle, AlertTriangle, MessageSquareText
 } from 'lucide-react';
 import { OutreachLead, LeadStatus } from '@/types/lead';
 
@@ -175,22 +176,60 @@ export function LeadDetailDrawer({
           {/* TAB 1: PITCH STUDIO */}
           {activeTab === 'pitch' && (
             <div className="space-y-5">
-              {/* Lead Status Select */}
-              <div className="flex items-center justify-between p-4 bg-white/[0.02] rounded-2xl ring-1 ring-white/[0.06]">
-                <span className="text-xs font-medium text-slate-400 tracking-normal">Pipeline Status</span>
-                <select
-                  value={status}
-                  onChange={(e) => setStatus(e.target.value as LeadStatus)}
-                  className="bg-white/[0.04] ring-1 ring-white/[0.08] text-slate-200 rounded-xl px-3 py-1.5 text-xs font-medium focus:ring-1 focus:ring-indigo-400/40 outline-none"
-                >
-                  <option value="NEW">NEW</option>
-                  <option value="QUEUED">QUEUED</option>
-                  <option value="SENT">SENT</option>
-                  <option value="REPLIED">REPLIED</option>
-                  <option value="MISSING_EMAIL">MISSING_EMAIL</option>
-                  <option value="UNCONTACTABLE">UNCONTACTABLE</option>
-                  <option value="INVALID_DOMAIN">INVALID_DOMAIN</option>
-                </select>
+              {/* Lead Status Select & Live Delivery Stats */}
+              <div className="p-4 bg-white/[0.02] rounded-2xl ring-1 ring-white/[0.06] space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-medium text-slate-400 tracking-normal">Pipeline Status</span>
+                  <select
+                    value={status}
+                    onChange={(e) => setStatus(e.target.value as LeadStatus)}
+                    className="bg-white/[0.04] ring-1 ring-white/[0.08] text-slate-200 rounded-xl px-3 py-1.5 text-xs font-medium focus:ring-1 focus:ring-indigo-400/40 outline-none"
+                  >
+                    <option value="NEW">NEW</option>
+                    <option value="QUEUED">QUEUED</option>
+                    <option value="READY_TO_SEND">READY_TO_SEND</option>
+                    <option value="READY_TO_DRAFT">READY_TO_DRAFT</option>
+                    <option value="NEEDS_REVIEW">NEEDS_REVIEW</option>
+                    <option value="SENT">SENT</option>
+                    <option value="OPENED">OPENED</option>
+                    <option value="CLICKED">CLICKED</option>
+                    <option value="REPLIED">REPLIED</option>
+                    <option value="BOUNCED">BOUNCED</option>
+                    <option value="MISSING_EMAIL">MISSING_EMAIL</option>
+                    <option value="UNCONTACTABLE">UNCONTACTABLE</option>
+                    <option value="INVALID_DOMAIN">INVALID_DOMAIN</option>
+                  </select>
+                </div>
+
+                {/* Live Delivery & Engagement Stats */}
+                {(lead.sent_at || (lead as any).audit_open_count || (lead as any).replied_at || (lead as any).reply_snippet) && (
+                  <div className="pt-2 border-t border-white/[0.04] flex flex-wrap items-center gap-2 text-[11px]">
+                    {lead.sent_at && (
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-500/10 text-emerald-300 ring-1 ring-emerald-500/20">
+                        <Send className="w-3 h-3" /> Sent {new Date(lead.sent_at).toLocaleDateString()}
+                      </span>
+                    )}
+                    {Boolean((lead as any).audit_open_count) && (
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-cyan-500/10 text-cyan-300 ring-1 ring-cyan-500/20 font-medium">
+                        <Eye className="w-3 h-3 text-cyan-400" /> Opened {(lead as any).audit_open_count}x
+                      </span>
+                    )}
+                    {(lead as any).reply_status && (
+                      <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md ring-1 font-medium ${
+                        (lead as any).reply_status === 'POSITIVE' 
+                          ? 'bg-purple-500/15 text-purple-300 ring-purple-500/30' 
+                          : 'bg-orange-500/15 text-orange-300 ring-orange-500/30'
+                      }`}>
+                        <MessageSquare className="w-3 h-3" /> Reply: {(lead as any).reply_status}
+                      </span>
+                    )}
+                    {(lead as any).reply_snippet && (
+                      <p className="w-full text-xs text-slate-300 bg-black/40 p-2 rounded-lg ring-1 ring-white/5 font-mono text-[11px] mt-1">
+                        &quot;{(lead as any).reply_snippet}&quot;
+                      </p>
+                    )}
+                  </div>
+                )}
               </div>
 
               {/* Email Subject Line */}
@@ -361,31 +400,72 @@ export function LeadDetailDrawer({
               <h3 className="text-xs font-medium text-slate-400 tracking-normal">Dispatch & Audit Timeline</h3>
               <div className="space-y-3">
                 
-                {/* 1. Real Activity Logs (Includes Follow-ups) */}
-                {realLogs.map((log: any) => (
-                  <div key={log.id} className="p-4 bg-white/[0.02] rounded-2xl ring-1 ring-white/[0.06] flex items-start gap-3">
-                    <div className={`p-2 rounded-xl mt-0.5 ring-1 ${log.event_type === 'EMAIL_SENT' ? 'bg-emerald-500/10 text-emerald-400 ring-emerald-500/20' : 'bg-slate-500/10 text-slate-400 ring-slate-500/20'}`}>
-                      {log.event_type === 'EMAIL_SENT' ? <Send className="w-4 h-4" /> : <FileText className="w-4 h-4" />}
+                {/* 1. Real Activity Logs (Includes Follow-ups, Delivery, Opens, Replies) */}
+                {realLogs.map((log: any) => {
+                  let eventIcon = <FileText className="w-4 h-4" />;
+                  let iconRing = 'bg-slate-500/10 text-slate-400 ring-slate-500/20';
+                  let eventTitle = log.event_type;
+
+                  if (log.event_type === 'EMAIL_SENT') {
+                    eventIcon = <Send className="w-4 h-4" />;
+                    iconRing = 'bg-emerald-500/10 text-emerald-400 ring-emerald-500/20';
+                    eventTitle = `Email Dispatched (Step ${log.payload?.step || 0})`;
+                  } else if (log.event_type === 'EMAIL_DELIVERED') {
+                    eventIcon = <CheckCircle className="w-4 h-4" />;
+                    iconRing = 'bg-emerald-500/10 text-emerald-400 ring-emerald-500/20';
+                    eventTitle = 'Delivered to Prospect Inbox';
+                  } else if (log.event_type === 'EMAIL_OPENED') {
+                    eventIcon = <Eye className="w-4 h-4" />;
+                    iconRing = 'bg-cyan-500/15 text-cyan-300 ring-cyan-500/30';
+                    eventTitle = 'Email Opened by Prospect';
+                  } else if (log.event_type === 'MAGIC_LINK_CLICK') {
+                    eventIcon = <ExternalLink className="w-4 h-4" />;
+                    iconRing = 'bg-violet-500/15 text-violet-300 ring-violet-500/30';
+                    eventTitle = 'Loom Video / Link Clicked';
+                  } else if (log.event_type === 'POSITIVE_REPLY') {
+                    eventIcon = <MessageSquareText className="w-4 h-4" />;
+                    iconRing = 'bg-purple-500/20 text-purple-300 ring-purple-500/30';
+                    eventTitle = 'Positive Reply ("yes")';
+                  } else if (log.event_type === 'OPTED_OUT') {
+                    eventIcon = <AlertTriangle className="w-4 h-4" />;
+                    iconRing = 'bg-orange-500/15 text-orange-300 ring-orange-500/30';
+                    eventTitle = 'Opted Out ("stop")';
+                  } else if (log.event_type === 'DELIVERY_FAILURE') {
+                    eventIcon = <AlertTriangle className="w-4 h-4" />;
+                    iconRing = 'bg-rose-500/15 text-rose-300 ring-rose-500/30';
+                    eventTitle = 'Bounced / Delivery Failure';
+                  } else if (log.event_type === 'DELIVERY_DELAYED') {
+                    eventIcon = <Clock className="w-4 h-4" />;
+                    iconRing = 'bg-amber-500/15 text-amber-300 ring-amber-500/30';
+                    eventTitle = 'Delivery Delayed (Greylisted)';
+                  }
+
+                  return (
+                    <div key={log.id} className="p-4 bg-white/[0.02] rounded-2xl ring-1 ring-white/[0.06] flex items-start gap-3">
+                      <div className={`p-2 rounded-xl mt-0.5 ring-1 ${iconRing}`}>
+                        {eventIcon}
+                      </div>
+                      <div className="flex-1">
+                        <p className="text-xs font-medium text-slate-100">{eventTitle}</p>
+                        <p className="text-[10px] text-slate-500 mt-0.5">{new Date(log.created_at).toLocaleString()}</p>
+                        
+                        {log.payload?.subject && (
+                          <p className="text-xs text-indigo-300 mt-2 font-medium">Subject: {log.payload.subject}</p>
+                        )}
+                        {log.payload?.snippet && (
+                          <p className="text-xs text-purple-200 mt-2 font-mono bg-black/40 p-2.5 rounded-xl ring-1 ring-white/5">
+                            &quot;{log.payload.snippet}&quot;
+                          </p>
+                        )}
+                        {log.payload?.content && (
+                          <div className="mt-2 p-3 bg-black/40 rounded-xl text-[11px] text-slate-300 whitespace-pre-wrap ring-1 ring-white/5 font-serif leading-relaxed">
+                            {log.payload.content}
+                          </div>
+                        )}
+                      </div>
                     </div>
-                    <div className="flex-1">
-                      <p className="text-xs font-medium text-slate-100">
-                        {log.event_type === 'EMAIL_SENT' 
-                          ? `Email Dispatched (Step ${log.payload?.step || 0})` 
-                          : log.event_type}
-                      </p>
-                      <p className="text-[10px] text-slate-500 mt-0.5">{new Date(log.created_at).toLocaleString()}</p>
-                      
-                      {log.payload?.subject && (
-                        <p className="text-xs text-indigo-300 mt-2 font-medium">Subject: {log.payload.subject}</p>
-                      )}
-                      {log.payload?.content && (
-                        <div className="mt-2 p-3 bg-black/40 rounded-xl text-[11px] text-slate-300 whitespace-pre-wrap ring-1 ring-white/5 font-serif leading-relaxed">
-                          {log.payload.content}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
 
                 {/* 2. Lead Discovered (Static Base Event) */}
                 <div className="p-4 bg-white/[0.02] rounded-2xl ring-1 ring-white/[0.06] flex items-start gap-3 opacity-80">

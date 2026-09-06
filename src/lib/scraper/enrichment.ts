@@ -1,9 +1,12 @@
 import * as cheerio from 'cheerio';
 import OpenAI from 'openai';
-import { verifyEmailHttpBridge, verifyEmailWithDetails, scoreEmailConfidence } from '@/lib/email/validator';
-import { runTechnicalAudit, AuditResult } from '@/lib/scraper/audit';
-import { fetchGooglePageSpeed } from '@/lib/scraper/pagespeed';
-import { BLACKLISTED_DOMAINS } from '@/lib/scraper/discovery';
+import { verifyEmailHttpBridge, verifyEmailWithDetails, scoreEmailConfidence } from '../email/validator';
+import { runTechnicalAudit, AuditResult } from './audit';
+import { fetchGooglePageSpeed } from './pagespeed';
+import { BLACKLISTED_DOMAINS } from './discovery';
+import { findDecisionMakerFree } from './decision-maker';
+import { FounderSource } from '../../types/lead';
+import { GROQ_MODELS, GEMINI_MODELS, MISTRAL_MODELS, DEEPSEEK_MODELS, OPENROUTER_MODELS } from '../ai/models';
 
 export interface EnrichedContactData {
   email: string | null;
@@ -16,6 +19,12 @@ export interface EnrichedContactData {
   verifier_used?: string;
   is_rejected?: boolean;
   raw_scraped_data?: AuditResult | Record<string, any>;
+  contact_name?: string | null;
+  contact_first_name?: string | null;
+  contact_last_name?: string | null;
+  contact_role?: string | null;
+  contact_source?: FounderSource;
+  contact_confidence?: number;
 }
 
 export interface DisambiguatedFounder {
@@ -264,7 +273,7 @@ CRITICAL INSTRUCTION: Do NOT generate or attempt to invoke any tool calls or fun
       });
 
       const response = await groq.chat.completions.create({
-        model: 'openai/gpt-oss-120b',
+        model: GROQ_MODELS.PRIMARY,
         messages: [
           { role: 'system', content: systemPrompt },
           { role: 'user', content: userPrompt },
@@ -299,7 +308,7 @@ CRITICAL INSTRUCTION: Do NOT generate or attempt to invoke any tool calls or fun
       });
 
       const response = await gemini.chat.completions.create({
-        model: 'gemini-3.7-flash',
+        model: GEMINI_MODELS.PRIMARY,
         messages: [
           { role: 'system', content: systemPrompt },
           { role: 'user', content: userPrompt },
@@ -334,7 +343,7 @@ CRITICAL INSTRUCTION: Do NOT generate or attempt to invoke any tool calls or fun
       });
 
       const response = await mistral.chat.completions.create({
-        model: 'mistral-small-2506',
+        model: MISTRAL_MODELS.PRIMARY,
         messages: [
           { role: 'system', content: systemPrompt },
           { role: 'user', content: userPrompt },
@@ -369,7 +378,7 @@ CRITICAL INSTRUCTION: Do NOT generate or attempt to invoke any tool calls or fun
       });
 
       const response = await deepseek.chat.completions.create({
-        model: 'deepseek-chat',
+        model: DEEPSEEK_MODELS.PRIMARY,
         messages: [
           { role: 'system', content: systemPrompt },
           { role: 'user', content: userPrompt },
@@ -408,7 +417,7 @@ CRITICAL INSTRUCTION: Do NOT generate or attempt to invoke any tool calls or fun
       });
 
       const response = await openrouter.chat.completions.create({
-        model: 'meta-llama/llama-3.3-70b-instruct:free',
+        model: OPENROUTER_MODELS.PRIMARY_FREE,
         messages: [
           { role: 'system', content: systemPrompt },
           { role: 'user', content: userPrompt },
@@ -861,7 +870,7 @@ CRITICAL INSTRUCTION: Do NOT generate or attempt to invoke any tool calls or fun
       });
 
       const response = await groq.chat.completions.create({
-        model: 'openai/gpt-oss-120b',
+        model: GROQ_MODELS.FAST,
         messages: [
           { role: 'system', content: systemPrompt },
           { role: 'user', content: userPrompt },
@@ -896,7 +905,7 @@ CRITICAL INSTRUCTION: Do NOT generate or attempt to invoke any tool calls or fun
       });
 
       const response = await gemini.chat.completions.create({
-        model: 'gemini-3.7-flash',
+        model: GEMINI_MODELS.PRIMARY,
         messages: [
           { role: 'system', content: systemPrompt },
           { role: 'user', content: userPrompt },
@@ -931,7 +940,7 @@ CRITICAL INSTRUCTION: Do NOT generate or attempt to invoke any tool calls or fun
       });
 
       const response = await mistral.chat.completions.create({
-        model: 'mistral-small-2506',
+        model: MISTRAL_MODELS.PRIMARY,
         messages: [
           { role: 'system', content: systemPrompt },
           { role: 'user', content: userPrompt },
@@ -966,7 +975,7 @@ CRITICAL INSTRUCTION: Do NOT generate or attempt to invoke any tool calls or fun
       });
 
       const response = await deepseek.chat.completions.create({
-        model: 'deepseek-chat',
+        model: DEEPSEEK_MODELS.PRIMARY,
         messages: [
           { role: 'system', content: systemPrompt },
           { role: 'user', content: userPrompt },
@@ -1005,7 +1014,7 @@ CRITICAL INSTRUCTION: Do NOT generate or attempt to invoke any tool calls or fun
       });
 
       const response = await openrouter.chat.completions.create({
-        model: 'meta-llama/llama-3.3-70b-instruct:free',
+        model: OPENROUTER_MODELS.PRIMARY_FREE,
         messages: [
           { role: 'system', content: systemPrompt },
           { role: 'user', content: userPrompt },
@@ -1059,7 +1068,9 @@ export async function deepEnrichDomain(
   domainUrl: string,
   companyName?: string,
   targetNiche?: string,
-  targetPersonas?: string[]
+  targetPersonas?: string[],
+  locationState?: string | null,
+  locationCity?: string | null
 ): Promise<EnrichedContactData> {
   // SSRF Protection: Validate target domain format and reject internal IPs / metadata endpoints
   try {
@@ -1261,13 +1272,61 @@ export async function deepEnrichDomain(
     };
   }
 
+  const rootDomain = extractCleanHostname(domainUrl);
+  const effectiveCompanyName = companyName || domainToTitleCase(rootDomain);
+
+  // --------------------------------------------------------------------------
+  // ZERO-CREDIT DECISION MAKER ENGINE (On-Site First Architecture)
+  // Evaluates: Schema.org JSON-LD -> Bio/Team Crawl + Groq -> Legal -> NPI Gov ($0 Cost)
+  // --------------------------------------------------------------------------
+  const industry = targetNiche || 'business';
+  console.log(`[DM Engine] Starting zero-credit decision maker discovery for ${domainUrl} in ${industry}...`);
+  const dmResult = await findDecisionMakerFree(
+    domainUrl,
+    effectiveCompanyName,
+    locationState || null,
+    locationCity || null,
+    industry,
+    primaryHtml || undefined
+  );
+
+  let contact_name: string | null = dmResult.name !== 'Team' ? dmResult.name : null;
+  let contact_first_name: string | null = dmResult.firstName;
+  let contact_last_name: string | null = dmResult.lastName;
+  let contact_role: string | null = dmResult.role !== 'UNKNOWN' ? dmResult.role : null;
+  let contact_source: FounderSource = dmResult.source;
+  let contact_confidence = dmResult.confidence;
+
+  // If DM is found and email is missing, test high-probability email patterns ($0 Cost)
+  if (!email && dmResult.firstName) {
+    const first = dmResult.firstName.toLowerCase().replace(/[^a-z]/g, '');
+    const last = (dmResult.lastName || '').toLowerCase().replace(/[^a-z]/g, '');
+
+    const candidatePermutations: string[] = [];
+    if (first) candidatePermutations.push(`${first}@${rootDomain}`);
+    if (first && last) {
+      candidatePermutations.push(`${first}.${last}@${rootDomain}`);
+      candidatePermutations.push(`${first[0]}${last}@${rootDomain}`);
+      candidatePermutations.push(`${first}${last}@${rootDomain}`);
+    }
+
+    for (const candidate of candidatePermutations) {
+      if (isValidLeadEmail(candidate)) {
+        const vRes = await verifyWithSourceAwareness(candidate, 'GUESSED');
+        if (vRes.valid) {
+          console.log(`[Zero-Credit Email Discovery] Verified founder inbox for ${effectiveCompanyName} (${first} ${last}): ${candidate}`);
+          email = candidate;
+          enrichment_source = 'DOM';
+          verifier_used = vRes.verifier;
+          break;
+        }
+      }
+    }
+  }
+
   // Waterfall Cascade if Tier 1 yielded no email
   if (!email) {
-    const rootDomain = extractCleanHostname(domainUrl);
-
     // Tier 2: Smart API Dorking for Founder with Groq Disambiguation (Serper API -> SerpApi fallback)
-    const effectiveCompanyName = companyName || domainToTitleCase(rootDomain);
-
     const dorkResult = await fetchEmailViaDorking(effectiveCompanyName, domainUrl, targetPersonas);
     if (dorkResult) {
       const vRes = await verifyWithSourceAwareness(dorkResult.email, 'GUESSED');
@@ -1275,6 +1334,9 @@ export async function deepEnrichDomain(
         email = dorkResult.email;
         enrichment_source = dorkResult.source;
         verifier_used = vRes.verifier;
+        if (dorkResult.source && contact_source === 'NOT_FOUND') {
+          contact_source = 'SERP_FALLBACK';
+        }
       }
     }
 
@@ -1373,7 +1435,13 @@ export async function deepEnrichDomain(
     dom_snippet,
     enrichment_source,
     verifier_used,
-    raw_scraped_data
+    raw_scraped_data,
+    contact_name,
+    contact_first_name,
+    contact_last_name,
+    contact_role,
+    contact_source,
+    contact_confidence,
   };
 }
 

@@ -15,6 +15,7 @@ export function LiveLogs() {
   const [logs, setLogs] = useState<SystemLog[]>([]);
   const [loading, setLoading] = useState(true);
   const [todayDate, setTodayDate] = useState<string>('');
+  const [isHistorical, setIsHistorical] = useState(false);
   const [filter, setFilter] = useState<'ALL' | 'STEP_0' | 'STEP_1' | 'STEP_2' | 'STEP_3' | 'SYSTEM' | 'REJECTED'>('ALL');
 
   useEffect(() => {
@@ -28,6 +29,9 @@ export function LiveLogs() {
         if (data.date) {
           setTodayDate(data.date);
         }
+        if (data.isHistorical !== undefined) {
+          setIsHistorical(data.isHistorical);
+        }
       } catch (err) {
         console.error('Failed to fetch logs', err);
       } finally {
@@ -39,6 +43,46 @@ export function LiveLogs() {
     const interval = setInterval(fetchLogs, 4000); // Fast 4s polling
     return () => clearInterval(interval);
   }, []);
+
+  // Format timestamp relative to current date to avoid timezone/day confusion
+  const formatLogTimestamp = (dateStr: string) => {
+    try {
+      const date = new Date(dateStr);
+      if (isNaN(date.getTime())) return dateStr;
+
+      const now = new Date();
+      const isToday = 
+        date.getDate() === now.getDate() &&
+        date.getMonth() === now.getMonth() &&
+        date.getFullYear() === now.getFullYear();
+
+      const timeStr = date.toLocaleTimeString([], { 
+        hour: '2-digit', 
+        minute: '2-digit', 
+        second: '2-digit' 
+      });
+
+      if (isToday) {
+        return timeStr;
+      }
+
+      const yesterday = new Date(now);
+      yesterday.setDate(now.getDate() - 1);
+      const isYesterday = 
+        date.getDate() === yesterday.getDate() &&
+        date.getMonth() === yesterday.getMonth() &&
+        date.getFullYear() === yesterday.getFullYear();
+
+      if (isYesterday) {
+        return `Yesterday ${timeStr}`;
+      }
+
+      const monthDay = date.toLocaleDateString([], { month: 'short', day: 'numeric' });
+      return `${monthDay} ${timeStr}`;
+    } catch {
+      return dateStr;
+    }
+  };
 
   // Helper for Step Tag Styling
   const getStepBadge = (step?: number | 'SYSTEM') => {
@@ -114,7 +158,7 @@ export function LiveLogs() {
           
           <div className="flex items-center gap-1 text-[10px] text-slate-400 bg-white/5 border border-white/10 px-2 py-0.5 rounded-md font-mono">
             <Calendar className="w-3 h-3 text-indigo-400" />
-            <span>Today ({todayDate || new Date().toLocaleDateString()})</span>
+            <span>{isHistorical ? 'Previous Run' : `Today (${todayDate || new Date().toLocaleDateString()})`}</span>
           </div>
         </div>
 
@@ -124,7 +168,7 @@ export function LiveLogs() {
             onClick={() => setFilter('ALL')}
             className={`px-2.5 py-1 text-[10px] font-mono rounded-lg transition-all ${filter === 'ALL' ? 'bg-indigo-600/30 text-indigo-300 font-bold border border-indigo-500/30' : 'text-slate-400 hover:text-slate-200'}`}
           >
-            All Today ({logs.length})
+            {isHistorical ? 'All Recent' : 'All Today'} ({logs.length})
           </button>
           
           <button 
@@ -205,8 +249,11 @@ export function LiveLogs() {
             </span>
             {priorityEvent.message}
           </div>
-          <span className="text-[10px] text-slate-400 font-mono shrink-0">
-            {new Date(priorityEvent.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+          <span 
+            className="text-[10px] text-slate-400 font-mono shrink-0 cursor-help"
+            title={new Date(priorityEvent.created_at).toLocaleString()}
+          >
+            {formatLogTimestamp(priorityEvent.created_at)}
           </span>
         </div>
       )}
@@ -216,7 +263,9 @@ export function LiveLogs() {
         {loading ? (
           <div className="text-slate-600 animate-pulse">Initializing log stream for today...</div>
         ) : filteredLogs.length === 0 ? (
-          <div className="text-slate-600 italic py-6 text-center">No logs recorded for this filter today.</div>
+          <div className="text-slate-600 italic py-6 text-center">
+            {isHistorical ? 'No logs recorded for this filter in the latest run.' : 'No logs recorded for this filter today.'}
+          </div>
         ) : (
           filteredLogs.map(log => {
             const stepBadge = getStepBadge(log.step);
@@ -224,8 +273,11 @@ export function LiveLogs() {
             return (
               <div key={log.id} className="flex items-start gap-2.5 hover:bg-white/[0.02] py-0.5 px-1 rounded transition-colors">
                 {/* Timestamp */}
-                <span className="text-slate-500 shrink-0 select-none">
-                  {new Date(log.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+                <span 
+                  className="text-slate-500 shrink-0 select-none cursor-help"
+                  title={new Date(log.created_at).toLocaleString()}
+                >
+                  {formatLogTimestamp(log.created_at)}
                 </span>
 
                 {/* Step Badge */}

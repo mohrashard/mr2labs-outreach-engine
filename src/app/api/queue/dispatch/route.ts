@@ -8,9 +8,6 @@ const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
 const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-// Brevo API Key
-const BREVO_API_KEY = process.env.BREVO_API_KEY || '';
-
 // Secret token to prevent unauthorized execution (e.g. from QStash)
 const CRON_SECRET = process.env.CRON_SECRET || '';
 
@@ -95,16 +92,10 @@ export async function POST(request: Request) {
 
     console.log(`[DISPATCH] Processing lead: ${company_name} (${email})`);
 
-    // Extract raw domain from URL for the PDF
-    let cleanDomain = website_url;
-    try {
-      const urlObj = new URL(website_url.startsWith('http') ? website_url : `https://${website_url}`);
-      cleanDomain = urlObj.hostname.replace('www.', '');
-    } catch (e) {
-      console.warn(`Could not parse URL ${website_url}`);
-    }
-
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://outreach.getmr2labs.com';
+    let cleanCompany = company_name
+      ? company_name.trim().replace(/[,.]?\s*\b(llc|inc|corp|corporation|ltd|co|pc|pllc|group|holdings)\b\.?/gi, '').replace(/[,.]\s*$/, '').trim()
+      : 'your team';
+    if (!cleanCompany || cleanCompany.length < 2) cleanCompany = 'your team';
 
     // Sanitize greeting and format pitch HTML cleanly
     const sanitizedPitch = sanitizeGreetingAndBody(
@@ -120,67 +111,62 @@ export async function POST(request: Request) {
     let textContent = '';
 
     if (stepNum === 0) {
-      // Step 0 (Initial Cold Email) - Zero external links, permission CTA & opt-out footer
+      // Step 0 (Initial Cold Email) - Zero external links, formatted Customer POV pitch with opt-out footer
       htmlContent = `
         <div style="font-family: sans-serif; font-size: 14px; color: #333; line-height: 1.6; max-width: 600px;">
           ${formattedHtmlBody}
-          <p style="margin-top: 16px; font-size: 14px; line-height: 1.6; color: #333333;">
-            I put together a quick 2-minute diagnostic for your team. Mind if I send it over?
-          </p>
-          <p style="margin-top: 24px; font-size: 11px; color: #888888; border-top: 1px solid #eeeeee; padding-top: 12px;">
-            If you'd prefer not to hear from me, reply with 'stop' and I'll remove you immediately.
-          </p>
         </div>
       `;
 
-      textContent = `${sanitizedPitch
-        .replace(/<[^>]*>/g, '')
-        .replace(/&rarr;/g, '→')
-        .replace(/&amp;/g, '&')
-        .replace(/\s+/g, ' ')
-        .trim()}\n\nI put together a quick 2-minute diagnostic for your team. Mind if I send it over?\n\nIf you'd prefer not to hear from me, reply with 'stop' and I'll remove you immediately.`;
+      textContent = sanitizedPitch;
     } else if (stepNum === 1) {
-      // Step 1 Follow-up - Zero links
+      // Step 1 Follow-up - Zero links, 2-minute Loom breakdown reference, clean company name
       htmlContent = `
         <div style="font-family: sans-serif; font-size: 14px; color: #333; line-height: 1.6; max-width: 600px;">
-          <p style="margin: 0 0 16px 0;">Hi,</p>
-          <p style="margin: 0 0 16px 0;">Quick follow-up on my note below regarding the 2-minute diagnostic report for <strong>${cleanDomain}</strong>. Would you like me to send it over?</p>
-          <p style="margin: 20px 0 0 0;">Best,<br/>Rashard</p>
-          <p style="margin-top: 24px; font-size: 11px; color: #888888; border-top: 1px solid #eeeeee; padding-top: 12px;">
-            If you'd prefer not to hear from me, reply with 'stop' and I'll remove you immediately.
-          </p>
+          ${formattedHtmlBody || `
+            <p style="margin: 0 0 16px 0;">Hi,</p>
+            <p style="margin: 0 0 16px 0;">Wanted to make sure you saw my note from yesterday, put together a quick 2-minute Loom breakdown showing how ${cleanCompany} could capture those after-hours bookings automatically. Want me to send over the link?</p>
+            <p style="margin: 20px 0 0 0;">Best,<br/>Rashard</p>
+            <p style="margin-top: 24px; font-size: 11px; font-weight: bold; color: #444444; border-top: 1px solid #eeeeee; padding-top: 14px; line-height: 1.5;">
+              If you'd prefer not to hear from me, reply "stop" and I'll remove you immediately, but if you want improve your business and need my free breakdown reply "yes".
+            </p>
+          `}
         </div>
       `;
 
-      textContent = `Hi,\n\nQuick follow-up on my note below regarding the 2-minute diagnostic report for ${cleanDomain}. Would you like me to send it over?\n\nBest,\nRashard\n\nIf you'd prefer not to hear from me, reply with 'stop' and I'll remove you immediately.`;
+      textContent = sanitizedPitch || `Hi,\n\nWanted to make sure you saw my note from yesterday, put together a quick 2-minute Loom breakdown showing how ${cleanCompany} could capture those after-hours bookings automatically. Want me to send over the link?\n\nBest,\nRashard\n\n**If you'd prefer not to hear from me, reply "stop" and I'll remove you immediately, but if you want improve your business and need my free breakdown reply "yes".**`;
     } else if (stepNum === 2) {
       // Step 2 Follow-up - Zero links
       htmlContent = `
         <div style="font-family: sans-serif; font-size: 14px; color: #333; line-height: 1.6; max-width: 600px;">
-          <p style="margin: 0 0 16px 0;">Hi,</p>
-          <p style="margin: 0 0 16px 0;">Thought I'd bump this once more in case it got buried. Should I forward over the diagnostic breakdown for <strong>${cleanDomain}</strong>?</p>
-          <p style="margin: 20px 0 0 0;">Best,<br/>Rashard</p>
-          <p style="margin-top: 24px; font-size: 11px; color: #888888; border-top: 1px solid #eeeeee; padding-top: 12px;">
-            If you'd prefer not to hear from me, reply with 'stop' and I'll remove you immediately.
-          </p>
+          ${formattedHtmlBody || `
+            <p style="margin: 0 0 16px 0;">Hi,</p>
+            <p style="margin: 0 0 16px 0;">One more quick thought, you wouldn't need to replace your existing tools or website to fix this. We can layer the automated booking system right on top of what ${cleanCompany} already has. Happy to send over the 2-minute video breakdown if you'd like to take a look.</p>
+            <p style="margin: 20px 0 0 0;">Best,<br/>Rashard</p>
+            <p style="margin-top: 24px; font-size: 11px; font-weight: bold; color: #444444; border-top: 1px solid #eeeeee; padding-top: 14px; line-height: 1.5;">
+              If you'd prefer not to hear from me, reply "stop" and I'll remove you immediately, but if you want improve your business and need my free breakdown reply "yes".
+            </p>
+          `}
         </div>
       `;
 
-      textContent = `Hi,\n\nThought I'd bump this once more in case it got buried. Should I forward over the diagnostic breakdown for ${cleanDomain}?\n\nBest,\nRashard\n\nIf you'd prefer not to hear from me, reply with 'stop' and I'll remove you immediately.`;
+      textContent = sanitizedPitch || `Hi,\n\nOne more quick thought, you wouldn't need to replace your existing tools or website to fix this. We can layer the automated booking system right on top of what ${cleanCompany} already has. Happy to send over the 2-minute video breakdown if you'd like to take a look.\n\nBest,\nRashard\n\n**If you'd prefer not to hear from me, reply "stop" and I'll remove you immediately, but if you want improve your business and need my free breakdown reply "yes".**`;
     } else {
       // Step 3 Break-up - Zero links
       htmlContent = `
         <div style="font-family: sans-serif; font-size: 14px; color: #333; line-height: 1.6; max-width: 600px;">
-          <p style="margin: 0 0 16px 0;">Hi,</p>
-          <p style="margin: 0 0 16px 0;">Assuming this isn't a priority right now, I'll close your file. Let me know if you ever want me to send over the diagnostic breakdown for <strong>${cleanDomain}</strong>.</p>
-          <p style="margin: 20px 0 0 0;">Best,<br/>Rashard</p>
-          <p style="margin-top: 24px; font-size: 11px; color: #888888; border-top: 1px solid #eeeeee; padding-top: 12px;">
-            If you'd prefer not to hear from me, reply with 'stop' and I'll remove you immediately.
-          </p>
+          ${formattedHtmlBody || `
+            <p style="margin: 0 0 16px 0;">Hi,</p>
+            <p style="margin: 0 0 16px 0;">I'll close the loop here so I don't clutter your inbox. If fixing the after-hours booking or lead response for ${cleanCompany} ever becomes a priority, feel free to reach back out anytime.</p>
+            <p style="margin: 20px 0 0 0;">Best,<br/>Rashard</p>
+            <p style="margin-top: 24px; font-size: 11px; font-weight: bold; color: #444444; border-top: 1px solid #eeeeee; padding-top: 14px; line-height: 1.5;">
+              If you'd prefer not to hear from me, reply "stop" and I'll remove you immediately, but if you want improve your business and need my free breakdown reply "yes".
+            </p>
+          `}
         </div>
       `;
 
-      textContent = `Hi,\n\nAssuming this isn't a priority right now, I'll close your file. Let me know if you ever want me to send over the diagnostic breakdown for ${cleanDomain}.\n\nBest,\nRashard\n\nIf you'd prefer not to hear from me, reply with 'stop' and I'll remove you immediately.`;
+      textContent = sanitizedPitch || `Hi,\n\nI'll close the loop here so I don't clutter your inbox. If fixing the after-hours booking or lead response for ${cleanCompany} ever becomes a priority, feel free to reach back out anytime.\n\nBest,\nRashard\n\n**If you'd prefer not to hear from me, reply "stop" and I'll remove you immediately, but if you want improve your business and need my free breakdown reply "yes".**`;
     }
 
     const subject = email_subject || 'quick note';
@@ -206,7 +192,7 @@ export async function POST(request: Request) {
     await supabase.from('activity_logs').insert({
       lead_id: id,
       event_type: 'EMAIL_SENT',
-      payload: { subject, domain: cleanDomain, step: stepNum }
+      payload: { subject, company: cleanCompany, step: stepNum }
     });
 
     await supabase.from('system_logs').insert({

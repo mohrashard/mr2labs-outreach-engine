@@ -121,13 +121,31 @@ export async function GET(req: Request) {
           // 1. Collect Step 0 leads (Priority 1: up to step0CapToday across active campaigns)
           if (campaign.is_active && eligibleStep0.length < step0CapToday) {
             const neededStep0 = step0CapToday - eligibleStep0.length;
-            const { data: newLeads } = await supabaseAdmin
-              .from('outreach_leads')
-              .select('id, email, status, follow_up_step, company_name')
-              .eq('campaign_id', campaign.id)
-              .eq('status', 'NEW')
-              .not('email', 'is', null)
-              .limit(neededStep0);
+            let newLeads: any[] | null = null;
+            try {
+              const res = await supabaseAdmin
+                .from('outreach_leads')
+                .select('id, email, status, follow_up_step, company_name, claim_validation_status')
+                .eq('campaign_id', campaign.id)
+                .eq('status', 'NEW')
+                .neq('claim_validation_status', 'FAILED')
+                .not('email', 'is', null)
+                .limit(neededStep0);
+              if (!res.error) {
+                newLeads = res.data;
+              } else {
+                throw res.error;
+              }
+            } catch {
+              const resFallback = await supabaseAdmin
+                .from('outreach_leads')
+                .select('id, email, status, follow_up_step, company_name')
+                .eq('campaign_id', campaign.id)
+                .eq('status', 'NEW')
+                .not('email', 'is', null)
+                .limit(neededStep0);
+              newLeads = resFallback.data;
+            }
 
             if (newLeads && newLeads.length > 0) {
               for (const l of newLeads) {

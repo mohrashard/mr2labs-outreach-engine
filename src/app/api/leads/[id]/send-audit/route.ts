@@ -25,33 +25,27 @@ export async function POST(
       return NextResponse.json({ error: 'Lead has no valid email address' }, { status: 400 });
     }
 
-    let cleanDomain = lead.website_url;
-    try {
-      if (cleanDomain) {
-        const urlObj = new URL(cleanDomain.startsWith('http') ? cleanDomain : `https://${cleanDomain}`);
-        cleanDomain = urlObj.hostname.replace('www.', '');
-      }
-    } catch (e) {
-      console.warn(`Could not parse URL ${lead.website_url}`);
-    }
+    let cleanCompany = lead.company_name
+      ? lead.company_name.trim().replace(/[,.]?\s*\b(llc|inc|corp|corporation|ltd|co|pc|pllc|group|holdings)\b\.?/gi, '').replace(/[,.]\s*$/, '').trim()
+      : 'your team';
 
     const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://outreach.getmr2labs.com';
     const auditUrl = `${appUrl}/audit/${id}`;
-    const subject = `Here's the diagnostic for ${cleanDomain || lead.company_name}`;
+    const subject = `2-minute video breakdown for ${cleanCompany}`;
 
     const htmlContent = `
       <div style="font-family: sans-serif; font-size: 14px; color: #333; line-height: 1.6; max-width: 600px;">
         <p style="margin: 0 0 16px 0;">Hi,</p>
-        <p style="margin: 0 0 16px 0;">Here is the diagnostic report I mentioned for <strong>${cleanDomain || lead.company_name}</strong>:</p>
+        <p style="margin: 0 0 16px 0;">Here is the 2-minute Loom breakdown I put together for <strong>${cleanCompany}</strong>:</p>
         <p style="margin: 20px 0;">
-          <a href="${auditUrl}" style="color: #2563eb; font-weight: 600; text-decoration: underline;">View the diagnostic report for ${cleanDomain} &rarr;</a>
+          <a href="${auditUrl}" style="color: #2563eb; font-weight: 600; text-decoration: underline;">Watch the 2-minute Loom breakdown for ${cleanCompany} &rarr;</a>
         </p>
         <p style="margin: 16px 0 0 0;">Let me know what you think!</p>
         <p style="margin: 20px 0 0 0;">Best,<br/>Rashard</p>
       </div>
     `;
 
-    const textContent = `Hi,\n\nHere is the diagnostic report I mentioned for ${cleanDomain || lead.company_name}:\n${auditUrl}\n\nLet me know what you think!\n\nBest,\nRashard`;
+    const textContent = `Hi,\n\nHere is the 2-minute Loom breakdown I put together for ${cleanCompany}:\n${auditUrl}\n\nLet me know what you think!\n\nBest,\nRashard`;
 
     // 2. Send via Resend
     await sendColdEmail(lead.email, subject, htmlContent, textContent);

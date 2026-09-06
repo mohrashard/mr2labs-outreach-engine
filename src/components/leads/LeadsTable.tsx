@@ -3,7 +3,8 @@
 import React, { useState } from 'react';
 import { 
   ExternalLink, Copy, Check, Sparkles, 
-  Phone, Camera, Briefcase, ChevronRight, Mail, AlertCircle, ShieldCheck, Filter, Download
+  Phone, Camera, Briefcase, ChevronRight, Mail, AlertCircle, ShieldCheck, Filter, Download,
+  Eye, MessageSquareText, AlertTriangle, Send
 } from 'lucide-react';
 import { OutreachLead, LeadStatus } from '@/types/lead';
 
@@ -14,14 +15,16 @@ interface LeadsTableProps {
 
 export function LeadsTable({ leads, onSelectLead }: LeadsTableProps) {
   const [copiedId, setCopiedId] = useState<string | null>(null);
-  const [statusFilter, setStatusFilter] = useState<'active' | 'new' | 'queued' | 'all'>('active');
+  const [statusFilter, setStatusFilter] = useState<'active' | 'sent' | 'opened' | 'replied' | 'bounced' | 'all'>('active');
   const [dateFilter, setDateFilter] = useState<'today' | 'all'>('today');
 
   const filteredLeads = leads.filter(lead => {
-    // Status filter logic (default 'active' = New & Queued only)
-    if (statusFilter === 'active' && lead.status !== 'NEW' && lead.status !== 'QUEUED') return false;
-    if (statusFilter === 'new' && lead.status !== 'NEW') return false;
-    if (statusFilter === 'queued' && lead.status !== 'QUEUED') return false;
+    // Status filter logic
+    if (statusFilter === 'active' && lead.status !== 'NEW' && lead.status !== 'QUEUED' && lead.status !== 'READY_TO_DRAFT' && lead.status !== 'READY_TO_SEND') return false;
+    if (statusFilter === 'sent' && lead.status !== 'SENT') return false;
+    if (statusFilter === 'opened' && lead.status !== 'OPENED' && lead.status !== 'CLICKED' && !(((lead as any).audit_open_count || 0) > 0)) return false;
+    if (statusFilter === 'replied' && lead.status !== 'REPLIED' && (lead as any).reply_status !== 'POSITIVE') return false;
+    if (statusFilter === 'bounced' && lead.status !== 'BOUNCED' && lead.status !== 'STOP' && lead.status !== 'UNSUBSCRIBED') return false;
 
     // Date filter logic (timezone resilient: matches local date, UTC date, or last 24h batch)
     if (dateFilter === 'today') {
@@ -182,8 +185,41 @@ export function LeadsTable({ leads, onSelectLead }: LeadsTableProps) {
     URL.revokeObjectURL(url);
   };
 
-  const getStatusBadge = (status: LeadStatus) => {
+  const getStatusBadge = (lead: OutreachLead) => {
+    const status = lead.status;
+    const openCount = (lead as any).audit_open_count || 0;
+
     switch (status) {
+      case 'OPENED':
+        return (
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-cyan-500/15 text-cyan-300 ring-1 ring-cyan-500/30 shadow-sm">
+            <Eye className="w-3.5 h-3.5 text-cyan-400" /> Opened {openCount > 1 ? `(${openCount}x)` : ''}
+          </span>
+        );
+      case 'CLICKED':
+        return (
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-violet-500/15 text-violet-300 ring-1 ring-violet-500/30 shadow-sm">
+            <ExternalLink className="w-3.5 h-3.5 text-violet-400" /> Clicked
+          </span>
+        );
+      case 'REPLIED':
+        return (
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-purple-500/20 text-purple-300 ring-1 ring-purple-500/30 shadow-sm">
+            <MessageSquareText className="w-3.5 h-3.5 text-purple-400" /> Replied
+          </span>
+        );
+      case 'SENT':
+        return (
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-normal text-emerald-400 bg-emerald-500/10 ring-1 ring-emerald-500/20">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0" /> Sent
+          </span>
+        );
+      case 'BOUNCED':
+        return (
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-normal text-rose-400 bg-rose-500/10 ring-1 ring-rose-500/20">
+            <AlertTriangle className="w-3.5 h-3.5 text-rose-400 shrink-0" /> Bounced
+          </span>
+        );
       case 'NEW':
         return (
           <span className="inline-flex items-center gap-1.5 text-xs text-slate-300 font-normal">
@@ -196,16 +232,22 @@ export function LeadsTable({ leads, onSelectLead }: LeadsTableProps) {
             <span className="w-1.5 h-1.5 rounded-full bg-amber-400 shrink-0" /> Queued
           </span>
         );
-      case 'SENT':
+      case 'READY_TO_SEND':
         return (
-          <span className="inline-flex items-center gap-1.5 text-xs text-slate-300 font-normal">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0" /> Sent
+          <span className="inline-flex items-center gap-1.5 text-xs text-emerald-300 font-normal">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0" /> Ready to Send
           </span>
         );
-      case 'REPLIED':
+      case 'READY_TO_DRAFT':
         return (
-          <span className="inline-flex items-center gap-1.5 text-xs text-slate-300 font-normal">
-            <span className="w-1.5 h-1.5 rounded-full bg-purple-400 shrink-0" /> Replied
+          <span className="inline-flex items-center gap-1.5 text-xs text-sky-300 font-normal">
+            <span className="w-1.5 h-1.5 rounded-full bg-sky-400 shrink-0" /> Ready to Draft
+          </span>
+        );
+      case 'NEEDS_REVIEW':
+        return (
+          <span className="inline-flex items-center gap-1.5 text-xs text-amber-300 font-normal">
+            <AlertCircle className="w-3.5 h-3.5 text-amber-400 shrink-0" /> Needs Review
           </span>
         );
       case 'MISSING_EMAIL':
@@ -237,25 +279,37 @@ export function LeadsTable({ leads, onSelectLead }: LeadsTableProps) {
         {/* Filter Controls & Export CSV */}
         <div className="flex flex-wrap items-center gap-3">
           {/* Status Filter Tabs */}
-          <div className="flex items-center bg-black/40 rounded-lg p-1 ring-1 ring-white/5">
+          <div className="flex items-center bg-black/40 rounded-lg p-1 ring-1 ring-white/5 flex-wrap gap-1">
             <button 
               onClick={() => setStatusFilter('active')}
               className={`px-3 py-1 rounded-md text-xs font-medium transition-colors ${statusFilter === 'active' ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-400 hover:text-slate-200'}`}
-              title="Show New and Queued leads only"
+              title="Show New and Queued leads"
             >
               New & Queued
             </button>
             <button 
-              onClick={() => setStatusFilter('new')}
-              className={`px-3 py-1 rounded-md text-xs transition-colors ${statusFilter === 'new' ? 'bg-white/10 text-slate-200 shadow-sm' : 'text-slate-500 hover:text-slate-300'}`}
+              onClick={() => setStatusFilter('sent')}
+              className={`px-3 py-1 rounded-md text-xs transition-colors ${statusFilter === 'sent' ? 'bg-emerald-600 text-white shadow-sm' : 'text-slate-400 hover:text-slate-200'}`}
             >
-              New
+              Sent
             </button>
             <button 
-              onClick={() => setStatusFilter('queued')}
-              className={`px-3 py-1 rounded-md text-xs transition-colors ${statusFilter === 'queued' ? 'bg-white/10 text-slate-200 shadow-sm' : 'text-slate-500 hover:text-slate-300'}`}
+              onClick={() => setStatusFilter('opened')}
+              className={`px-3 py-1 rounded-md text-xs transition-colors ${statusFilter === 'opened' ? 'bg-cyan-600 text-white shadow-sm' : 'text-slate-400 hover:text-slate-200'}`}
             >
-              Queued
+              Opened
+            </button>
+            <button 
+              onClick={() => setStatusFilter('replied')}
+              className={`px-3 py-1 rounded-md text-xs transition-colors ${statusFilter === 'replied' ? 'bg-purple-600 text-white shadow-sm' : 'text-slate-400 hover:text-slate-200'}`}
+            >
+              Replied
+            </button>
+            <button 
+              onClick={() => setStatusFilter('bounced')}
+              className={`px-3 py-1 rounded-md text-xs transition-colors ${statusFilter === 'bounced' ? 'bg-rose-600 text-white shadow-sm' : 'text-slate-400 hover:text-slate-200'}`}
+            >
+              Bounced
             </button>
             <button 
               onClick={() => setStatusFilter('all')}
@@ -416,7 +470,7 @@ export function LeadsTable({ leads, onSelectLead }: LeadsTableProps) {
 
                     {/* Status */}
                     <td className="py-5 px-6 text-center">
-                      {getStatusBadge(lead.status)}
+                      {getStatusBadge(lead)}
                     </td>
 
                     {/* Actions */}

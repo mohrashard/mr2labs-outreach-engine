@@ -1,5 +1,6 @@
 import { supabaseAdmin } from '@/lib/supabase/admin';
 import OpenAI from 'openai';
+import { GROQ_MODELS, GEMINI_MODELS, MISTRAL_MODELS, OPENROUTER_MODELS } from '../ai/models';
 
 export interface DiscoveredLead {
   companyName: string;
@@ -158,10 +159,10 @@ Apply the 4-layer formula: Business + Location + Page Intent + Qualification Sig
 
   // Try Groq first, then cascade through your existing LLM waterfall
   const providers = [
-    { key: process.env.GROQ_API_KEY, baseURL: 'https://api.groq.com/openai/v1', model: 'openai/gpt-oss-120b' },
-    { key: process.env.GEMINI_API_KEY, baseURL: 'https://generativelanguage.googleapis.com/v1beta/openai/', model: 'gemini-3.7-flash' },
-    { key: process.env.OPEN_ROUTER_API_KEY || process.env.OPENROUTER_API_KEY, baseURL: 'https://openrouter.ai/api/v1', model: 'meta-llama/llama-3.3-70b-instruct:free' },
-    { key: process.env.MISTRAL_API_KEY, baseURL: 'https://api.mistral.ai/v1', model: 'mistral-small-2506' },
+    { key: process.env.GROQ_API_KEY, baseURL: 'https://api.groq.com/openai/v1', model: GROQ_MODELS.PRIMARY },
+    { key: process.env.GEMINI_API_KEY, baseURL: 'https://generativelanguage.googleapis.com/v1beta/openai/', model: GEMINI_MODELS.PRIMARY },
+    { key: process.env.OPEN_ROUTER_API_KEY || process.env.OPENROUTER_API_KEY, baseURL: 'https://openrouter.ai/api/v1', model: OPENROUTER_MODELS.PRIMARY_FREE },
+    { key: process.env.MISTRAL_API_KEY, baseURL: 'https://api.mistral.ai/v1', model: MISTRAL_MODELS.PRIMARY },
   ];
 
   for (const provider of providers) {

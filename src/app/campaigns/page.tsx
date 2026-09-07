@@ -5,8 +5,9 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { 
   Layers, Plus, Play, Pause, Trash2, Edit3, ArrowLeft, RefreshCw, 
-  MapPin, Target, Calendar, Activity, CheckCircle, AlertTriangle, X, ShieldCheck
+  MapPin, Target, Calendar, Activity, CheckCircle, AlertTriangle, X, ShieldCheck, FileSpreadsheet
 } from 'lucide-react';
+import { CsvImportModal } from '@/components/campaigns/CsvImportModal';
 
 interface Campaign {
   id: string;
@@ -29,6 +30,7 @@ export default function CampaignManagerPage() {
   
   // Modals & Action States
   const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [editingCampaign, setEditingCampaign] = useState<Campaign | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [scrapingId, setScrapingId] = useState<string | null>(null);
@@ -237,6 +239,13 @@ export default function CampaignManagerPage() {
           </div>
 
           <div className="flex items-center gap-3">
+            <button
+              onClick={() => setIsImportModalOpen(true)}
+              className="px-4 py-2 bg-violet-600/20 hover:bg-violet-600/30 text-violet-300 border border-violet-500/30 rounded-full font-medium text-xs shadow-lg shadow-violet-600/10 transition-all duration-200 flex items-center gap-2"
+            >
+              <FileSpreadsheet className="w-3.5 h-3.5" />
+              Import CSV
+            </button>
             <button
               onClick={() => setIsCreateOpen(true)}
               className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-full font-medium text-xs shadow-lg shadow-indigo-600/20 transition-all duration-200 flex items-center gap-2"
@@ -697,6 +706,12 @@ export default function CampaignManagerPage() {
           </div>
         </div>
       )}
+      {/* CSV Import Modal */}
+      <CsvImportModal
+        isOpen={isImportModalOpen}
+        onClose={() => setIsImportModalOpen(false)}
+        onImportComplete={fetchCampaigns}
+      />
     </div>
   );
 }

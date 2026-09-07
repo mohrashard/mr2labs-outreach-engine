@@ -41,6 +41,8 @@ export interface PitchGenerationParams {
   rawAuditData?: Record<string, any>;
   pitchGuardContext?: PitchGuardContext;
   verifiedFeatures?: VerifiedFeaturesMap;
+  painPoint?: string | null;
+  mr2Solution?: string | null;
 }
 
 export const NICHE_TEMPLATES: Record<string, { pains: string; solution: string }> = {
@@ -254,6 +256,8 @@ export async function generateAuditAndPitch(
     rawAuditData?: Record<string, any>;
     pitchGuardContext?: PitchGuardContext;
     verifiedFeatures?: VerifiedFeaturesMap;
+    painPoint?: string | null;
+    mr2Solution?: string | null;
   }
 ): Promise<AuditResult> {
   const nicheInfo = await getNicheContextAsync(nicheInput);
@@ -306,11 +310,21 @@ export async function generateAuditAndPitch(
     ? formatPitchGuardPrompt(extraParams.pitchGuardContext)
     : '';
 
+  const customPainInstruction = extraParams?.painPoint 
+    ? `\nCUSTOM PAIN POINT TO HIGHLIGHT: "${extraParams.painPoint}".\nDirectly anchor Paragraph 1 around this exact friction point from the customer POV.`
+    : '';
+
+  const customSolutionInstruction = extraParams?.mr2Solution 
+    ? `\nCUSTOM MR² LABS SOLUTION: "${extraParams.mr2Solution}".\nIn Paragraph 3, present this exact system/solution as what you build for ${nichePlural}.`
+    : '';
+
   const systemPrompt = `${pitchGuardPrompt}
 CRITICAL: You are an instruction-follower writing outbound emails for Mr² Labs.
 PERSPECTIVE: Confused Potential Customer POV.
 You are NOT acting like a vendor, marketing agency, or auditor.
 You are opening as a REAL, CONFUSED POTENTIAL CUSTOMER who tried to book or contact ${cleanCompany} and experienced friction firsthand.
+${customPainInstruction}
+${customSolutionInstruction}
 
 WHY THIS WORKS:
 They do not feel pitched or sold to. They feel like they are losing a real paying customer right now. Their urgent panic/curiosity reaction drives replies.
@@ -336,7 +350,7 @@ They do not feel pitched or sold to. They feel like they are losing a real payin
    - Never output placeholders, never write "Hi Owner", never write "Hi null".
 
 2. PARAGRAPH 1 — CUSTOMER FRICTION (1-2 sentences):
-   - Open as a customer who tried to take action on ${cleanCompany} and experienced friction.
+   - Open as a customer who tried to take action on ${cleanCompany} and experienced friction.${extraParams?.painPoint ? ` MUST reflect this pain: "${extraParams.painPoint}".` : ''}
    - NEVER MENTION DOMAIN NAMES OR URLS (no .com, no http, no links). ONLY mention the business name "${cleanCompany}".
    - Examples based on real audit findings (NOTE: Zero em dashes):
      * Missing booking: "I was trying to book an appointment at ${cleanCompany} tonight but couldn't find a way to do it online after hours, ended up leaving without booking."
@@ -348,7 +362,7 @@ They do not feel pitched or sold to. They feel like they are losing a real payin
 
 4. PARAGRAPH 3 — THE NATURAL PIVOT (1-2 sentences):
    - Reveal what you do naturally (NOTE: Zero em dashes):
-   - "I actually build automated booking systems for ${nichePlural}. I already put together a quick 2-minute Loom breakdown of what I'd do for ${cleanCompany} specifically."
+   - ${extraParams?.mr2Solution ? `"I actually build ${extraParams.mr2Solution} for ${nichePlural}. I already put together a quick 2-minute Loom breakdown of what I'd do for ${cleanCompany} specifically."` : `"I actually build automated booking systems for ${nichePlural}. I already put together a quick 2-minute Loom breakdown of what I'd do for ${cleanCompany} specifically."`}
    - BANNED: NEVER say "PDF audit", "audit report", "diagnostic report". We ONLY offer a "quick 2-minute Loom breakdown".
 
 5. PARAGRAPH 4 — LOW-FRICTION CTA (1 sentence):
@@ -371,10 +385,10 @@ HARD CONSTRAINTS:
 ## OUTPUT FORMAT:
 {
   "email_subject": "couldn't find your booking page",
-  "audit_finding": "No after-hours online booking system found",
+  "audit_finding": "${extraParams?.painPoint ? extraParams.painPoint.replace(/"/g, '\\"') : 'No after-hours online booking system found'}",
   "business_impact": "Leads arriving after business hours drop off without self-scheduling",
-  "recommended_service": "Automated 24/7 Booking Assistant",
-  "service_pitch": "Automated booking system for ${cleanCompany}",
+  "recommended_service": "${extraParams?.mr2Solution ? extraParams.mr2Solution.replace(/"/g, '\\"') : 'Automated 24/7 Booking Assistant'}",
+  "service_pitch": "${extraParams?.mr2Solution ? extraParams.mr2Solution.replace(/"/g, '\\"') : 'Automated booking system for ' + cleanCompany}",
   "email_body": "Hi Sarah,\\n\\nI was trying to book an appointment at ${cleanCompany} tonight but couldn't find a way to do it online after hours, ended up leaving without booking.\\n\\nNot sure if that's intentional or something worth fixing on your end.\\n\\nI actually build automated booking systems for ${nichePlural}. I already put together a quick 2-minute Loom breakdown of what I'd do for ${cleanCompany} specifically.\\n\\nWant me to send it over?\\n\\nBest,\\nRashard\\n\\n${CUSTOMER_POV_FOOTER.replace(/\n/g, '\\n')}"
 }
 `;
@@ -387,7 +401,7 @@ HARD CONSTRAINTS:
 Domain: ${domain}
 ${founderFirstStr}
 Niche: ${nicheInfo.niche} (${nichePlural})
-Scraped Audit Data: ${JSON.stringify(flaggedOnly)}`;
+${extraParams?.painPoint ? `Identified Customer Pain Point: ${extraParams.painPoint}\n` : ''}${extraParams?.mr2Solution ? `Targeted Mr² Labs Solution: ${extraParams.mr2Solution}\n` : ''}Scraped Audit Data: ${JSON.stringify(flaggedOnly)}`;
 
   let lastContradictionError: string | null = null;
   const extraValidationContext = { ...extraParams, domain, nicheInput };

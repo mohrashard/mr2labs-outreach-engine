@@ -5,13 +5,14 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { 
   Users, Mail, MessageSquareText, Activity, Send,
-  Play, RefreshCw, CheckCircle, AlertTriangle, Layers, LogOut, ShieldCheck
+  Play, RefreshCw, CheckCircle, AlertTriangle, Layers, LogOut, ShieldCheck, FileSpreadsheet
 } from 'lucide-react';
 import Image from 'next/image';
 import { OutreachLead } from '@/types/lead';
 import { LeadsTable } from '@/components/leads/LeadsTable';
 import { LeadDetailDrawer } from '@/components/leads/LeadDetailDrawer';
 import { CampaignSetupForm } from '@/components/campaigns/CampaignSetupForm';
+import { CsvImportModal } from '@/components/campaigns/CsvImportModal';
 import { createClient } from '@/lib/supabase/client';
 import { LiveLogs } from '@/components/dashboard/LiveLogs';
 import PauseSendingButton from '@/components/PauseSendingButton';
@@ -21,6 +22,7 @@ export default function AdminDashboard() {
   const [userEmail, setUserEmail] = useState<string | null>(null);
   const [isScraping, setIsScraping] = useState(false);
   const [isFlushing, setIsFlushing] = useState(false);
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [selectedLead, setSelectedLead] = useState<OutreachLead | null>(null);
 
   // Live Data State
@@ -315,6 +317,13 @@ export default function AdminDashboard() {
             </div>
             
             <button 
+              onClick={() => setIsImportModalOpen(true)}
+              className="px-3.5 py-2 bg-violet-500/15 hover:bg-violet-500/25 text-violet-300 hover:text-violet-200 rounded-full font-medium text-xs transition-all duration-200 flex items-center gap-1.5 border border-violet-500/20"
+            >
+              <FileSpreadsheet className="w-3.5 h-3.5" />
+              <span>Import CSV</span>
+            </button>
+            <button 
               onClick={handleRunScraper}
               disabled={isScraping}
               className="px-4 py-2 bg-indigo-500/15 hover:bg-indigo-500/25 disabled:opacity-40 text-indigo-300 hover:text-indigo-200 rounded-full font-medium text-xs transition-all duration-200 flex items-center gap-2"
@@ -458,6 +467,16 @@ export default function AdminDashboard() {
         onClose={() => setSelectedLead(null)}
         onUpdateLead={handleUpdateLead}
         onSendTestEmail={handleSendTestEmail}
+      />
+
+      {/* CSV Lead Intelligence & Verification Modal */}
+      <CsvImportModal
+        isOpen={isImportModalOpen}
+        onClose={() => setIsImportModalOpen(false)}
+        onImportComplete={() => {
+          showAlert('success', 'CSV leads imported successfully!');
+          fetchData();
+        }}
       />
 
     </div>

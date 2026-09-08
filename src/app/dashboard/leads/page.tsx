@@ -311,6 +311,12 @@ export default function LeadsDashboardPage() {
               <span>⚡ Main Engine</span>
             </Link>
             <Link 
+              href="/import"
+              className="px-3.5 py-2 bg-violet-500/10 hover:bg-violet-500/20 text-violet-300 rounded-full font-medium text-xs transition-colors flex items-center gap-1.5 border border-violet-500/20"
+            >
+              <span>📁 Import Desk</span>
+            </Link>
+            <Link 
               href="/startups"
               className="px-3 py-2 bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-300 rounded-full font-medium text-xs transition-colors flex items-center gap-1.5 border border-indigo-500/20"
             >
